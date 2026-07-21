@@ -1,120 +1,49 @@
 import { useState } from 'react'
-import reactLogo from './assets/react.svg'
-import viteLogo from './assets/vite.svg'
-import heroImg from './assets/hero.png'
 import './App.css'
+import SlotKarte from './components/SlotKarte'
+
+// Moegliche Zutaten pro Kategorie.
+// Der Button (Schritt 3c) wird spaeter zufaellig eine davon auswaehlen.
+const proteinOptionen = ['Huehnchen', 'Rind', 'Fisch', 'Tofu', 'Eier']
+const carbsOptionen = ['Reis', 'Nudeln', 'Kartoffeln', 'Quinoa', 'Brot']
+const fettOptionen = ['Olivenoel', 'Avocado', 'Nuesse', 'Butter']
+const gemueseOptionen = ['Brokkoli', 'Spinat', 'Paprika', 'Karotten']
+
+// Hilfsfunktion: gibt aus einer beliebigen Liste ein zufaelliges Element zurueck.
+function zufaelligesElement(liste) {
+  const zufallsIndex = Math.floor(Math.random() * liste.length)
+  return liste[zufallsIndex]
+}
 
 function App() {
-  const [count, setCount] = useState(0)
+  // State speichert die aktuell angezeigte Zutat pro Kategorie.
+  // Als Startwert nehmen wir einfach die erste Zutat aus jeder Liste.
+  const [protein, setProtein] = useState(proteinOptionen[0])
+  const [carbs, setCarbs] = useState(carbsOptionen[0])
+  const [fett, setFett] = useState(fettOptionen[0])
+  const [gemuese, setGemuese] = useState(gemueseOptionen[0])
+
+  // Waehlt fuer jede Kategorie eine neue zufaellige Zutat aus und
+  // schreibt sie in den jeweiligen State.
+  function neueAuswahlWuerfeln() {
+    setProtein(zufaelligesElement(proteinOptionen))
+    setCarbs(zufaelligesElement(carbsOptionen))
+    setFett(zufaelligesElement(fettOptionen))
+    setGemuese(zufaelligesElement(gemueseOptionen))
+  }
 
   return (
     <>
-      <section id="center">
-        <div className="hero">
-          <img src={heroImg} className="base" width="170" height="179" alt="" />
-          <img src={reactLogo} className="framework" alt="React logo" />
-          <img src={viteLogo} className="vite" alt="Vite logo" />
-        </div>
-        <div>
-          <h1>Get started</h1>
-          <p>
-            Edit <code>src/App.jsx</code> and save to test <code>HMR</code>
-          </p>
-        </div>
-        <button
-          type="button"
-          className="counter"
-          onClick={() => setCount((count) => count + 1)}
-        >
-          Count is {count}
-        </button>
+      <section id="slots" className="grid grid-cols-2 gap-4 p-4">
+        <SlotKarte titel="Protein" text={protein} />
+        <SlotKarte titel="Carbs" text={carbs} />
+        <SlotKarte titel="Fett" text={fett} />
+        <SlotKarte titel="Gemüse" text={gemuese} />
       </section>
 
-      <div className="ticks"></div>
-
-      <section id="next-steps">
-        <div id="docs">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#documentation-icon"></use>
-          </svg>
-          <h2>Documentation</h2>
-          <p>Your questions, answered</p>
-          <ul>
-            <li>
-              <a href="https://vite.dev/" target="_blank">
-                <img className="logo" src={viteLogo} alt="" />
-                Explore Vite
-              </a>
-            </li>
-            <li>
-              <a href="https://react.dev/" target="_blank">
-                <img className="button-icon" src={reactLogo} alt="" />
-                Learn more
-              </a>
-            </li>
-          </ul>
-        </div>
-        <div id="social">
-          <svg className="icon" role="presentation" aria-hidden="true">
-            <use href="/icons.svg#social-icon"></use>
-          </svg>
-          <h2>Connect with us</h2>
-          <p>Join the Vite community</p>
-          <ul>
-            <li>
-              <a href="https://github.com/vitejs/vite" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#github-icon"></use>
-                </svg>
-                GitHub
-              </a>
-            </li>
-            <li>
-              <a href="https://chat.vite.dev/" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#discord-icon"></use>
-                </svg>
-                Discord
-              </a>
-            </li>
-            <li>
-              <a href="https://x.com/vite_js" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#x-icon"></use>
-                </svg>
-                X.com
-              </a>
-            </li>
-            <li>
-              <a href="https://bsky.app/profile/vite.dev" target="_blank">
-                <svg
-                  className="button-icon"
-                  role="presentation"
-                  aria-hidden="true"
-                >
-                  <use href="/icons.svg#bluesky-icon"></use>
-                </svg>
-                Bluesky
-              </a>
-            </li>
-          </ul>
-        </div>
-      </section>
-
-      <div className="ticks"></div>
-      <section id="spacer"></section>
+      <button type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-blue-600 px-4 py-2 text-white">
+        Neue Auswahl würfeln
+      </button>
     </>
   )
 }
