@@ -74,6 +74,25 @@ function App() {
     setGemuese(zufaelligesElement(gemueseOptionen))
   }
 
+  // Diese vier Funktionen aendern jeweils nur EINEN State.
+  // Sie werden gleich als Prop an die passende SlotKarte weitergegeben,
+  // damit deren kleiner Re-Roll-Button nur diesen einen Slot neu wuerfelt.
+  function proteinWuerfeln() {
+    setProtein(zufaelligesElement(proteinOptionen))
+  }
+
+  function carbsWuerfeln() {
+    setCarbs(zufaelligesElement(carbsOptionen))
+  }
+
+  function fettWuerfeln() {
+    setFett(zufaelligesElement(fettOptionen))
+  }
+
+  function gemueseWuerfeln() {
+    setGemuese(zufaelligesElement(gemueseOptionen))
+  }
+
   if (laedt) {
     return <p className="p-4">Lädt...</p>
   }
@@ -81,10 +100,10 @@ function App() {
   return (
     <>
       <section id="slots" className="grid grid-cols-2 gap-4 p-4">
-        <SlotKarte titel="Protein" text={protein} />
-        <SlotKarte titel="Carbs" text={carbs} />
-        <SlotKarte titel="Fett" text={fett} />
-        <SlotKarte titel="Gemüse" text={gemuese} />
+        <SlotKarte titel="Protein" text={protein} onWuerfeln={proteinWuerfeln} />
+        <SlotKarte titel="Carbs" text={carbs} onWuerfeln={carbsWuerfeln} />
+        <SlotKarte titel="Fett" text={fett} onWuerfeln={fettWuerfeln} />
+        <SlotKarte titel="Gemüse" text={gemuese} onWuerfeln={gemueseWuerfeln} />
       </section>
 
       <button type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-blue-600 px-4 py-2 text-white">
