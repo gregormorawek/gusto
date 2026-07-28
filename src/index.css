@@ -1,9 +1,22 @@
 @import "tailwindcss";
-:root {
-  --color-primary: #a3e635;
-  --color-teal: #14b8a6;
-  --color-orange: #f97316;
-  --color-bg: #1f2024;
-  --color-card: #2a2b30;
-  --color-text: #f4f4f5;
+
+/* Marken-Tokens "Warm & natuerlich". Aenderungen an diesen Werten wirken
+   sich ueber @theme automatisch auf alle Tailwind-Utility-Klassen aus
+   (z. B. bg-primary, text-text-muted, font-display). */
+@theme {
+  --color-bg: #f7f1e6;
+  --color-card: #fffdf8;
+  --color-primary: #c9754a;
+  --color-secondary: #6b7a4a;
+  --color-text: #3e2e22;
+  --color-text-muted: #8a6b4a;
+
+  --font-display: "Fraunces", serif;
+  --font-sans: "Inter", sans-serif;
+}
+
+body {
+  background-color: var(--color-bg);
+  color: var(--color-text);
+  font-family: var(--font-sans);
 }

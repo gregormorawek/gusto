@@ -31,8 +31,45 @@ function App() {
   const [fett, setFett] = useState(null)
   const [gemuese, setGemuese] = useState(null)
 
+  // Eigener State pro Slot fuer die vom User eingegebene Portionsgroesse (in Gramm).
+  // Das ist NICHT dasselbe wie protein.portion_g: Der Datenbank-Wert ist nur der
+  // Startwert, der User soll ihn aber ueberschreiben koennen. Anfangswert ist null,
+  // weil beim allerersten Rendern noch keine Zutat geladen ist.
+  const [proteinPortion, setProteinPortion] = useState(null)
+  const [carbsPortion, setCarbsPortion] = useState(null)
+  const [fettPortion, setFettPortion] = useState(null)
+  const [gemuesePortion, setGemuesePortion] = useState(null)
+
   // Solange die Daten noch nicht aus der Datenbank geladen sind, zeigen wir "Laedt...".
   const [laedt, setLaedt] = useState(true)
+
+  // Jedes Mal, wenn sich "protein" aendert (erstes Laden ODER Re-Roll),
+  // setzen wir proteinPortion auf die Portionsgroesse der NEUEN Zutat zurueck.
+  // Ohne das wuerde nach einem Re-Roll die alte, vom User eingegebene
+  // Portionsgroesse an der neuen Zutat kleben bleiben.
+  useEffect(() => {
+    if (protein) {
+      setProteinPortion(protein.portion_g)
+    }
+  }, [protein])
+
+  useEffect(() => {
+    if (carbs) {
+      setCarbsPortion(carbs.portion_g)
+    }
+  }, [carbs])
+
+  useEffect(() => {
+    if (fett) {
+      setFettPortion(fett.portion_g)
+    }
+  }, [fett])
+
+  useEffect(() => {
+    if (gemuese) {
+      setGemuesePortion(gemuese.portion_g)
+    }
+  }, [gemuese])
 
   // Leeres Array [] als zweites Argument: dieser Code laeuft nur EINMAL,
   // wenn die Komponente zum ersten Mal angezeigt wird.
@@ -117,31 +154,36 @@ function App() {
   // Mit aufPortionSkalieren() rechnen wir ihn zuerst pro Zutat auf die
   // tatsaechliche Portionsgroesse um, und summieren erst DANACH.
   const summeKalorien =
-    aufPortionSkalieren(protein.kalorien, protein.portion_g) +
-    aufPortionSkalieren(carbs.kalorien, carbs.portion_g) +
-    aufPortionSkalieren(fett.kalorien, fett.portion_g) +
-    aufPortionSkalieren(gemuese.kalorien, gemuese.portion_g)
+    aufPortionSkalieren(protein.kalorien, proteinPortion ?? protein.portion_g) +
+    aufPortionSkalieren(carbs.kalorien, carbsPortion ?? carbs.portion_g) +
+    aufPortionSkalieren(fett.kalorien, fettPortion ?? fett.portion_g) +
+    aufPortionSkalieren(gemuese.kalorien, gemuesePortion ?? gemuese.portion_g)
 
   const summeProtein =
-    aufPortionSkalieren(protein.protein_g, protein.portion_g) +
-    aufPortionSkalieren(carbs.protein_g, carbs.portion_g) +
-    aufPortionSkalieren(fett.protein_g, fett.portion_g) +
-    aufPortionSkalieren(gemuese.protein_g, gemuese.portion_g)
+    aufPortionSkalieren(protein.protein_g, proteinPortion ?? protein.portion_g) +
+    aufPortionSkalieren(carbs.protein_g, carbsPortion ?? carbs.portion_g) +
+    aufPortionSkalieren(fett.protein_g, fettPortion ?? fett.portion_g) +
+    aufPortionSkalieren(gemuese.protein_g, gemuesePortion ?? gemuese.portion_g)
 
   const summeCarbs =
-    aufPortionSkalieren(protein.carbs_g, protein.portion_g) +
-    aufPortionSkalieren(carbs.carbs_g, carbs.portion_g) +
-    aufPortionSkalieren(fett.carbs_g, fett.portion_g) +
-    aufPortionSkalieren(gemuese.carbs_g, gemuese.portion_g)
+    aufPortionSkalieren(protein.carbs_g, proteinPortion ?? protein.portion_g) +
+    aufPortionSkalieren(carbs.carbs_g, carbsPortion ?? carbs.portion_g) +
+    aufPortionSkalieren(fett.carbs_g, fettPortion ?? fett.portion_g) +
+    aufPortionSkalieren(gemuese.carbs_g, gemuesePortion ?? gemuese.portion_g)
 
   const summeFett =
-    aufPortionSkalieren(protein.fett_g, protein.portion_g) +
-    aufPortionSkalieren(carbs.fett_g, carbs.portion_g) +
-    aufPortionSkalieren(fett.fett_g, fett.portion_g) +
-    aufPortionSkalieren(gemuese.fett_g, gemuese.portion_g)
+    aufPortionSkalieren(protein.fett_g, proteinPortion ?? protein.portion_g) +
+    aufPortionSkalieren(carbs.fett_g, carbsPortion ?? carbs.portion_g) +
+    aufPortionSkalieren(fett.fett_g, fettPortion ?? fett.portion_g) +
+    aufPortionSkalieren(gemuese.fett_g, gemuesePortion ?? gemuese.portion_g)
 
   return (
     <>
+      <header className="p-4">
+        <h1 className="font-display text-3xl font-semibold text-primary">gusto</h1>
+        <p className="text-sm text-text-muted">deine nächste mahlzeit, gewürfelt</p>
+      </header>
+
       <section id="slots" className="grid grid-cols-2 gap-4 p-4">
         <SlotKarte titel="Protein" text={protein.name} onWuerfeln={proteinWuerfeln} />
         <SlotKarte titel="Carbs" text={carbs.name} onWuerfeln={carbsWuerfeln} />
@@ -149,15 +191,15 @@ function App() {
         <SlotKarte titel="Gemüse" text={gemuese.name} onWuerfeln={gemueseWuerfeln} />
       </section>
 
-      <section id="summe" className="mx-4 rounded-lg border border-gray-300 p-4 shadow-sm">
-        <h2 className="text-lg font-semibold">Summe</h2>
-        <p className="text-gray-600">{summeKalorien.toFixed(1)} kcal</p>
-        <p className="text-gray-600">Protein: {summeProtein.toFixed(1)} g</p>
-        <p className="text-gray-600">Carbs: {summeCarbs.toFixed(1)} g</p>
-        <p className="text-gray-600">Fett: {summeFett.toFixed(1)} g</p>
+      <section id="summe" className="mx-4 rounded-lg border border-secondary/20 bg-secondary/10 p-4 shadow-sm">
+        <h2 className="text-lg font-semibold text-text">Summe</h2>
+        <p className="font-display text-3xl font-semibold text-text">{summeKalorien.toFixed(1)} kcal</p>
+        <p className="text-text-muted">Protein: {summeProtein.toFixed(1)} g</p>
+        <p className="text-text-muted">Carbs: {summeCarbs.toFixed(1)} g</p>
+        <p className="text-text-muted">Fett: {summeFett.toFixed(1)} g</p>
       </section>
 
-      <button type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-blue-600 px-4 py-2 text-white">
+      <button type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
         Neue Auswahl würfeln
       </button>
     </>

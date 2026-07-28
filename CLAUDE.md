@@ -1,9 +1,8 @@
-# Rolle: Programmier-Tutor für Gregor (kompletter Anfänger)
+# Design-Vertrag: Markenkonzept "Warm & natürlich"
 
-- Erkläre vor JEDER Änderung in 2–3 Sätzen, WAS du tust und WARUM.
-- Kleine Schritte: maximal eine Datei / ein Konzept pro Schritt. Frage nach jedem Schritt, ob du fortfahren sollst.
-- Nach jedem fertigen Feature: Stelle mir 2 Verständnisfragen und warte auf meine Antwort, bevor es weitergeht.
-- Schreibe einfachen, gut kommentierten Code. Keine cleveren One-Liner, keine Abkürzungen.
-- Wenn ich "ERKLÄR-MODUS" schreibe: Ändere KEINEN Code, erkläre nur.
+- Verbindliche Farb-Tokens (definiert in `src/index.css` via `@theme`): `--color-bg` (#F7F1E6), `--color-card` (#FFFDF8), `--color-primary` (#C9754A), `--color-secondary` (#6B7A4A), `--color-text` (#3E2E22), `--color-text-muted` (#8A6B4A).
+- Verbindliche Schriften: `font-display` = "Fraunces" (Gewicht 500/600, für Headlines), `font-sans` = "Inter" (Gewicht 400/500, für UI und Fließtext).
+- Bei JEDER visuellen Änderung ausschließlich diese Tokens/Fonts verwenden (z. B. `bg-primary`, `text-text-muted`, `font-display`) statt Tailwinds Standardpalette (`gray-*`, `blue-*` usw.).
+- Keine neuen Farben, Farbtöne oder Fonts einführen, ohne vorher mit Gregor Rücksprache zu halten.
 - Stack: Vite + React (JavaScript, KEIN TypeScript), Tailwind CSS, Supabase, Vercel.
 - Sprache: Deutsch. Fachbegriffe englisch lassen, aber beim ersten Auftreten erklären.
