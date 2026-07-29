@@ -202,7 +202,7 @@ function App() {
   }
 
   // Baut aus vier Zutaten einen kompletten Tagesplan-Eintrag: skalierte
-  // Portionen plus die daraus resultierende Kalorien-Summe dieser Mahlzeit.
+  // Portionen plus die daraus resultierenden Naehrwert-Summen dieser Mahlzeit.
   function tagesplanEintragBauen(mahlzeitTyp, proteinZutat, carbsZutat, fettZutat, gemueseZutat) {
     const portionen = portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitTyp, ziel)
     const summeKalorien =
@@ -210,6 +210,21 @@ function App() {
       aufPortionSkalieren(carbsZutat.kalorien, portionen.carbsPortion) +
       aufPortionSkalieren(fettZutat.kalorien, portionen.fettPortion) +
       aufPortionSkalieren(gemueseZutat.kalorien, portionen.gemuesePortion)
+    const summeProtein =
+      aufPortionSkalieren(proteinZutat.protein_g, portionen.proteinPortion) +
+      aufPortionSkalieren(carbsZutat.protein_g, portionen.carbsPortion) +
+      aufPortionSkalieren(fettZutat.protein_g, portionen.fettPortion) +
+      aufPortionSkalieren(gemueseZutat.protein_g, portionen.gemuesePortion)
+    const summeCarbs =
+      aufPortionSkalieren(proteinZutat.carbs_g, portionen.proteinPortion) +
+      aufPortionSkalieren(carbsZutat.carbs_g, portionen.carbsPortion) +
+      aufPortionSkalieren(fettZutat.carbs_g, portionen.fettPortion) +
+      aufPortionSkalieren(gemueseZutat.carbs_g, portionen.gemuesePortion)
+    const summeFett =
+      aufPortionSkalieren(proteinZutat.fett_g, portionen.proteinPortion) +
+      aufPortionSkalieren(carbsZutat.fett_g, portionen.carbsPortion) +
+      aufPortionSkalieren(fettZutat.fett_g, portionen.fettPortion) +
+      aufPortionSkalieren(gemueseZutat.fett_g, portionen.gemuesePortion)
 
     return {
       mahlzeitTyp,
@@ -219,6 +234,9 @@ function App() {
       gemuese: gemueseZutat,
       ...portionen,
       summeKalorien,
+      summeProtein,
+      summeCarbs,
+      summeFett,
     }
   }
 
@@ -360,6 +378,13 @@ function App() {
     setFett(neuFett)
     setGemuese(neuGemuese)
     portionenSkaliertSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit)
+
+    // Ist gerade ein Tagesplan sichtbar, muss der ebenfalls neu gewuerfelt
+    // werden, sonst wuerden dort weiterhin Zutaten stehen, die die neue
+    // Diaet-Auswahl nicht erfuellen.
+    if (tagesplan) {
+      setTagesplan(tagesplanErzeugen(neueDiaeten))
+    }
   }
 
   // Wird von ZielEinstellungen aufgerufen, wenn der User einen anderen
@@ -379,18 +404,25 @@ function App() {
     setZiel((aktuell) => ({ ...aktuell, kalorien }))
   }
 
-  // Wird vom "Ganzen Tag planen"-Button aufgerufen. Wuerfelt fuer jeden der
-  // vier Mahlzeit-Typen (unabhaengig vom aktuell gewaehlten Mahlzeit-Filter)
-  // einen eigenen Zutaten-Satz und skaliert ihn mit dem passenden Tages-Anteil.
-  function tagPlanen() {
-    const neuerPlan = MAHLZEIT_REIHENFOLGE.map((mahlzeitTyp) => {
-      const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeitTyp, diaeten))
-      const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeitTyp, diaeten))
-      const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeitTyp, diaeten))
-      const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeitTyp, diaeten))
+  // Wuerfelt fuer jeden der vier Mahlzeit-Typen (unabhaengig vom aktuell
+  // gewaehlten Mahlzeit-Filter) einen eigenen Zutaten-Satz, skaliert ihn mit
+  // dem passenden Tages-Anteil und gibt den kompletten neuen Tagesplan
+  // zurueck (setzt selbst KEINEN State, damit die Funktion sowohl fuer den
+  // "Ganzen Tag planen"-Button als auch fuer eine Diaet-Filter-Aenderung
+  // waehrend eines aktiven Tagesplans wiederverwendet werden kann).
+  function tagesplanErzeugen(diaetenWert) {
+    return MAHLZEIT_REIHENFOLGE.map((mahlzeitTyp) => {
+      const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeitTyp, diaetenWert))
+      const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeitTyp, diaetenWert))
+      const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeitTyp, diaetenWert))
+      const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeitTyp, diaetenWert))
       return tagesplanEintragBauen(mahlzeitTyp, neuProtein, neuCarbs, neuFett, neuGemuese)
     })
-    setTagesplan(neuerPlan)
+  }
+
+  // Wird vom "Ganzen Tag planen"- bzw. "Ganzen Tag neu planen"-Button aufgerufen.
+  function tagPlanen() {
+    setTagesplan(tagesplanErzeugen(diaeten))
   }
 
   // Wuerfelt im Tagesplan EINEN Slot (kategorie: protein/carbs/fett/gemuese)
@@ -484,6 +516,7 @@ function App() {
           tagesplan={tagesplan}
           onSlotWuerfeln={tagesplanSlotWuerfeln}
           onZurueck={() => setTagesplan(null)}
+          onNeuPlanen={tagPlanen}
         />
       ) : (
         <>
