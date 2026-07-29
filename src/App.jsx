@@ -14,18 +14,39 @@ const MAHLZEIT_REIHENFOLGE = MAHLZEITEN.map((m) => m.slug)
 
 const ZIEL_LOCALSTORAGE_KEY = 'gusto-ziel'
 
-// Laedt das gespeicherte Kalorienziel aus dem localStorage. Ist noch nichts
-// gespeichert oder der Inhalt beschaedigt (z. B. kein gueltiges JSON), wird
-// auf den Standard "kein Ziel" zurueckgefallen.
+// Standard-Ziel: kein Kalorienziel, kein Makro-Gesamtziel fuer den Tag.
+const ZIEL_STANDARD = { typ: 'kein', kalorien: '', makro: { protein: '', carbs: '', fett: '' } }
+
+// Laedt das gespeicherte Kalorienziel (inkl. Makro-Gesamtziel fuer "Pro Tag")
+// aus dem localStorage. Ist noch nichts gespeichert oder der Inhalt
+// beschaedigt (z. B. kein gueltiges JSON), wird auf ZIEL_STANDARD
+// zurueckgefallen. Der Merge mit ZIEL_STANDARD sorgt dafuer, dass auch aeltere,
+// vor Einfuehrung des Makro-Gesamtziels gespeicherte Objekte (ohne "makro")
+// sauber ergaenzt werden.
 function zielLaden() {
   try {
     const gespeichert = localStorage.getItem(ZIEL_LOCALSTORAGE_KEY)
     if (!gespeichert) {
-      return { typ: 'kein', kalorien: '' }
+      return ZIEL_STANDARD
     }
-    return JSON.parse(gespeichert)
+    return { ...ZIEL_STANDARD, ...JSON.parse(gespeichert) }
   } catch {
-    return { typ: 'kein', kalorien: '' }
+    return ZIEL_STANDARD
+  }
+}
+
+const MAKRO_ZIELE_LOCALSTORAGE_KEY = 'gusto-makro-ziele'
+
+// Laedt die gespeicherten Makro-Ziele (Protein/Carbs/Fett in Gramm, PRO
+// MAHLZEIT-TYP) aus dem localStorage. Ist noch nichts gespeichert oder der
+// Inhalt beschaedigt, wird ein leeres Objekt zurueckgegeben (= keine Ziele
+// gesetzt). Form: { [mahlzeitTyp]: { protein, carbs, fett } }.
+function makroZieleLaden() {
+  try {
+    const gespeichert = localStorage.getItem(MAKRO_ZIELE_LOCALSTORAGE_KEY)
+    return gespeichert ? JSON.parse(gespeichert) : {}
+  } catch {
+    return {}
   }
 }
 
@@ -104,6 +125,30 @@ function zielKalorienFuerMahlzeit(zielWert, mahlzeitWert) {
   return kalorienZahl * (TAGES_ANTEIL[mahlzeitWert] ?? 0)
 }
 
+// Teilt einen einzelnen Wert des Tages-Makroziels (Gramm) mit demselben
+// TAGES_ANTEIL-Schluessel wie das Kalorienziel auf eine Mahlzeit auf. Leerer/
+// ungueltiger Wert ergibt '' (kein Ziel fuer diese Mahlzeit).
+function tagesMakroAnteilBerechnen(tagesWert, anteil) {
+  const zahl = Number(tagesWert)
+  if (!zahl || zahl <= 0) {
+    return ''
+  }
+  return String(Math.round(zahl * anteil))
+}
+
+// Leitet aus dem Tages-Makroziel (zielWert.makro) das Makro-Ziel fuer EINE
+// Mahlzeit ab. Rein lokale Berechnung fuer den Tagesplan - liest/schreibt
+// NICHT den makroZiele-State, der ausschliesslich der Einzel-Ansicht
+// vorbehalten ist (beide Ansichten haben also getrennte Makro-Ziel-Quellen).
+function makroZielFuerMahlzeitAusTagesziel(zielWert, mahlzeitWert) {
+  const anteil = TAGES_ANTEIL[mahlzeitWert] ?? 0
+  return {
+    protein: tagesMakroAnteilBerechnen(zielWert.makro.protein, anteil),
+    carbs: tagesMakroAnteilBerechnen(zielWert.makro.carbs, anteil),
+    fett: tagesMakroAnteilBerechnen(zielWert.makro.fett, anteil),
+  }
+}
+
 // Berechnet den Faktor, mit dem alle vier Portionen GLEICHMAESSIG multipliziert
 // werden, damit die Kalorien-Summe moeglichst nah am Ziel liegt. Kalorien
 // skalieren linear mit der Portionsgroesse, deshalb trifft zielKalorien /
@@ -134,6 +179,109 @@ function portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, m
     carbsPortion: Math.round(carbsZutat.portion_g * faktor),
     fettPortion: Math.round(fettZutat.portion_g * faktor),
     gemuesePortion: Math.round(gemueseZutat.portion_g * faktor),
+  }
+}
+
+// Passt EINE Portion so an, dass ihr Makro-Wert (in Gramm) moeglichst nah am
+// Ziel liegt - in beide Richtungen -, waehrend die Kalorien-Summe der GESAMTEN
+// Mahlzeit innerhalb von +-15% von referenzKalorien bleibt. kalorienAndereSlots
+// sind die (bereits feststehenden) Kalorien der jeweils anderen drei Slots.
+// Ist das Ziel mit der Toleranz nicht vereinbar, wird die Portion so weit wie
+// moeglich angepasst (bestmoegliche Annaeherung) und erreichbar = false gesetzt.
+function makroZielPortionBerechnen(zutat, aktuellePortion, zielGramm, naehrwertSchluessel, kalorienAndereSlots, referenzKalorien) {
+  if (!zielGramm || zielGramm <= 0) {
+    return { portion: aktuellePortion, erreichbar: true }
+  }
+
+  const naehrwertProGramm = zutat[naehrwertSchluessel] / 100
+  if (naehrwertProGramm <= 0) {
+    // Die Zutat traegt dieses Makro gar nicht - das Ziel ist prinzipiell unerreichbar.
+    return { portion: aktuellePortion, erreichbar: false }
+  }
+
+  const kandidatPortion = zielGramm / naehrwertProGramm
+  const kalorienProGramm = zutat.kalorien / 100
+  if (kalorienProGramm <= 0) {
+    // Kalorienfreie Zutat: die Toleranz-Grenze betrifft diese Portion nicht.
+    return { portion: Math.round(kandidatPortion), erreichbar: true }
+  }
+
+  const portionMin = Math.max(0, (referenzKalorien * 0.85 - kalorienAndereSlots) / kalorienProGramm)
+  const portionMax = Math.max(0, (referenzKalorien * 1.15 - kalorienAndereSlots) / kalorienProGramm)
+  const geklemmtePortion = Math.min(portionMax, Math.max(portionMin, kandidatPortion))
+
+  return {
+    portion: Math.round(geklemmtePortion),
+    erreichbar: Math.abs(geklemmtePortion - kandidatPortion) < 0.5,
+  }
+}
+
+// Wendet zuerst die bestehende, gleichmaessige Kalorienziel-Skalierung an und
+// passt danach - falls gesetzt - Protein-, Carbs- und Fett-Portion NACHEINANDER
+// an ihr jeweiliges Makro-Ziel an (Gemuese hat kein Makro-Ziel). Jede Anpassung
+// bezieht sich auf den bis dahin aktuellen Kalorien-Stand der Mahlzeit, d. h.
+// die Reihenfolge Protein -> Carbs -> Fett kann das Ergebnis beeinflussen, wenn
+// mehrere Ziele gleichzeitig gesetzt sind und die Toleranz knapp wird.
+function portionenMitMakroZielenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert, makroZieleWert) {
+  const basisPortionen = portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert)
+
+  const zielKalorien = zielKalorienFuerMahlzeit(zielWert, mahlzeitWert)
+  const kalorienVorMakroAnpassung =
+    aufPortionSkalieren(proteinZutat.kalorien, basisPortionen.proteinPortion) +
+    aufPortionSkalieren(carbsZutat.kalorien, basisPortionen.carbsPortion) +
+    aufPortionSkalieren(fettZutat.kalorien, basisPortionen.fettPortion) +
+    aufPortionSkalieren(gemueseZutat.kalorien, basisPortionen.gemuesePortion)
+  const referenzKalorien = zielKalorien ?? kalorienVorMakroAnpassung
+
+  let proteinPortion = basisPortionen.proteinPortion
+  let carbsPortion = basisPortionen.carbsPortion
+  let fettPortion = basisPortionen.fettPortion
+  const gemuesePortion = basisPortionen.gemuesePortion
+
+  const proteinErgebnis = makroZielPortionBerechnen(
+    proteinZutat,
+    proteinPortion,
+    Number(makroZieleWert.protein),
+    'protein_g',
+    aufPortionSkalieren(carbsZutat.kalorien, carbsPortion) +
+      aufPortionSkalieren(fettZutat.kalorien, fettPortion) +
+      aufPortionSkalieren(gemueseZutat.kalorien, gemuesePortion),
+    referenzKalorien
+  )
+  proteinPortion = proteinErgebnis.portion
+
+  const carbsErgebnis = makroZielPortionBerechnen(
+    carbsZutat,
+    carbsPortion,
+    Number(makroZieleWert.carbs),
+    'carbs_g',
+    aufPortionSkalieren(proteinZutat.kalorien, proteinPortion) +
+      aufPortionSkalieren(fettZutat.kalorien, fettPortion) +
+      aufPortionSkalieren(gemueseZutat.kalorien, gemuesePortion),
+    referenzKalorien
+  )
+  carbsPortion = carbsErgebnis.portion
+
+  const fettErgebnis = makroZielPortionBerechnen(
+    fettZutat,
+    fettPortion,
+    Number(makroZieleWert.fett),
+    'fett_g',
+    aufPortionSkalieren(proteinZutat.kalorien, proteinPortion) +
+      aufPortionSkalieren(carbsZutat.kalorien, carbsPortion) +
+      aufPortionSkalieren(gemueseZutat.kalorien, gemuesePortion),
+    referenzKalorien
+  )
+  fettPortion = fettErgebnis.portion
+
+  return {
+    proteinPortion,
+    carbsPortion,
+    fettPortion,
+    gemuesePortion,
+    proteinZielErreichbar: proteinErgebnis.erreichbar,
+    carbsZielErreichbar: carbsErgebnis.erreichbar,
+    fettZielErreichbar: fettErgebnis.erreichbar,
   }
 }
 
@@ -189,22 +337,69 @@ function App() {
   // MAHLZEIT_REIHENFOLGE), die die Einzel-Ansicht ersetzen.
   const [tagesplan, setTagesplan] = useState(null)
 
+  // Makro-Ziele (Protein/Carbs/Fett in Gramm) PRO MAHLZEIT-TYP:
+  // { [mahlzeitTyp]: { protein, carbs, fett } }. Wird von der Einzel-Ansicht
+  // (fuer den aktuellen Mahlzeit-Filter) UND vom Tagesplan (fuer alle vier
+  // Mahlzeiten) gemeinsam genutzt, damit z. B. "40g Protein beim Fruehstueck"
+  // unabhaengig von Ansicht und Reload erhalten bleibt.
+  const [makroZiele, setMakroZiele] = useState(makroZieleLaden)
+
+  useEffect(() => {
+    localStorage.setItem(MAKRO_ZIELE_LOCALSTORAGE_KEY, JSON.stringify(makroZiele))
+  }, [makroZiele])
+
+  // Ob das jeweilige Makro-Ziel der aktuell angezeigten Einzel-Mahlzeit mit
+  // der zuletzt berechneten Portion erreichbar war (fuer den dezenten Hinweis
+  // in der UI). Wird bei jedem Wuerfeln/Ziel-Aendern neu gesetzt. Wird NICHT
+  // persistiert, da rein aus der aktuellen Zutat + Ziel abgeleitet.
+  const [proteinZielErreichbar, setProteinZielErreichbar] = useState(true)
+  const [carbsZielErreichbar, setCarbsZielErreichbar] = useState(true)
+  const [fettZielErreichbar, setFettZielErreichbar] = useState(true)
+
+  // Liefert die Makro-Ziele fuer einen Mahlzeit-Typ mit sinnvollem Default.
+  function makroZieleFuer(mahlzeitTyp) {
+    return makroZiele[mahlzeitTyp] ?? { protein: '', carbs: '', fett: '' }
+  }
+
   // Setzt die vier Portionen fuer EINE Mahlzeit passend zum aktuellen
-  // Kalorienziel. Wird nach jedem Wuerfeln aufgerufen (statt die Portion
-  // einfach auf portion_g zurueckzusetzen), damit die Skalierung nicht durch
-  // einen spaeteren Reset ueberschrieben wird.
-  function portionenSkaliertSetzen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert) {
-    const portionen = portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, ziel)
-    setProteinPortion(portionen.proteinPortion)
-    setCarbsPortion(portionen.carbsPortion)
-    setFettPortion(portionen.fettPortion)
-    setGemuesePortion(portionen.gemuesePortion)
+  // Kalorienziel UND den aktuellen Makro-Zielen. Wird nach jedem Wuerfeln
+  // aufgerufen (statt die Portion einfach auf portion_g zurueckzusetzen),
+  // damit die Skalierung nicht durch einen spaeteren Reset ueberschrieben wird.
+  function portionenMitMakroZielenSetzen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, makroZieleWert) {
+    const ergebnis = portionenMitMakroZielenBerechnen(
+      proteinZutat,
+      carbsZutat,
+      fettZutat,
+      gemueseZutat,
+      mahlzeitWert,
+      ziel,
+      makroZieleWert
+    )
+    setProteinPortion(ergebnis.proteinPortion)
+    setCarbsPortion(ergebnis.carbsPortion)
+    setFettPortion(ergebnis.fettPortion)
+    setGemuesePortion(ergebnis.gemuesePortion)
+    setProteinZielErreichbar(ergebnis.proteinZielErreichbar)
+    setCarbsZielErreichbar(ergebnis.carbsZielErreichbar)
+    setFettZielErreichbar(ergebnis.fettZielErreichbar)
   }
 
   // Baut aus vier Zutaten einen kompletten Tagesplan-Eintrag: skalierte
-  // Portionen plus die daraus resultierenden Naehrwert-Summen dieser Mahlzeit.
-  function tagesplanEintragBauen(mahlzeitTyp, proteinZutat, carbsZutat, fettZutat, gemueseZutat) {
-    const portionen = portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitTyp, ziel)
+  // Portionen (inkl. Makro-Ziel-Anpassung) plus die daraus resultierenden
+  // Naehrwert-Summen dieser Mahlzeit. makroZieleWert wird explizit als Param
+  // uebergeben (statt aus dem makroZiele-State gelesen), damit der Aufrufer
+  // z. B. gerade erst getippte Werte OHNE Verzoegerung durch asynchrones
+  // setState hier schon beruecksichtigen kann.
+  function tagesplanEintragBauen(mahlzeitTyp, proteinZutat, carbsZutat, fettZutat, gemueseZutat, makroZieleWert) {
+    const portionen = portionenMitMakroZielenBerechnen(
+      proteinZutat,
+      carbsZutat,
+      fettZutat,
+      gemueseZutat,
+      mahlzeitTyp,
+      ziel,
+      makroZieleWert
+    )
     const summeKalorien =
       aufPortionSkalieren(proteinZutat.kalorien, portionen.proteinPortion) +
       aufPortionSkalieren(carbsZutat.kalorien, portionen.carbsPortion) +
@@ -233,6 +428,9 @@ function App() {
       fett: fettZutat,
       gemuese: gemueseZutat,
       ...portionen,
+      proteinZielG: makroZieleWert.protein,
+      carbsZielG: makroZieleWert.carbs,
+      fettZielG: makroZieleWert.fett,
       summeKalorien,
       summeProtein,
       summeCarbs,
@@ -282,7 +480,7 @@ function App() {
       setCarbs(neuCarbs)
       setFett(neuFett)
       setGemuese(neuGemuese)
-      portionenSkaliertSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit)
+      portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
 
       setLaedt(false)
     }
@@ -302,7 +500,7 @@ function App() {
     setCarbs(neuCarbs)
     setFett(neuFett)
     setGemuese(neuGemuese)
-    portionenSkaliertSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit)
+    portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
 
   // Diese vier Funktionen aendern jeweils nur EINEN Slot, skalieren danach
@@ -313,25 +511,25 @@ function App() {
   function proteinWuerfeln() {
     const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten))
     setProtein(neuProtein)
-    portionenSkaliertSetzen(neuProtein, carbs, fett, gemuese, mahlzeit)
+    portionenMitMakroZielenSetzen(neuProtein, carbs, fett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
 
   function carbsWuerfeln() {
     const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten))
     setCarbs(neuCarbs)
-    portionenSkaliertSetzen(protein, neuCarbs, fett, gemuese, mahlzeit)
+    portionenMitMakroZielenSetzen(protein, neuCarbs, fett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
 
   function fettWuerfeln() {
     const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten))
     setFett(neuFett)
-    portionenSkaliertSetzen(protein, carbs, neuFett, gemuese, mahlzeit)
+    portionenMitMakroZielenSetzen(protein, carbs, neuFett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
 
   function gemueseWuerfeln() {
     const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten))
     setGemuese(neuGemuese)
-    portionenSkaliertSetzen(protein, carbs, fett, neuGemuese, mahlzeit)
+    portionenMitMakroZielenSetzen(protein, carbs, fett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
 
   // Wird vom MahlzeitFilter aufgerufen, wenn der User einen anderen Filter
@@ -354,7 +552,7 @@ function App() {
     setCarbs(neuCarbs)
     setFett(neuFett)
     setGemuese(neuGemuese)
-    portionenSkaliertSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, neueMahlzeit)
+    portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, neueMahlzeit, makroZieleFuer(neueMahlzeit))
   }
 
   // Wird vom DiaetFilter aufgerufen, wenn der User eine Diaetform an- oder
@@ -377,7 +575,7 @@ function App() {
     setCarbs(neuCarbs)
     setFett(neuFett)
     setGemuese(neuGemuese)
-    portionenSkaliertSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit)
+    portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
 
     // Ist gerade ein Tagesplan sichtbar, muss der ebenfalls neu gewuerfelt
     // werden, sonst wuerden dort weiterhin Zutaten stehen, die die neue
@@ -404,6 +602,25 @@ function App() {
     setZiel((aktuell) => ({ ...aktuell, kalorien }))
   }
 
+  // Wird von ZielEinstellungen aufgerufen, wenn der User das Tages-Makroziel
+  // (Protein/Carbs/Fett in Gramm, nur bei "Pro Tag" sichtbar) aendert. Wirkt
+  // - wie zielKalorienAendern - erst beim naechsten (Neu-)Planen des Tages,
+  // nicht sofort.
+  function zielMakroAendern(kategorie, wert) {
+    setZiel((aktuell) => ({ ...aktuell, makro: { ...aktuell.makro, [kategorie]: wert } }))
+  }
+
+  // Aktualisiert das Makro-Ziel (Protein/Carbs/Fett) der aktuellen Einzel-
+  // Mahlzeit in makroZiele und berechnet die Portionen SOFORT neu, ohne neu
+  // zu wuerfeln. makroZiele ist ausschliesslich der Einzel-Ansicht vorbehalten
+  // - der Tagesplan leitet seine Makro-Ziele stattdessen direkt aus dem
+  // Tages-Makroziel in ziel.makro ab (makroZielFuerMahlzeitAusTagesziel).
+  function makroZielAendern(kategorie, wert) {
+    const neueZiele = { ...makroZieleFuer(mahlzeit), [kategorie]: wert }
+    setMakroZiele((aktuell) => ({ ...aktuell, [mahlzeit]: neueZiele }))
+    portionenMitMakroZielenSetzen(protein, carbs, fett, gemuese, mahlzeit, neueZiele)
+  }
+
   // Wuerfelt fuer jeden der vier Mahlzeit-Typen (unabhaengig vom aktuell
   // gewaehlten Mahlzeit-Filter) einen eigenen Zutaten-Satz, skaliert ihn mit
   // dem passenden Tages-Anteil und gibt den kompletten neuen Tagesplan
@@ -416,7 +633,14 @@ function App() {
       const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeitTyp, diaetenWert))
       const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeitTyp, diaetenWert))
       const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeitTyp, diaetenWert))
-      return tagesplanEintragBauen(mahlzeitTyp, neuProtein, neuCarbs, neuFett, neuGemuese)
+      return tagesplanEintragBauen(
+        mahlzeitTyp,
+        neuProtein,
+        neuCarbs,
+        neuFett,
+        neuGemuese,
+        makroZielFuerMahlzeitAusTagesziel(ziel, mahlzeitTyp)
+      )
     })
   }
 
@@ -452,7 +676,8 @@ function App() {
         zutaten.protein,
         zutaten.carbs,
         zutaten.fett,
-        zutaten.gemuese
+        zutaten.gemuese,
+        makroZielFuerMahlzeitAusTagesziel(ziel, eintrag.mahlzeitTyp)
       )
 
       return aktuellerPlan.map((e, i) => (i === index ? neuerEintrag : e))
@@ -494,6 +719,8 @@ function App() {
     aufPortionSkalieren(fett.fett_g, fettPortion ?? fett.portion_g) +
     aufPortionSkalieren(gemuese.fett_g, gemuesePortion ?? gemuese.portion_g)
 
+  const aktuelleMakroZiele = makroZieleFuer(mahlzeit)
+
   return (
     <>
       <header className="p-4">
@@ -503,7 +730,12 @@ function App() {
 
       {!tagesplan && <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />}
       <DiaetFilter ausgewaehlt={diaeten} onAendern={diaetenAendern} />
-      <ZielEinstellungen ziel={ziel} onTypAendern={zielTypAendern} onKalorienAendern={zielKalorienAendern} />
+      <ZielEinstellungen
+        ziel={ziel}
+        onTypAendern={zielTypAendern}
+        onKalorienAendern={zielKalorienAendern}
+        onMakroAendern={zielMakroAendern}
+      />
 
       {ziel.typ === 'proTag' && !tagesplan && (
         <button type="button" onClick={tagPlanen} className="mx-4 mt-4 rounded-lg bg-primary px-4 py-2 text-card">
@@ -521,9 +753,33 @@ function App() {
       ) : (
         <>
           <section id="slots" className="grid grid-cols-2 gap-4 p-4">
-            <SlotKarte titel="Protein" text={protein.name} portion={proteinPortion} onWuerfeln={proteinWuerfeln} />
-            <SlotKarte titel="Carbs" text={carbs.name} portion={carbsPortion} onWuerfeln={carbsWuerfeln} />
-            <SlotKarte titel="Fett" text={fett.name} portion={fettPortion} onWuerfeln={fettWuerfeln} />
+            <SlotKarte
+              titel="Protein"
+              text={protein.name}
+              portion={proteinPortion}
+              onWuerfeln={proteinWuerfeln}
+              zielWert={aktuelleMakroZiele.protein}
+              onZielAendern={(wert) => makroZielAendern('protein', wert)}
+              zielErreichbar={proteinZielErreichbar}
+            />
+            <SlotKarte
+              titel="Carbs"
+              text={carbs.name}
+              portion={carbsPortion}
+              onWuerfeln={carbsWuerfeln}
+              zielWert={aktuelleMakroZiele.carbs}
+              onZielAendern={(wert) => makroZielAendern('carbs', wert)}
+              zielErreichbar={carbsZielErreichbar}
+            />
+            <SlotKarte
+              titel="Fett"
+              text={fett.name}
+              portion={fettPortion}
+              onWuerfeln={fettWuerfeln}
+              zielWert={aktuelleMakroZiele.fett}
+              onZielAendern={(wert) => makroZielAendern('fett', wert)}
+              zielErreichbar={fettZielErreichbar}
+            />
             <SlotKarte titel="Gemüse" text={gemuese.name} portion={gemuesePortion} onWuerfeln={gemueseWuerfeln} />
           </section>
 

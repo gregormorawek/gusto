@@ -42,18 +42,24 @@ function TagesplanAnsicht({ tagesplan, onSlotWuerfeln, onZurueck, onNeuPlanen })
               text={eintrag.protein.name}
               portion={eintrag.proteinPortion}
               onWuerfeln={() => onSlotWuerfeln(index, 'protein')}
+              zielWert={eintrag.proteinZielG}
+              zielErreichbar={eintrag.proteinZielErreichbar}
             />
             <SlotKarte
               titel="Carbs"
               text={eintrag.carbs.name}
               portion={eintrag.carbsPortion}
               onWuerfeln={() => onSlotWuerfeln(index, 'carbs')}
+              zielWert={eintrag.carbsZielG}
+              zielErreichbar={eintrag.carbsZielErreichbar}
             />
             <SlotKarte
               titel="Fett"
               text={eintrag.fett.name}
               portion={eintrag.fettPortion}
               onWuerfeln={() => onSlotWuerfeln(index, 'fett')}
+              zielWert={eintrag.fettZielG}
+              zielErreichbar={eintrag.fettZielErreichbar}
             />
             <SlotKarte
               titel="Gemüse"
