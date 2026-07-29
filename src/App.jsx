@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import SlotKarte from './components/SlotKarte'
 import MahlzeitFilter from './components/MahlzeitFilter'
+import DiaetFilter from './components/DiaetFilter'
 import { supabase } from './supabase'
 
 // Hilfsfunktion: gibt aus einer beliebigen Liste ein zufaelliges Element zurueck.
@@ -30,6 +31,28 @@ function nachMahlzeitGefiltert(liste, mahlzeit) {
     (z.mahlzeiten ?? '').split(',').map((m) => m.trim()).includes(mahlzeit)
   )
   return passt.length > 0 ? passt : liste
+}
+
+// Filtert eine Zutaten-Liste auf die, deren kommaseparierte "diaeten"-Spalte
+// ALLE aktuell ausgewaehlten Diaetformen enthaelt. Keine Auswahl = Filter
+// inaktiv, komplette Liste bleibt bestehen. Ist das Ergebnis leer (z. B. weil
+// die Kategorie noch keine passend getaggten Zutaten hat), wird auf die
+// ungefilterte Liste zurueckgefallen, statt eine leere Auswahl zu liefern.
+function nachDiaetenGefiltert(liste, ausgewaehlteDiaeten) {
+  if (ausgewaehlteDiaeten.length === 0) {
+    return liste
+  }
+
+  const passt = liste.filter((z) => {
+    const vorhandeneDiaeten = (z.diaeten ?? '').split(',').map((d) => d.trim())
+    return ausgewaehlteDiaeten.every((d) => vorhandeneDiaeten.includes(d))
+  })
+  return passt.length > 0 ? passt : liste
+}
+
+// Wendet Mahlzeit- und Diaet-Filter nacheinander auf eine Zutaten-Liste an.
+function gefiltertePoolFuer(liste, mahlzeitWert, diaetenWert) {
+  return nachDiaetenGefiltert(nachMahlzeitGefiltert(liste, mahlzeitWert), diaetenWert)
 }
 
 // Hilfsfunktion: rechnet einen 100g-Referenzwert (z. B. Kalorien pro 100g)
@@ -70,6 +93,11 @@ function App() {
   // Lazy initializer: wird nur einmal beim ersten Rendern anhand der Uhrzeit berechnet.
   const [mahlzeit, setMahlzeit] = useState(standardMahlzeit)
 
+  // Aktuell ausgewaehlte Diaetform-Filter (vegan/vegetarisch/glutenfrei),
+  // Mehrfachauswahl. Leeres Array = kein Diaet-Filter aktiv, alle Zutaten
+  // kommen infrage.
+  const [diaeten, setDiaeten] = useState([])
+
   // Jedes Mal, wenn sich "protein" aendert (erstes Laden ODER Re-Roll),
   // setzen wir proteinPortion auf die Portionsgroesse der NEUEN Zutat zurueck.
   // Ohne das wuerde nach einem Re-Roll die alte, vom User eingegebene
@@ -107,7 +135,7 @@ function App() {
         // Zusaetzlich zu name und kategorie laden wir jetzt auch die
         // Naehrwert-Spalten und die Portionsgroesse (portion_g) mit,
         // damit wir spaeter eine Summe berechnen koennen.
-        .select('name, kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten')
+        .select('name, kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten, diaeten')
         .eq('aktiv', true)
 
       if (error) {
@@ -131,10 +159,10 @@ function App() {
 
       // Direkt eine erste zufaellige Auswahl setzen, sobald die Daten da sind,
       // passend zum aktuell (per Uhrzeit) vorausgewaehlten Mahlzeit-Filter.
-      setProtein(zufaelligesElement(nachMahlzeitGefiltert(proteine, mahlzeit)))
-      setCarbs(zufaelligesElement(nachMahlzeitGefiltert(carbsListe, mahlzeit)))
-      setFett(zufaelligesElement(nachMahlzeitGefiltert(fetteListe, mahlzeit)))
-      setGemuese(zufaelligesElement(nachMahlzeitGefiltert(gemueseListe, mahlzeit)))
+      setProtein(zufaelligesElement(gefiltertePoolFuer(proteine, mahlzeit, diaeten)))
+      setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsListe, mahlzeit, diaeten)))
+      setFett(zufaelligesElement(gefiltertePoolFuer(fetteListe, mahlzeit, diaeten)))
+      setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseListe, mahlzeit, diaeten)))
 
       setLaedt(false)
     }
@@ -145,29 +173,29 @@ function App() {
   // Waehlt fuer jede Kategorie eine neue zufaellige Zutat aus dem Pool des
   // aktuellen Mahlzeit-Filters aus und schreibt sie in den jeweiligen State.
   function neueAuswahlWuerfeln() {
-    setProtein(zufaelligesElement(nachMahlzeitGefiltert(proteinOptionen, mahlzeit)))
-    setCarbs(zufaelligesElement(nachMahlzeitGefiltert(carbsOptionen, mahlzeit)))
-    setFett(zufaelligesElement(nachMahlzeitGefiltert(fettOptionen, mahlzeit)))
-    setGemuese(zufaelligesElement(nachMahlzeitGefiltert(gemueseOptionen, mahlzeit)))
+    setProtein(zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten)))
+    setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten)))
+    setFett(zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten)))
+    setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten)))
   }
 
   // Diese vier Funktionen aendern jeweils nur EINEN State.
   // Sie werden gleich als Prop an die passende SlotKarte weitergegeben,
   // damit deren kleiner Re-Roll-Button nur diesen einen Slot neu wuerfelt.
   function proteinWuerfeln() {
-    setProtein(zufaelligesElement(nachMahlzeitGefiltert(proteinOptionen, mahlzeit)))
+    setProtein(zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten)))
   }
 
   function carbsWuerfeln() {
-    setCarbs(zufaelligesElement(nachMahlzeitGefiltert(carbsOptionen, mahlzeit)))
+    setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten)))
   }
 
   function fettWuerfeln() {
-    setFett(zufaelligesElement(nachMahlzeitGefiltert(fettOptionen, mahlzeit)))
+    setFett(zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten)))
   }
 
   function gemueseWuerfeln() {
-    setGemuese(zufaelligesElement(nachMahlzeitGefiltert(gemueseOptionen, mahlzeit)))
+    setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten)))
   }
 
   // Wird vom MahlzeitFilter aufgerufen, wenn der User einen anderen Filter
@@ -181,10 +209,27 @@ function App() {
     }
 
     setMahlzeit(neueMahlzeit)
-    setProtein(zufaelligesElement(nachMahlzeitGefiltert(proteinOptionen, neueMahlzeit)))
-    setCarbs(zufaelligesElement(nachMahlzeitGefiltert(carbsOptionen, neueMahlzeit)))
-    setFett(zufaelligesElement(nachMahlzeitGefiltert(fettOptionen, neueMahlzeit)))
-    setGemuese(zufaelligesElement(nachMahlzeitGefiltert(gemueseOptionen, neueMahlzeit)))
+    setProtein(zufaelligesElement(gefiltertePoolFuer(proteinOptionen, neueMahlzeit, diaeten)))
+    setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsOptionen, neueMahlzeit, diaeten)))
+    setFett(zufaelligesElement(gefiltertePoolFuer(fettOptionen, neueMahlzeit, diaeten)))
+    setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, neueMahlzeit, diaeten)))
+  }
+
+  // Wird vom DiaetFilter aufgerufen, wenn der User eine Diaetform an- oder
+  // abwaehlt. Wuerfelt sofort alle vier Kategorien neu, passend zur neuen
+  // Auswahl. neueDiaeten wird direkt verwendet statt ueber den State zu
+  // lesen, weil setDiaeten asynchron ist und der State-Wert im selben
+  // Funktionsdurchlauf noch der alte waere.
+  function diaetenAendern(slug) {
+    const neueDiaeten = diaeten.includes(slug)
+      ? diaeten.filter((d) => d !== slug)
+      : [...diaeten, slug]
+
+    setDiaeten(neueDiaeten)
+    setProtein(zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, neueDiaeten)))
+    setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, neueDiaeten)))
+    setFett(zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, neueDiaeten)))
+    setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, neueDiaeten)))
   }
 
   if (laedt) {
@@ -230,6 +275,7 @@ function App() {
       </header>
 
       <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />
+      <DiaetFilter ausgewaehlt={diaeten} onAendern={diaetenAendern} />
 
       <section id="slots" className="grid grid-cols-2 gap-4 p-4">
         <SlotKarte titel="Protein" text={protein.name} onWuerfeln={proteinWuerfeln} />
