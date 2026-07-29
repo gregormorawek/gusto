@@ -1,12 +1,35 @@
 import { useEffect, useState } from 'react'
 import './App.css'
 import SlotKarte from './components/SlotKarte'
+import MahlzeitFilter from './components/MahlzeitFilter'
 import { supabase } from './supabase'
 
 // Hilfsfunktion: gibt aus einer beliebigen Liste ein zufaelliges Element zurueck.
 function zufaelligesElement(liste) {
   const zufallsIndex = Math.floor(Math.random() * liste.length)
   return liste[zufallsIndex]
+}
+
+// Ermittelt anhand der Uhrzeit einen sinnvollen Standard-Filter,
+// z. B. morgens vorausgewaehlt "fruehstueck".
+function standardMahlzeit(datum = new Date()) {
+  const stunde = datum.getHours()
+  if (stunde >= 5 && stunde < 11) return 'fruehstueck'
+  if (stunde >= 11 && stunde < 15) return 'mittag'
+  if (stunde >= 15 && stunde < 18) return 'snack'
+  if (stunde >= 18 && stunde < 22) return 'abend'
+  return 'snack'
+}
+
+// Filtert eine Zutaten-Liste auf die, deren kommaseparierte "mahlzeiten"-Spalte
+// den gewuenschten Filter enthaelt. Ist das Ergebnis leer (z. B. weil die
+// Kategorie noch keine passend getaggten Zutaten hat), wird auf die
+// ungefilterte Liste zurueckgefallen, statt eine leere Auswahl zu liefern.
+function nachMahlzeitGefiltert(liste, mahlzeit) {
+  const passt = liste.filter((z) =>
+    (z.mahlzeiten ?? '').split(',').map((m) => m.trim()).includes(mahlzeit)
+  )
+  return passt.length > 0 ? passt : liste
 }
 
 // Hilfsfunktion: rechnet einen 100g-Referenzwert (z. B. Kalorien pro 100g)
@@ -42,6 +65,10 @@ function App() {
 
   // Solange die Daten noch nicht aus der Datenbank geladen sind, zeigen wir "Laedt...".
   const [laedt, setLaedt] = useState(true)
+
+  // Aktuell gewaehlter Mahlzeit-Filter (fruehstueck/mittag/abend/snack).
+  // Lazy initializer: wird nur einmal beim ersten Rendern anhand der Uhrzeit berechnet.
+  const [mahlzeit, setMahlzeit] = useState(standardMahlzeit)
 
   // Jedes Mal, wenn sich "protein" aendert (erstes Laden ODER Re-Roll),
   // setzen wir proteinPortion auf die Portionsgroesse der NEUEN Zutat zurueck.
@@ -80,7 +107,7 @@ function App() {
         // Zusaetzlich zu name und kategorie laden wir jetzt auch die
         // Naehrwert-Spalten und die Portionsgroesse (portion_g) mit,
         // damit wir spaeter eine Summe berechnen koennen.
-        .select('name, kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g')
+        .select('name, kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten')
         .eq('aktiv', true)
 
       if (error) {
@@ -102,11 +129,12 @@ function App() {
       setFettOptionen(fetteListe)
       setGemueseOptionen(gemueseListe)
 
-      // Direkt eine erste zufaellige Auswahl setzen, sobald die Daten da sind.
-      setProtein(zufaelligesElement(proteine))
-      setCarbs(zufaelligesElement(carbsListe))
-      setFett(zufaelligesElement(fetteListe))
-      setGemuese(zufaelligesElement(gemueseListe))
+      // Direkt eine erste zufaellige Auswahl setzen, sobald die Daten da sind,
+      // passend zum aktuell (per Uhrzeit) vorausgewaehlten Mahlzeit-Filter.
+      setProtein(zufaelligesElement(nachMahlzeitGefiltert(proteine, mahlzeit)))
+      setCarbs(zufaelligesElement(nachMahlzeitGefiltert(carbsListe, mahlzeit)))
+      setFett(zufaelligesElement(nachMahlzeitGefiltert(fetteListe, mahlzeit)))
+      setGemuese(zufaelligesElement(nachMahlzeitGefiltert(gemueseListe, mahlzeit)))
 
       setLaedt(false)
     }
@@ -114,32 +142,49 @@ function App() {
     zutatenLaden()
   }, [])
 
-  // Waehlt fuer jede Kategorie eine neue zufaellige Zutat aus und
-  // schreibt sie in den jeweiligen State.
+  // Waehlt fuer jede Kategorie eine neue zufaellige Zutat aus dem Pool des
+  // aktuellen Mahlzeit-Filters aus und schreibt sie in den jeweiligen State.
   function neueAuswahlWuerfeln() {
-    setProtein(zufaelligesElement(proteinOptionen))
-    setCarbs(zufaelligesElement(carbsOptionen))
-    setFett(zufaelligesElement(fettOptionen))
-    setGemuese(zufaelligesElement(gemueseOptionen))
+    setProtein(zufaelligesElement(nachMahlzeitGefiltert(proteinOptionen, mahlzeit)))
+    setCarbs(zufaelligesElement(nachMahlzeitGefiltert(carbsOptionen, mahlzeit)))
+    setFett(zufaelligesElement(nachMahlzeitGefiltert(fettOptionen, mahlzeit)))
+    setGemuese(zufaelligesElement(nachMahlzeitGefiltert(gemueseOptionen, mahlzeit)))
   }
 
   // Diese vier Funktionen aendern jeweils nur EINEN State.
   // Sie werden gleich als Prop an die passende SlotKarte weitergegeben,
   // damit deren kleiner Re-Roll-Button nur diesen einen Slot neu wuerfelt.
   function proteinWuerfeln() {
-    setProtein(zufaelligesElement(proteinOptionen))
+    setProtein(zufaelligesElement(nachMahlzeitGefiltert(proteinOptionen, mahlzeit)))
   }
 
   function carbsWuerfeln() {
-    setCarbs(zufaelligesElement(carbsOptionen))
+    setCarbs(zufaelligesElement(nachMahlzeitGefiltert(carbsOptionen, mahlzeit)))
   }
 
   function fettWuerfeln() {
-    setFett(zufaelligesElement(fettOptionen))
+    setFett(zufaelligesElement(nachMahlzeitGefiltert(fettOptionen, mahlzeit)))
   }
 
   function gemueseWuerfeln() {
-    setGemuese(zufaelligesElement(gemueseOptionen))
+    setGemuese(zufaelligesElement(nachMahlzeitGefiltert(gemueseOptionen, mahlzeit)))
+  }
+
+  // Wird vom MahlzeitFilter aufgerufen, wenn der User einen anderen Filter
+  // waehlt. Wuerfelt sofort alle vier Kategorien neu, passend zum neuen
+  // Filter. neueMahlzeit wird direkt verwendet statt ueber den State zu
+  // lesen, weil setMahlzeit asynchron ist und der State-Wert im selben
+  // Funktionsdurchlauf noch der alte waere.
+  function mahlzeitAendern(neueMahlzeit) {
+    if (neueMahlzeit === mahlzeit) {
+      return
+    }
+
+    setMahlzeit(neueMahlzeit)
+    setProtein(zufaelligesElement(nachMahlzeitGefiltert(proteinOptionen, neueMahlzeit)))
+    setCarbs(zufaelligesElement(nachMahlzeitGefiltert(carbsOptionen, neueMahlzeit)))
+    setFett(zufaelligesElement(nachMahlzeitGefiltert(fettOptionen, neueMahlzeit)))
+    setGemuese(zufaelligesElement(nachMahlzeitGefiltert(gemueseOptionen, neueMahlzeit)))
   }
 
   if (laedt) {
@@ -184,6 +229,8 @@ function App() {
         <p className="text-sm text-text-muted">deine nächste mahlzeit, gewürfelt</p>
       </header>
 
+      <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />
+
       <section id="slots" className="grid grid-cols-2 gap-4 p-4">
         <SlotKarte titel="Protein" text={protein.name} onWuerfeln={proteinWuerfeln} />
         <SlotKarte titel="Carbs" text={carbs.name} onWuerfeln={carbsWuerfeln} />
@@ -194,9 +241,9 @@ function App() {
       <section id="summe" className="mx-4 rounded-lg border border-secondary/20 bg-secondary/10 p-4 shadow-sm">
         <h2 className="text-lg font-semibold text-text">Summe</h2>
         <p className="font-display text-3xl font-semibold text-text">{summeKalorien.toFixed(1)} kcal</p>
-        <p className="text-text-muted">Protein: {summeProtein.toFixed(1)} g</p>
-        <p className="text-text-muted">Carbs: {summeCarbs.toFixed(1)} g</p>
-        <p className="text-text-muted">Fett: {summeFett.toFixed(1)} g</p>
+        <p className="text-text-muted">
+          P {summeProtein.toFixed(1)}g · C {summeCarbs.toFixed(1)}g · F {summeFett.toFixed(1)}g
+        </p>
       </section>
 
       <button type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
