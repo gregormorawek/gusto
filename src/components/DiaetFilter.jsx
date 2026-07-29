@@ -12,7 +12,7 @@ const DIAETEN = [
 // aufgerufen (das eigentliche Toggle passiert in App.jsx).
 function DiaetFilter({ ausgewaehlt, onAendern }) {
   return (
-    <div className="flex gap-3 px-4">
+    <div className="mt-3 flex gap-3 px-4">
       {DIAETEN.map(({ slug, label }) => (
         <label
           key={slug}

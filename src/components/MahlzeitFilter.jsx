@@ -1,12 +1,4 @@
-// Die vier moeglichen Mahlzeit-Filter. slug ist der Wert, gegen den in der
-// DB-Spalte "mahlzeiten" (kommasepariert) verglichen wird, label ist die
-// Anzeige im Button.
-const MAHLZEITEN = [
-  { slug: 'fruehstueck', label: 'Frühstück' },
-  { slug: 'mittag', label: 'Mittag' },
-  { slug: 'abend', label: 'Abend' },
-  { slug: 'snack', label: 'Snack' },
-]
+import { MAHLZEITEN } from '../mahlzeiten'
 
 // Zeigt vier Buttons, einer pro Mahlzeit. aktuell ist der gerade aktive
 // Filter-Slug, onAendern wird mit dem geklickten Slug aufgerufen.

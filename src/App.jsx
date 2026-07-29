@@ -3,7 +3,31 @@ import './App.css'
 import SlotKarte from './components/SlotKarte'
 import MahlzeitFilter from './components/MahlzeitFilter'
 import DiaetFilter from './components/DiaetFilter'
+import ZielEinstellungen from './components/ZielEinstellungen'
+import TagesplanAnsicht from './components/TagesplanAnsicht'
+import { MAHLZEITEN } from './mahlzeiten'
 import { supabase } from './supabase'
+
+// Feste Reihenfolge der Mahlzeit-Typen fuer den Tagesplan, uebernommen aus
+// den Filter-Slugs (fruehstueck, mittag, abend, snack).
+const MAHLZEIT_REIHENFOLGE = MAHLZEITEN.map((m) => m.slug)
+
+const ZIEL_LOCALSTORAGE_KEY = 'gusto-ziel'
+
+// Laedt das gespeicherte Kalorienziel aus dem localStorage. Ist noch nichts
+// gespeichert oder der Inhalt beschaedigt (z. B. kein gueltiges JSON), wird
+// auf den Standard "kein Ziel" zurueckgefallen.
+function zielLaden() {
+  try {
+    const gespeichert = localStorage.getItem(ZIEL_LOCALSTORAGE_KEY)
+    if (!gespeichert) {
+      return { typ: 'kein', kalorien: '' }
+    }
+    return JSON.parse(gespeichert)
+  } catch {
+    return { typ: 'kein', kalorien: '' }
+  }
+}
 
 // Hilfsfunktion: gibt aus einer beliebigen Liste ein zufaelliges Element zurueck.
 function zufaelligesElement(liste) {
@@ -61,6 +85,58 @@ function aufPortionSkalieren(wertPro100g, portionsGroesseInGramm) {
   return (wertPro100g / 100) * portionsGroesseInGramm
 }
 
+// Anteil der Tages-Kalorien, der bei ziel.typ === 'proTag' auf die jeweilige
+// Mahlzeit entfaellt.
+const TAGES_ANTEIL = { fruehstueck: 0.25, mittag: 0.35, abend: 0.3, snack: 0.1 }
+
+// Ermittelt das Kalorienziel fuer EINE Mahlzeit-Kategorie, abhaengig vom
+// gewaehlten Ziel-Typ. Gibt null zurueck, wenn kein Ziel aktiv ist oder die
+// eingegebene Kalorienzahl (noch) ungueltig ist - in dem Fall bleibt die
+// Portion unskaliert (Faktor 1).
+function zielKalorienFuerMahlzeit(zielWert, mahlzeitWert) {
+  const kalorienZahl = Number(zielWert.kalorien)
+  if (zielWert.typ === 'kein' || !kalorienZahl || kalorienZahl <= 0) {
+    return null
+  }
+  if (zielWert.typ === 'proMahlzeit') {
+    return kalorienZahl
+  }
+  return kalorienZahl * (TAGES_ANTEIL[mahlzeitWert] ?? 0)
+}
+
+// Berechnet den Faktor, mit dem alle vier Portionen GLEICHMAESSIG multipliziert
+// werden, damit die Kalorien-Summe moeglichst nah am Ziel liegt. Kalorien
+// skalieren linear mit der Portionsgroesse, deshalb trifft zielKalorien /
+// basisKalorien das Ziel exakt - ausser die Grenze (50%-200% der urspruenglichen
+// Portion) wird ueberschritten, dann kommt der naechstmoegliche Wert heraus.
+function skalierungsfaktorBerechnen(zielKalorien, basisKalorien) {
+  if (zielKalorien === null || basisKalorien <= 0) {
+    return 1
+  }
+  return Math.min(2, Math.max(0.5, zielKalorien / basisKalorien))
+}
+
+// Berechnet aus den vier (ungefilterten, in ihrer Datenbank-Portionsgroesse
+// vorliegenden) Zutaten die neuen, gleichmaessig skalierten Portionsgroessen
+// fuer die angegebene Mahlzeit und das aktuelle Kalorienziel. Ohne aktives
+// Ziel ist der Faktor 1, die Portionen bleiben also beim Datenbank-Wert.
+function portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert) {
+  const basisKalorien =
+    aufPortionSkalieren(proteinZutat.kalorien, proteinZutat.portion_g) +
+    aufPortionSkalieren(carbsZutat.kalorien, carbsZutat.portion_g) +
+    aufPortionSkalieren(fettZutat.kalorien, fettZutat.portion_g) +
+    aufPortionSkalieren(gemueseZutat.kalorien, gemueseZutat.portion_g)
+
+  const faktor = skalierungsfaktorBerechnen(zielKalorienFuerMahlzeit(zielWert, mahlzeitWert), basisKalorien)
+
+  return {
+    proteinPortion: Math.round(proteinZutat.portion_g * faktor),
+    carbsPortion: Math.round(carbsZutat.portion_g * faktor),
+    fettPortion: Math.round(fettZutat.portion_g * faktor),
+    gemuesePortion: Math.round(gemueseZutat.portion_g * faktor),
+  }
+}
+
 function App() {
   // Diese Listen kamen frueher aus hartcodierten Arrays,
   // jetzt fuellen wir sie per useEffect aus der Datenbank.
@@ -98,33 +174,53 @@ function App() {
   // kommen infrage.
   const [diaeten, setDiaeten] = useState([])
 
-  // Jedes Mal, wenn sich "protein" aendert (erstes Laden ODER Re-Roll),
-  // setzen wir proteinPortion auf die Portionsgroesse der NEUEN Zutat zurueck.
-  // Ohne das wuerde nach einem Re-Roll die alte, vom User eingegebene
-  // Portionsgroesse an der neuen Zutat kleben bleiben.
-  useEffect(() => {
-    if (protein) {
-      setProteinPortion(protein.portion_g)
-    }
-  }, [protein])
+  // Kalorienziel-Einstellung: { typ: 'kein' | 'proMahlzeit' | 'proTag', kalorien }.
+  // Lazy initializer laedt den zuletzt gespeicherten Wert aus dem localStorage.
+  const [ziel, setZiel] = useState(zielLaden)
 
+  // Speichert das Ziel bei jeder Aenderung im localStorage, damit es beim
+  // naechsten Oeffnen der App erhalten bleibt.
   useEffect(() => {
-    if (carbs) {
-      setCarbsPortion(carbs.portion_g)
-    }
-  }, [carbs])
+    localStorage.setItem(ZIEL_LOCALSTORAGE_KEY, JSON.stringify(ziel))
+  }, [ziel])
 
-  useEffect(() => {
-    if (fett) {
-      setFettPortion(fett.portion_g)
-    }
-  }, [fett])
+  // Tagesplan: null = nicht aktiv (normale Einzel-Mahlzeit-Ansicht wird
+  // gezeigt). Sonst ein Array mit 4 Eintraegen (einer pro Mahlzeit-Typ in
+  // MAHLZEIT_REIHENFOLGE), die die Einzel-Ansicht ersetzen.
+  const [tagesplan, setTagesplan] = useState(null)
 
-  useEffect(() => {
-    if (gemuese) {
-      setGemuesePortion(gemuese.portion_g)
+  // Setzt die vier Portionen fuer EINE Mahlzeit passend zum aktuellen
+  // Kalorienziel. Wird nach jedem Wuerfeln aufgerufen (statt die Portion
+  // einfach auf portion_g zurueckzusetzen), damit die Skalierung nicht durch
+  // einen spaeteren Reset ueberschrieben wird.
+  function portionenSkaliertSetzen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert) {
+    const portionen = portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, ziel)
+    setProteinPortion(portionen.proteinPortion)
+    setCarbsPortion(portionen.carbsPortion)
+    setFettPortion(portionen.fettPortion)
+    setGemuesePortion(portionen.gemuesePortion)
+  }
+
+  // Baut aus vier Zutaten einen kompletten Tagesplan-Eintrag: skalierte
+  // Portionen plus die daraus resultierende Kalorien-Summe dieser Mahlzeit.
+  function tagesplanEintragBauen(mahlzeitTyp, proteinZutat, carbsZutat, fettZutat, gemueseZutat) {
+    const portionen = portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitTyp, ziel)
+    const summeKalorien =
+      aufPortionSkalieren(proteinZutat.kalorien, portionen.proteinPortion) +
+      aufPortionSkalieren(carbsZutat.kalorien, portionen.carbsPortion) +
+      aufPortionSkalieren(fettZutat.kalorien, portionen.fettPortion) +
+      aufPortionSkalieren(gemueseZutat.kalorien, portionen.gemuesePortion)
+
+    return {
+      mahlzeitTyp,
+      protein: proteinZutat,
+      carbs: carbsZutat,
+      fett: fettZutat,
+      gemuese: gemueseZutat,
+      ...portionen,
+      summeKalorien,
     }
-  }, [gemuese])
+  }
 
   // Leeres Array [] als zweites Argument: dieser Code laeuft nur EINMAL,
   // wenn die Komponente zum ersten Mal angezeigt wird.
@@ -159,10 +255,16 @@ function App() {
 
       // Direkt eine erste zufaellige Auswahl setzen, sobald die Daten da sind,
       // passend zum aktuell (per Uhrzeit) vorausgewaehlten Mahlzeit-Filter.
-      setProtein(zufaelligesElement(gefiltertePoolFuer(proteine, mahlzeit, diaeten)))
-      setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsListe, mahlzeit, diaeten)))
-      setFett(zufaelligesElement(gefiltertePoolFuer(fetteListe, mahlzeit, diaeten)))
-      setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseListe, mahlzeit, diaeten)))
+      const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteine, mahlzeit, diaeten))
+      const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsListe, mahlzeit, diaeten))
+      const neuFett = zufaelligesElement(gefiltertePoolFuer(fetteListe, mahlzeit, diaeten))
+      const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseListe, mahlzeit, diaeten))
+
+      setProtein(neuProtein)
+      setCarbs(neuCarbs)
+      setFett(neuFett)
+      setGemuese(neuGemuese)
+      portionenSkaliertSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit)
 
       setLaedt(false)
     }
@@ -173,29 +275,45 @@ function App() {
   // Waehlt fuer jede Kategorie eine neue zufaellige Zutat aus dem Pool des
   // aktuellen Mahlzeit-Filters aus und schreibt sie in den jeweiligen State.
   function neueAuswahlWuerfeln() {
-    setProtein(zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten)))
-    setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten)))
-    setFett(zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten)))
-    setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten)))
+    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten))
+    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten))
+    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten))
+    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten))
+
+    setProtein(neuProtein)
+    setCarbs(neuCarbs)
+    setFett(neuFett)
+    setGemuese(neuGemuese)
+    portionenSkaliertSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit)
   }
 
-  // Diese vier Funktionen aendern jeweils nur EINEN State.
-  // Sie werden gleich als Prop an die passende SlotKarte weitergegeben,
-  // damit deren kleiner Re-Roll-Button nur diesen einen Slot neu wuerfelt.
+  // Diese vier Funktionen aendern jeweils nur EINEN Slot, skalieren danach
+  // aber alle vier Portionen neu (weil sich die Kalorien-Basis der Mahlzeit
+  // durch den Wechsel veraendert). Sie werden gleich als Prop an die
+  // passende SlotKarte weitergegeben, damit deren kleiner Re-Roll-Button nur
+  // diesen einen Slot neu wuerfelt.
   function proteinWuerfeln() {
-    setProtein(zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten)))
+    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten))
+    setProtein(neuProtein)
+    portionenSkaliertSetzen(neuProtein, carbs, fett, gemuese, mahlzeit)
   }
 
   function carbsWuerfeln() {
-    setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten)))
+    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten))
+    setCarbs(neuCarbs)
+    portionenSkaliertSetzen(protein, neuCarbs, fett, gemuese, mahlzeit)
   }
 
   function fettWuerfeln() {
-    setFett(zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten)))
+    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten))
+    setFett(neuFett)
+    portionenSkaliertSetzen(protein, carbs, neuFett, gemuese, mahlzeit)
   }
 
   function gemueseWuerfeln() {
-    setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten)))
+    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten))
+    setGemuese(neuGemuese)
+    portionenSkaliertSetzen(protein, carbs, fett, neuGemuese, mahlzeit)
   }
 
   // Wird vom MahlzeitFilter aufgerufen, wenn der User einen anderen Filter
@@ -208,11 +326,17 @@ function App() {
       return
     }
 
+    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, neueMahlzeit, diaeten))
+    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, neueMahlzeit, diaeten))
+    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, neueMahlzeit, diaeten))
+    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, neueMahlzeit, diaeten))
+
     setMahlzeit(neueMahlzeit)
-    setProtein(zufaelligesElement(gefiltertePoolFuer(proteinOptionen, neueMahlzeit, diaeten)))
-    setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsOptionen, neueMahlzeit, diaeten)))
-    setFett(zufaelligesElement(gefiltertePoolFuer(fettOptionen, neueMahlzeit, diaeten)))
-    setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, neueMahlzeit, diaeten)))
+    setProtein(neuProtein)
+    setCarbs(neuCarbs)
+    setFett(neuFett)
+    setGemuese(neuGemuese)
+    portionenSkaliertSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, neueMahlzeit)
   }
 
   // Wird vom DiaetFilter aufgerufen, wenn der User eine Diaetform an- oder
@@ -225,11 +349,82 @@ function App() {
       ? diaeten.filter((d) => d !== slug)
       : [...diaeten, slug]
 
+    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, neueDiaeten))
+    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, neueDiaeten))
+    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, neueDiaeten))
+    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, neueDiaeten))
+
     setDiaeten(neueDiaeten)
-    setProtein(zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, neueDiaeten)))
-    setCarbs(zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, neueDiaeten)))
-    setFett(zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, neueDiaeten)))
-    setGemuese(zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, neueDiaeten)))
+    setProtein(neuProtein)
+    setCarbs(neuCarbs)
+    setFett(neuFett)
+    setGemuese(neuGemuese)
+    portionenSkaliertSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit)
+  }
+
+  // Wird von ZielEinstellungen aufgerufen, wenn der User einen anderen
+  // Ziel-Typ waehlt. Die Kalorienzahl bleibt dabei erhalten, damit sie beim
+  // Zurueckwechseln nicht verloren geht. Verlaesst der User "Pro Tag", macht
+  // ein evtl. sichtbarer Tagesplan keinen Sinn mehr und wird geschlossen.
+  function zielTypAendern(typ) {
+    setZiel((aktuell) => ({ ...aktuell, typ }))
+    if (typ !== 'proTag') {
+      setTagesplan(null)
+    }
+  }
+
+  // Wird von ZielEinstellungen aufgerufen, wenn der User die Kalorienzahl
+  // aendert.
+  function zielKalorienAendern(kalorien) {
+    setZiel((aktuell) => ({ ...aktuell, kalorien }))
+  }
+
+  // Wird vom "Ganzen Tag planen"-Button aufgerufen. Wuerfelt fuer jeden der
+  // vier Mahlzeit-Typen (unabhaengig vom aktuell gewaehlten Mahlzeit-Filter)
+  // einen eigenen Zutaten-Satz und skaliert ihn mit dem passenden Tages-Anteil.
+  function tagPlanen() {
+    const neuerPlan = MAHLZEIT_REIHENFOLGE.map((mahlzeitTyp) => {
+      const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeitTyp, diaeten))
+      const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeitTyp, diaeten))
+      const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeitTyp, diaeten))
+      const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeitTyp, diaeten))
+      return tagesplanEintragBauen(mahlzeitTyp, neuProtein, neuCarbs, neuFett, neuGemuese)
+    })
+    setTagesplan(neuerPlan)
+  }
+
+  // Wuerfelt im Tagesplan EINEN Slot (kategorie: protein/carbs/fett/gemuese)
+  // einer einzelnen Mahlzeit (index in MAHLZEIT_REIHENFOLGE) neu und
+  // skaliert danach alle vier Portionen dieser Mahlzeit neu.
+  function tagesplanSlotWuerfeln(index, kategorie) {
+    setTagesplan((aktuellerPlan) => {
+      const eintrag = aktuellerPlan[index]
+      const optionenNachKategorie = {
+        protein: proteinOptionen,
+        carbs: carbsOptionen,
+        fett: fettOptionen,
+        gemuese: gemueseOptionen,
+      }
+      const neueZutat = zufaelligesElement(
+        gefiltertePoolFuer(optionenNachKategorie[kategorie], eintrag.mahlzeitTyp, diaeten)
+      )
+      const zutaten = {
+        protein: eintrag.protein,
+        carbs: eintrag.carbs,
+        fett: eintrag.fett,
+        gemuese: eintrag.gemuese,
+        [kategorie]: neueZutat,
+      }
+      const neuerEintrag = tagesplanEintragBauen(
+        eintrag.mahlzeitTyp,
+        zutaten.protein,
+        zutaten.carbs,
+        zutaten.fett,
+        zutaten.gemuese
+      )
+
+      return aktuellerPlan.map((e, i) => (i === index ? neuerEintrag : e))
+    })
   }
 
   if (laedt) {
@@ -274,27 +469,44 @@ function App() {
         <p className="text-sm text-text-muted">deine nächste mahlzeit, gewürfelt</p>
       </header>
 
-      <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />
+      {!tagesplan && <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />}
       <DiaetFilter ausgewaehlt={diaeten} onAendern={diaetenAendern} />
+      <ZielEinstellungen ziel={ziel} onTypAendern={zielTypAendern} onKalorienAendern={zielKalorienAendern} />
 
-      <section id="slots" className="grid grid-cols-2 gap-4 p-4">
-        <SlotKarte titel="Protein" text={protein.name} onWuerfeln={proteinWuerfeln} />
-        <SlotKarte titel="Carbs" text={carbs.name} onWuerfeln={carbsWuerfeln} />
-        <SlotKarte titel="Fett" text={fett.name} onWuerfeln={fettWuerfeln} />
-        <SlotKarte titel="Gemüse" text={gemuese.name} onWuerfeln={gemueseWuerfeln} />
-      </section>
+      {ziel.typ === 'proTag' && !tagesplan && (
+        <button type="button" onClick={tagPlanen} className="mx-4 mt-4 rounded-lg bg-primary px-4 py-2 text-card">
+          Ganzen Tag planen
+        </button>
+      )}
 
-      <section id="summe" className="mx-4 rounded-lg border border-secondary/20 bg-secondary/10 p-4 shadow-sm">
-        <h2 className="text-lg font-semibold text-text">Summe</h2>
-        <p className="font-display text-3xl font-semibold text-text">{summeKalorien.toFixed(1)} kcal</p>
-        <p className="text-text-muted">
-          P {summeProtein.toFixed(1)}g · C {summeCarbs.toFixed(1)}g · F {summeFett.toFixed(1)}g
-        </p>
-      </section>
+      {tagesplan ? (
+        <TagesplanAnsicht
+          tagesplan={tagesplan}
+          onSlotWuerfeln={tagesplanSlotWuerfeln}
+          onZurueck={() => setTagesplan(null)}
+        />
+      ) : (
+        <>
+          <section id="slots" className="grid grid-cols-2 gap-4 p-4">
+            <SlotKarte titel="Protein" text={protein.name} portion={proteinPortion} onWuerfeln={proteinWuerfeln} />
+            <SlotKarte titel="Carbs" text={carbs.name} portion={carbsPortion} onWuerfeln={carbsWuerfeln} />
+            <SlotKarte titel="Fett" text={fett.name} portion={fettPortion} onWuerfeln={fettWuerfeln} />
+            <SlotKarte titel="Gemüse" text={gemuese.name} portion={gemuesePortion} onWuerfeln={gemueseWuerfeln} />
+          </section>
 
-      <button type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
-        Neue Auswahl würfeln
-      </button>
+          <section id="summe" className="mx-4 rounded-lg border border-secondary/20 bg-secondary/10 p-4 shadow-sm">
+            <h2 className="text-lg font-semibold text-text">Summe</h2>
+            <p className="font-display text-3xl font-semibold text-text">{summeKalorien.toFixed(1)} kcal</p>
+            <p className="text-text-muted">
+              P {summeProtein.toFixed(1)}g · C {summeCarbs.toFixed(1)}g · F {summeFett.toFixed(1)}g
+            </p>
+          </section>
+
+          <button type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
+            Neue Auswahl würfeln
+          </button>
+        </>
+      )}
     </>
   )
 }
