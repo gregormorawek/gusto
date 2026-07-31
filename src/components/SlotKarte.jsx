@@ -16,17 +16,19 @@ function SlotKarte({ titel, text, portion, onWuerfeln, zielWert, onZielAendern, 
       <p className="text-xs text-text-muted">{portion} g</p>
 
       {onZielAendern && (
-        <label className="mt-2 flex items-center gap-1 text-xs text-text-muted">
-          {titel}-Ziel:
-          <input
-            type="number"
-            min="0"
-            value={zielWert}
-            onChange={(e) => onZielAendern(e.target.value)}
-            placeholder="–"
-            className="w-14 rounded-md border border-text-muted/30 px-1 py-0.5 text-xs text-text"
-          />
-          g
+        <label className="mt-2 flex flex-wrap items-center gap-2 text-xs text-text-muted">
+          <span className="whitespace-nowrap">{titel}-Ziel:</span>
+          <span className="flex items-center gap-1.5">
+            <input
+              type="number"
+              min="0"
+              value={zielWert}
+              onChange={(e) => onZielAendern(e.target.value)}
+              placeholder="–"
+              className="w-16 rounded-md border border-text-muted/30 px-2 py-1 text-xs text-text"
+            />
+            g
+          </span>
         </label>
       )}
 

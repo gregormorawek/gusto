@@ -49,8 +49,8 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
             min="0"
             value={ziel.kalorien}
             onChange={(e) => onKalorienAendern(e.target.value)}
-            placeholder="z. B. 600"
-            className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text"
+            placeholder={ziel.typ === 'proTag' ? 'z. B. 2000' : 'z. B. 600'}
+            className="w-32 rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text"
           />
           <span className="text-sm text-text-muted">
             kcal {ziel.typ === 'proMahlzeit' ? 'pro Mahlzeit' : 'pro Tag'}
@@ -61,9 +61,9 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
       {ziel.typ === 'proTag' && (
         <div className="mt-3">
           <p className="text-xs text-text-muted">Makro-Gesamtziel für den Tag (optional):</p>
-          <div className="mt-1 flex gap-3">
+          <div className="mt-1 flex flex-wrap gap-x-4 gap-y-2">
             {MAKRO_FELDER.map(({ kategorie, label }) => (
-              <label key={kategorie} className="flex items-center gap-1 text-xs text-text-muted">
+              <label key={kategorie} className="flex items-center gap-1.5 text-xs text-text-muted">
                 {label}:
                 <input
                   type="number"
@@ -71,7 +71,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                   value={ziel.makro[kategorie]}
                   onChange={(e) => onMakroAendern(kategorie, e.target.value)}
                   placeholder="–"
-                  className="w-14 rounded-md border border-text-muted/30 px-1 py-0.5 text-xs text-text"
+                  className="w-16 rounded-md border border-text-muted/30 px-1.5 py-1 text-xs text-text"
                 />
                 g
               </label>

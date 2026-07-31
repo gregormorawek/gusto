@@ -2,9 +2,9 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import SlotKarte from './components/SlotKarte'
 import MahlzeitFilter from './components/MahlzeitFilter'
-import DiaetFilter from './components/DiaetFilter'
-import ZielEinstellungen from './components/ZielEinstellungen'
 import TagesplanAnsicht from './components/TagesplanAnsicht'
+import OnboardingWizard from './components/OnboardingWizard'
+import EinstellungenPanel from './components/EinstellungenPanel'
 import { MAHLZEITEN } from './mahlzeiten'
 import { supabase } from './supabase'
 
@@ -33,6 +33,15 @@ function zielLaden() {
   } catch {
     return ZIEL_STANDARD
   }
+}
+
+const ONBOARDING_LOCALSTORAGE_KEY = 'gusto-onboarding-abgeschlossen'
+
+// Prueft, ob der Onboarding-Wizard beim allerersten Besuch schon einmal
+// abgeschlossen wurde. Erst danach zeigt die App die Haupt-Ansicht sofort;
+// vorher wird bei jedem Laden der Wizard angezeigt.
+function onboardingAbgeschlossenLaden() {
+  return localStorage.getItem(ONBOARDING_LOCALSTORAGE_KEY) === 'true'
 }
 
 const MAKRO_ZIELE_LOCALSTORAGE_KEY = 'gusto-makro-ziele'
@@ -79,18 +88,20 @@ function nachMahlzeitGefiltert(liste, mahlzeit) {
 }
 
 // Filtert eine Zutaten-Liste auf die, deren kommaseparierte "diaeten"-Spalte
-// ALLE aktuell ausgewaehlten Diaetformen enthaelt. Keine Auswahl = Filter
+// ALLE aktuell ausgewaehlten Diaetformen enthaelt. Keine Auswahl (oder die
+// Auswahl "keine" = Keine Einschraenkung, die kein echter DB-Tag ist) = Filter
 // inaktiv, komplette Liste bleibt bestehen. Ist das Ergebnis leer (z. B. weil
 // die Kategorie noch keine passend getaggten Zutaten hat), wird auf die
 // ungefilterte Liste zurueckgefallen, statt eine leere Auswahl zu liefern.
 function nachDiaetenGefiltert(liste, ausgewaehlteDiaeten) {
-  if (ausgewaehlteDiaeten.length === 0) {
+  const aktiveDiaeten = ausgewaehlteDiaeten.filter((d) => d !== 'keine')
+  if (aktiveDiaeten.length === 0) {
     return liste
   }
 
   const passt = liste.filter((z) => {
     const vorhandeneDiaeten = (z.diaeten ?? '').split(',').map((d) => d.trim())
-    return ausgewaehlteDiaeten.every((d) => vorhandeneDiaeten.includes(d))
+    return aktiveDiaeten.every((d) => vorhandeneDiaeten.includes(d))
   })
   return passt.length > 0 ? passt : liste
 }
@@ -332,6 +343,23 @@ function App() {
     localStorage.setItem(ZIEL_LOCALSTORAGE_KEY, JSON.stringify(ziel))
   }, [ziel])
 
+  // Ob der Onboarding-Wizard schon einmal abgeschlossen wurde. Lazy
+  // initializer liest den Wert einmalig aus dem localStorage; solange er
+  // false ist, zeigt die App statt der Haupt-Ansicht den Wizard.
+  const [onboardingAbgeschlossen, setOnboardingAbgeschlossen] = useState(onboardingAbgeschlossenLaden)
+
+  // Ob das Einstellungen-Panel (Kalorienziel + Ernaehrungsform, ausserhalb
+  // des Onboardings ueber das Zahnrad-Icon erreichbar) gerade offen ist.
+  const [einstellungenOffen, setEinstellungenOffen] = useState(false)
+
+  // Wird vom Wizard aufgerufen, wenn der User Schritt 3 mit "Los geht's"
+  // abschliesst. Persistiert den Abschluss, damit der Wizard bei
+  // zukuenftigen Besuchen nicht mehr erscheint.
+  function onboardingAbschliessen() {
+    localStorage.setItem(ONBOARDING_LOCALSTORAGE_KEY, 'true')
+    setOnboardingAbgeschlossen(true)
+  }
+
   // Tagesplan: null = nicht aktiv (normale Einzel-Mahlzeit-Ansicht wird
   // gezeigt). Sonst ein Array mit 4 Eintraegen (einer pro Mahlzeit-Typ in
   // MAHLZEIT_REIHENFOLGE), die die Einzel-Ansicht ersetzen.
@@ -556,14 +584,22 @@ function App() {
   }
 
   // Wird vom DiaetFilter aufgerufen, wenn der User eine Diaetform an- oder
-  // abwaehlt. Wuerfelt sofort alle vier Kategorien neu, passend zur neuen
-  // Auswahl. neueDiaeten wird direkt verwendet statt ueber den State zu
-  // lesen, weil setDiaeten asynchron ist und der State-Wert im selben
-  // Funktionsdurchlauf noch der alte waere.
+  // abwaehlt. "keine" (Keine Einschraenkung) schliesst sich mit den anderen
+  // drei Diaetformen gegenseitig aus: Anwaehlen von "keine" ersetzt eine
+  // evtl. bestehende Auswahl komplett, Anwaehlen einer der anderen drei
+  // entfernt ein evtl. aktives "keine" wieder. Wuerfelt danach sofort alle
+  // vier Kategorien neu, passend zur neuen Auswahl. neueDiaeten wird direkt
+  // verwendet statt ueber den State zu lesen, weil setDiaeten asynchron ist
+  // und der State-Wert im selben Funktionsdurchlauf noch der alte waere.
   function diaetenAendern(slug) {
-    const neueDiaeten = diaeten.includes(slug)
-      ? diaeten.filter((d) => d !== slug)
-      : [...diaeten, slug]
+    let neueDiaeten
+    if (slug === 'keine') {
+      neueDiaeten = diaeten.includes('keine') ? [] : ['keine']
+    } else if (diaeten.includes(slug)) {
+      neueDiaeten = diaeten.filter((d) => d !== slug)
+    } else {
+      neueDiaeten = [...diaeten.filter((d) => d !== 'keine'), slug]
+    }
 
     const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, neueDiaeten))
     const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, neueDiaeten))
@@ -684,6 +720,22 @@ function App() {
     })
   }
 
+  if (!onboardingAbgeschlossen) {
+    return (
+      <OnboardingWizard
+        ziel={ziel}
+        onTypAendern={zielTypAendern}
+        onKalorienAendern={zielKalorienAendern}
+        onMakroAendern={zielMakroAendern}
+        mahlzeit={mahlzeit}
+        onMahlzeitAendern={mahlzeitAendern}
+        diaeten={diaeten}
+        onDiaetenAendern={diaetenAendern}
+        onAbschluss={onboardingAbschliessen}
+      />
+    )
+  }
+
   if (laedt) {
     return <p className="p-4">Lädt...</p>
   }
@@ -723,19 +775,33 @@ function App() {
 
   return (
     <>
-      <header className="p-4">
-        <h1 className="font-display text-3xl font-semibold text-primary">gusto</h1>
-        <p className="text-sm text-text-muted">deine nächste mahlzeit, gewürfelt</p>
+      <header className="flex items-start justify-between p-4">
+        <div>
+          <h1 className="font-display text-3xl font-semibold text-primary">gusto</h1>
+          <p className="text-sm text-text-muted">deine nächste mahlzeit, gewürfelt</p>
+        </div>
+        <button
+          type="button"
+          onClick={() => setEinstellungenOffen(true)}
+          aria-label="Einstellungen öffnen"
+          className="mt-1 text-2xl text-text-muted hover:text-primary"
+        >
+          ⚙
+        </button>
       </header>
 
-      {!tagesplan && <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />}
-      <DiaetFilter ausgewaehlt={diaeten} onAendern={diaetenAendern} />
-      <ZielEinstellungen
+      <EinstellungenPanel
+        offen={einstellungenOffen}
+        onSchliessen={() => setEinstellungenOffen(false)}
         ziel={ziel}
         onTypAendern={zielTypAendern}
         onKalorienAendern={zielKalorienAendern}
         onMakroAendern={zielMakroAendern}
+        diaeten={diaeten}
+        onDiaetenAendern={diaetenAendern}
       />
+
+      {!tagesplan && <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />}
 
       {ziel.typ === 'proTag' && !tagesplan && (
         <button type="button" onClick={tagPlanen} className="mx-4 mt-4 rounded-lg bg-primary px-4 py-2 text-card">
