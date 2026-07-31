@@ -59,6 +59,25 @@ function makroZieleLaden() {
   }
 }
 
+const TAGESPLAN_MAHLZEITEN_LOCALSTORAGE_KEY = 'gusto-tagesplan-mahlzeiten'
+
+// Laedt, welche Mahlzeiten bei "Ganzen Tag planen" beruecksichtigt werden
+// sollen. Ist noch nichts gespeichert, der Inhalt beschaedigt oder leer,
+// wird auf alle vier Mahlzeiten zurueckgefallen - das entspricht dem
+// Verhalten vor Einfuehrung dieser Auswahl.
+function tagesplanMahlzeitenLaden() {
+  try {
+    const gespeichert = localStorage.getItem(TAGESPLAN_MAHLZEITEN_LOCALSTORAGE_KEY)
+    if (!gespeichert) {
+      return MAHLZEIT_REIHENFOLGE
+    }
+    const geparst = JSON.parse(gespeichert)
+    return Array.isArray(geparst) && geparst.length > 0 ? geparst : MAHLZEIT_REIHENFOLGE
+  } catch {
+    return MAHLZEIT_REIHENFOLGE
+  }
+}
+
 // Hilfsfunktion: gibt aus einer beliebigen Liste ein zufaelliges Element zurueck.
 function zufaelligesElement(liste) {
   const zufallsIndex = Math.floor(Math.random() * liste.length)
@@ -118,14 +137,31 @@ function aufPortionSkalieren(wertPro100g, portionsGroesseInGramm) {
 }
 
 // Anteil der Tages-Kalorien, der bei ziel.typ === 'proTag' auf die jeweilige
-// Mahlzeit entfaellt.
+// Mahlzeit entfaellt (Basiswerte fuer ALLE vier Mahlzeiten - siehe
+// normalisierteTagesAnteile fuer die Umrechnung auf eine Teilmenge).
 const TAGES_ANTEIL = { fruehstueck: 0.25, mittag: 0.35, abend: 0.3, snack: 0.1 }
+
+// Normalisiert TAGES_ANTEIL auf eine Teilmenge ausgewaehlter Mahlzeiten, sodass
+// die Anteile der ausgewaehlten Mahlzeiten wieder in Summe 100% ergeben. Bei
+// z. B. nur Mittag+Abend: 0.35/(0.35+0.3) und 0.3/(0.35+0.3).
+function normalisierteTagesAnteile(ausgewaehlteMahlzeiten) {
+  const basisSumme = ausgewaehlteMahlzeiten.reduce((summe, typ) => summe + (TAGES_ANTEIL[typ] ?? 0), 0)
+  if (basisSumme <= 0) {
+    return {}
+  }
+  return Object.fromEntries(
+    ausgewaehlteMahlzeiten.map((typ) => [typ, (TAGES_ANTEIL[typ] ?? 0) / basisSumme])
+  )
+}
 
 // Ermittelt das Kalorienziel fuer EINE Mahlzeit-Kategorie, abhaengig vom
 // gewaehlten Ziel-Typ. Gibt null zurueck, wenn kein Ziel aktiv ist oder die
 // eingegebene Kalorienzahl (noch) ungueltig ist - in dem Fall bleibt die
-// Portion unskaliert (Faktor 1).
-function zielKalorienFuerMahlzeit(zielWert, mahlzeitWert) {
+// Portion unskaliert (Faktor 1). anteilUeberschreibung ersetzt bei Bedarf den
+// TAGES_ANTEIL-Basiswert (z. B. mit einem normalisierten Anteil aus dem
+// Tagesplan, wenn nicht alle vier Mahlzeiten ausgewaehlt sind) - ohne
+// Angabe (Einzel-Ansicht) bleibt das Verhalten unveraendert.
+function zielKalorienFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschreibung) {
   const kalorienZahl = Number(zielWert.kalorien)
   if (zielWert.typ === 'kein' || !kalorienZahl || kalorienZahl <= 0) {
     return null
@@ -133,7 +169,7 @@ function zielKalorienFuerMahlzeit(zielWert, mahlzeitWert) {
   if (zielWert.typ === 'proMahlzeit') {
     return kalorienZahl
   }
-  return kalorienZahl * (TAGES_ANTEIL[mahlzeitWert] ?? 0)
+  return kalorienZahl * (anteilUeberschreibung ?? TAGES_ANTEIL[mahlzeitWert] ?? 0)
 }
 
 // Teilt einen einzelnen Wert des Tages-Makroziels (Gramm) mit demselben
@@ -151,8 +187,9 @@ function tagesMakroAnteilBerechnen(tagesWert, anteil) {
 // Mahlzeit ab. Rein lokale Berechnung fuer den Tagesplan - liest/schreibt
 // NICHT den makroZiele-State, der ausschliesslich der Einzel-Ansicht
 // vorbehalten ist (beide Ansichten haben also getrennte Makro-Ziel-Quellen).
-function makroZielFuerMahlzeitAusTagesziel(zielWert, mahlzeitWert) {
-  const anteil = TAGES_ANTEIL[mahlzeitWert] ?? 0
+// anteilUeberschreibung siehe zielKalorienFuerMahlzeit.
+function makroZielFuerMahlzeitAusTagesziel(zielWert, mahlzeitWert, anteilUeberschreibung) {
+  const anteil = anteilUeberschreibung ?? TAGES_ANTEIL[mahlzeitWert] ?? 0
   return {
     protein: tagesMakroAnteilBerechnen(zielWert.makro.protein, anteil),
     carbs: tagesMakroAnteilBerechnen(zielWert.makro.carbs, anteil),
@@ -176,14 +213,14 @@ function skalierungsfaktorBerechnen(zielKalorien, basisKalorien) {
 // vorliegenden) Zutaten die neuen, gleichmaessig skalierten Portionsgroessen
 // fuer die angegebene Mahlzeit und das aktuelle Kalorienziel. Ohne aktives
 // Ziel ist der Faktor 1, die Portionen bleiben also beim Datenbank-Wert.
-function portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert) {
+function portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert, anteilUeberschreibung) {
   const basisKalorien =
     aufPortionSkalieren(proteinZutat.kalorien, proteinZutat.portion_g) +
     aufPortionSkalieren(carbsZutat.kalorien, carbsZutat.portion_g) +
     aufPortionSkalieren(fettZutat.kalorien, fettZutat.portion_g) +
     aufPortionSkalieren(gemueseZutat.kalorien, gemueseZutat.portion_g)
 
-  const faktor = skalierungsfaktorBerechnen(zielKalorienFuerMahlzeit(zielWert, mahlzeitWert), basisKalorien)
+  const faktor = skalierungsfaktorBerechnen(zielKalorienFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschreibung), basisKalorien)
 
   return {
     proteinPortion: Math.round(proteinZutat.portion_g * faktor),
@@ -233,10 +270,10 @@ function makroZielPortionBerechnen(zutat, aktuellePortion, zielGramm, naehrwertS
 // bezieht sich auf den bis dahin aktuellen Kalorien-Stand der Mahlzeit, d. h.
 // die Reihenfolge Protein -> Carbs -> Fett kann das Ergebnis beeinflussen, wenn
 // mehrere Ziele gleichzeitig gesetzt sind und die Toleranz knapp wird.
-function portionenMitMakroZielenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert, makroZieleWert) {
-  const basisPortionen = portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert)
+function portionenMitMakroZielenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert, makroZieleWert, anteilUeberschreibung) {
+  const basisPortionen = portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert, anteilUeberschreibung)
 
-  const zielKalorien = zielKalorienFuerMahlzeit(zielWert, mahlzeitWert)
+  const zielKalorien = zielKalorienFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschreibung)
   const kalorienVorMakroAnpassung =
     aufPortionSkalieren(proteinZutat.kalorien, basisPortionen.proteinPortion) +
     aufPortionSkalieren(carbsZutat.kalorien, basisPortionen.carbsPortion) +
@@ -361,9 +398,18 @@ function App() {
   }
 
   // Tagesplan: null = nicht aktiv (normale Einzel-Mahlzeit-Ansicht wird
-  // gezeigt). Sonst ein Array mit 4 Eintraegen (einer pro Mahlzeit-Typ in
-  // MAHLZEIT_REIHENFOLGE), die die Einzel-Ansicht ersetzen.
+  // gezeigt). Sonst ein Array mit einem Eintrag pro AUSGEWAEHLTER Mahlzeit
+  // (siehe tagesplanMahlzeiten), die die Einzel-Ansicht ersetzen.
   const [tagesplan, setTagesplan] = useState(null)
+
+  // Welche Mahlzeiten bei "Ganzen Tag planen" beruecksichtigt werden sollen
+  // (Mehrfachauswahl, mind. 1 - siehe tagesplanMahlzeitenAendern). Lazy
+  // initializer laedt den zuletzt gespeicherten Wert aus dem localStorage.
+  const [tagesplanMahlzeiten, setTagesplanMahlzeiten] = useState(tagesplanMahlzeitenLaden)
+
+  useEffect(() => {
+    localStorage.setItem(TAGESPLAN_MAHLZEITEN_LOCALSTORAGE_KEY, JSON.stringify(tagesplanMahlzeiten))
+  }, [tagesplanMahlzeiten])
 
   // Makro-Ziele (Protein/Carbs/Fett in Gramm) PRO MAHLZEIT-TYP:
   // { [mahlzeitTyp]: { protein, carbs, fett } }. Wird von der Einzel-Ansicht
@@ -418,7 +464,7 @@ function App() {
   // uebergeben (statt aus dem makroZiele-State gelesen), damit der Aufrufer
   // z. B. gerade erst getippte Werte OHNE Verzoegerung durch asynchrones
   // setState hier schon beruecksichtigen kann.
-  function tagesplanEintragBauen(mahlzeitTyp, proteinZutat, carbsZutat, fettZutat, gemueseZutat, makroZieleWert) {
+  function tagesplanEintragBauen(mahlzeitTyp, proteinZutat, carbsZutat, fettZutat, gemueseZutat, makroZieleWert, anteilUeberschreibung) {
     const portionen = portionenMitMakroZielenBerechnen(
       proteinZutat,
       carbsZutat,
@@ -426,7 +472,8 @@ function App() {
       gemueseZutat,
       mahlzeitTyp,
       ziel,
-      makroZieleWert
+      makroZieleWert,
+      anteilUeberschreibung
     )
     const summeKalorien =
       aufPortionSkalieren(proteinZutat.kalorien, portionen.proteinPortion) +
@@ -617,7 +664,32 @@ function App() {
     // werden, sonst wuerden dort weiterhin Zutaten stehen, die die neue
     // Diaet-Auswahl nicht erfuellen.
     if (tagesplan) {
-      setTagesplan(tagesplanErzeugen(neueDiaeten))
+      setTagesplan(tagesplanErzeugen(neueDiaeten, tagesplanMahlzeiten))
+    }
+  }
+
+  // Wird von TagesplanMahlzeitenFilter aufgerufen, wenn der User eine
+  // Mahlzeit fuer den Tagesplan an- oder abwaehlt (Mehrfachauswahl, welche
+  // der vier Mahlzeiten bei "Ganzen Tag planen" ueberhaupt vorkommen sollen).
+  // Anders als bei diaetenAendern ist das Abwaehlen der LETZTEN verbleibenden
+  // Mahlzeit ein No-Op: es gibt hier keinen "Weiter"-Gate-Punkt wie im
+  // Wizard, der einen leeren Zwischenstand abfangen koennte - jeder Klick
+  // wirkt sofort, auch waehrend eine TagesplanAnsicht bereits sichtbar ist.
+  // Ohne den Schutz wuerde das einen leeren Tagesplan erzeugen.
+  function tagesplanMahlzeitenAendern(slug) {
+    const istAusgewaehlt = tagesplanMahlzeiten.includes(slug)
+    if (istAusgewaehlt && tagesplanMahlzeiten.length === 1) {
+      return
+    }
+
+    const neueMahlzeiten = istAusgewaehlt
+      ? tagesplanMahlzeiten.filter((m) => m !== slug)
+      : [...tagesplanMahlzeiten, slug]
+
+    setTagesplanMahlzeiten(neueMahlzeiten)
+
+    if (tagesplan) {
+      setTagesplan(tagesplanErzeugen(diaeten, neueMahlzeiten))
     }
   }
 
@@ -657,32 +729,36 @@ function App() {
     portionenMitMakroZielenSetzen(protein, carbs, fett, gemuese, mahlzeit, neueZiele)
   }
 
-  // Wuerfelt fuer jeden der vier Mahlzeit-Typen (unabhaengig vom aktuell
-  // gewaehlten Mahlzeit-Filter) einen eigenen Zutaten-Satz, skaliert ihn mit
-  // dem passenden Tages-Anteil und gibt den kompletten neuen Tagesplan
-  // zurueck (setzt selbst KEINEN State, damit die Funktion sowohl fuer den
-  // "Ganzen Tag planen"-Button als auch fuer eine Diaet-Filter-Aenderung
-  // waehrend eines aktiven Tagesplans wiederverwendet werden kann).
-  function tagesplanErzeugen(diaetenWert) {
-    return MAHLZEIT_REIHENFOLGE.map((mahlzeitTyp) => {
+  // Wuerfelt fuer jeden AUSGEWAEHLTEN Mahlzeit-Typ (siehe tagesplanMahlzeiten,
+  // in fester MAHLZEIT_REIHENFOLGE) einen eigenen Zutaten-Satz, skaliert ihn
+  // mit dem auf die Auswahl normalisierten Tages-Anteil (normalisierteTagesAnteile)
+  // und gibt den kompletten neuen Tagesplan zurueck (setzt selbst KEINEN State,
+  // damit die Funktion sowohl fuer den "Ganzen Tag planen"-Button als auch fuer
+  // eine Diaet-/Mahlzeiten-Auswahl-Aenderung waehrend eines aktiven Tagesplans
+  // wiederverwendet werden kann).
+  function tagesplanErzeugen(diaetenWert, tagesplanMahlzeitenWert) {
+    const anteile = normalisierteTagesAnteile(tagesplanMahlzeitenWert)
+    return MAHLZEIT_REIHENFOLGE.filter((typ) => tagesplanMahlzeitenWert.includes(typ)).map((mahlzeitTyp) => {
       const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeitTyp, diaetenWert))
       const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeitTyp, diaetenWert))
       const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeitTyp, diaetenWert))
       const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeitTyp, diaetenWert))
+      const anteil = anteile[mahlzeitTyp]
       return tagesplanEintragBauen(
         mahlzeitTyp,
         neuProtein,
         neuCarbs,
         neuFett,
         neuGemuese,
-        makroZielFuerMahlzeitAusTagesziel(ziel, mahlzeitTyp)
+        makroZielFuerMahlzeitAusTagesziel(ziel, mahlzeitTyp, anteil),
+        anteil
       )
     })
   }
 
   // Wird vom "Ganzen Tag planen"- bzw. "Ganzen Tag neu planen"-Button aufgerufen.
   function tagPlanen() {
-    setTagesplan(tagesplanErzeugen(diaeten))
+    setTagesplan(tagesplanErzeugen(diaeten, tagesplanMahlzeiten))
   }
 
   // Wuerfelt im Tagesplan EINEN Slot (kategorie: protein/carbs/fett/gemuese)
@@ -707,13 +783,15 @@ function App() {
         gemuese: eintrag.gemuese,
         [kategorie]: neueZutat,
       }
+      const anteil = normalisierteTagesAnteile(tagesplanMahlzeiten)[eintrag.mahlzeitTyp]
       const neuerEintrag = tagesplanEintragBauen(
         eintrag.mahlzeitTyp,
         zutaten.protein,
         zutaten.carbs,
         zutaten.fett,
         zutaten.gemuese,
-        makroZielFuerMahlzeitAusTagesziel(ziel, eintrag.mahlzeitTyp)
+        makroZielFuerMahlzeitAusTagesziel(ziel, eintrag.mahlzeitTyp, anteil),
+        anteil
       )
 
       return aktuellerPlan.map((e, i) => (i === index ? neuerEintrag : e))
@@ -731,6 +809,8 @@ function App() {
         onMahlzeitAendern={mahlzeitAendern}
         diaeten={diaeten}
         onDiaetenAendern={diaetenAendern}
+        tagesplanMahlzeiten={tagesplanMahlzeiten}
+        onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
         onAbschluss={onboardingAbschliessen}
       />
     )
@@ -799,25 +879,40 @@ function App() {
         onMakroAendern={zielMakroAendern}
         diaeten={diaeten}
         onDiaetenAendern={diaetenAendern}
+        tagesplanMahlzeiten={tagesplanMahlzeiten}
+        onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
       />
 
-      {!tagesplan && <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />}
-
-      {ziel.typ === 'proTag' && !tagesplan && (
-        <button type="button" onClick={tagPlanen} className="mx-4 mt-4 rounded-lg bg-primary px-4 py-2 text-card">
-          Ganzen Tag planen
-        </button>
-      )}
-
-      {tagesplan ? (
-        <TagesplanAnsicht
-          tagesplan={tagesplan}
-          onSlotWuerfeln={tagesplanSlotWuerfeln}
-          onZurueck={() => setTagesplan(null)}
-          onNeuPlanen={tagPlanen}
-        />
+      {ziel.typ === 'proTag' ? (
+        tagesplan ? (
+          <TagesplanAnsicht
+            tagesplan={tagesplan}
+            onSlotWuerfeln={tagesplanSlotWuerfeln}
+            onZurueck={() => setTagesplan(null)}
+            onNeuPlanen={tagPlanen}
+          />
+        ) : (
+          <div className="mx-4 mt-6 text-center">
+            <button
+              type="button"
+              onClick={tagPlanen}
+              className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-card shadow-sm"
+            >
+              Ganzen Tag planen
+            </button>
+            <button
+              type="button"
+              onClick={() => setEinstellungenOffen(true)}
+              className="mt-3 text-sm text-primary hover:underline"
+            >
+              Mahlzeiten anpassen
+            </button>
+          </div>
+        )
       ) : (
         <>
+          <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />
+
           <section id="slots" className="grid grid-cols-2 gap-4 p-4">
             <SlotKarte
               titel="Protein"
