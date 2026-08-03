@@ -11,8 +11,9 @@ const SCHRITT_TITEL = {
 }
 
 // Prueft, ob die Kalorienziel-Auswahl aus Schritt 1 vollstaendig ist: "kein
-// Ziel" ist immer gueltig, bei "proMahlzeit"/"proTag" muss zusaetzlich eine
-// positive Kalorienzahl eingetragen sein - sonst bleibt "Weiter" blockiert.
+// Ziel" ist immer gueltig, bei "proMahlzeit"/"proTag" muessen zusaetzlich
+// Min UND Max positiv eingetragen sein UND Min echt kleiner als Max sein -
+// sonst bleibt "Weiter" blockiert.
 function kalorienZielGueltig(ziel) {
   if (!ziel.typ) {
     return false
@@ -20,8 +21,17 @@ function kalorienZielGueltig(ziel) {
   if (ziel.typ === 'kein') {
     return true
   }
-  const kalorienZahl = Number(ziel.kalorien)
-  return ziel.kalorien !== '' && Number.isFinite(kalorienZahl) && kalorienZahl > 0
+  const minZahl = Number(ziel.kalorien.min)
+  const maxZahl = Number(ziel.kalorien.max)
+  return (
+    ziel.kalorien.min !== '' &&
+    ziel.kalorien.max !== '' &&
+    Number.isFinite(minZahl) &&
+    Number.isFinite(maxZahl) &&
+    minZahl > 0 &&
+    maxZahl > 0 &&
+    minZahl < maxZahl
+  )
 }
 
 // Einmaliger 3-Schritte-Wizard fuer den allerersten Besuch. Der Schritt-
@@ -82,7 +92,7 @@ function OnboardingWizard({
             />
             {!zielGueltig && ziel.typ && ziel.typ !== 'kein' && (
               <p className="mx-4 mt-2 text-xs text-primary">
-                Bitte eine gültige Kalorienzahl (größer als 0) eingeben.
+                Bitte gültige Min-/Max-Werte eingeben (beide größer als 0, Min kleiner als Max).
               </p>
             )}
           </>

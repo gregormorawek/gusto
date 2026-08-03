@@ -66,7 +66,7 @@ function TagesplanAnsicht({ tagesplan, onSlotWuerfeln, onZurueck, onMahlzeitenAn
               zielErreichbar={eintrag.fettZielErreichbar}
             />
             <SlotKarte
-              titel="Gemüse"
+              titel={eintrag.gemuese.kategorie === 'obst' ? 'Obst' : 'Gemüse'}
               text={eintrag.gemuese.name}
               portion={eintrag.gemuesePortion}
               onWuerfeln={() => onSlotWuerfeln(index, 'gemuese')}

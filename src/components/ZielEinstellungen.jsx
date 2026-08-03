@@ -16,11 +16,12 @@ const MAKRO_FELDER = [
   { kategorie: 'fett', label: 'Fett' },
 ]
 
-// Zeigt die Ziel-Typ-Auswahl (Radio, Single-Select), ein Zahlenfeld fuer die
-// Kalorienzahl (falls ein Ziel aktiv ist) und - nur bei "Pro Tag" - ein
-// Makro-Gesamtziel fuer den ganzen Tag. ziel ist { typ, kalorien, makro:
-// { protein, carbs, fett } }. onTypAendern/onKalorienAendern/onMakroAendern
-// werden mit dem jeweils neuen Wert aufgerufen.
+// Zeigt die Ziel-Typ-Auswahl (Radio, Single-Select), zwei Zahlenfelder fuer
+// das Kalorienfenster (Min/Max, falls ein Ziel aktiv ist) und - nur bei
+// "Pro Tag" - ein Makro-Gesamtziel fuer den ganzen Tag. ziel ist { typ,
+// kalorien: { min, max }, makro: { protein, carbs, fett } }. onTypAendern
+// wird mit dem neuen Typ aufgerufen, onKalorienAendern mit ('min'|'max', wert)
+// (Signatur analog zu onMakroAendern), onMakroAendern mit (kategorie, wert).
 function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAendern }) {
   return (
     <section className="mx-4 mt-4 rounded-lg border border-secondary/20 bg-card p-4 shadow-sm">
@@ -43,18 +44,32 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
       </div>
 
       {ziel.typ !== 'kein' && (
-        <div className="mt-3 flex items-center gap-2">
-          <input
-            type="number"
-            min="0"
-            value={ziel.kalorien}
-            onChange={(e) => onKalorienAendern(e.target.value)}
-            placeholder={ziel.typ === 'proTag' ? 'z. B. 2000' : 'z. B. 600'}
-            className="w-32 rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text"
-          />
-          <span className="text-sm text-text-muted">
-            kcal {ziel.typ === 'proMahlzeit' ? 'pro Mahlzeit' : 'pro Tag'}
-          </span>
+        <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2">
+          <label className="flex items-center gap-1.5 text-sm text-text-muted">
+            Min:
+            <input
+              type="number"
+              min="0"
+              value={ziel.kalorien.min}
+              onChange={(e) => onKalorienAendern('min', e.target.value)}
+              placeholder={ziel.typ === 'proTag' ? 'z. B. 1800' : 'z. B. 500'}
+              className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text"
+            />
+            kcal
+          </label>
+          <label className="flex items-center gap-1.5 text-sm text-text-muted">
+            Max:
+            <input
+              type="number"
+              min="0"
+              value={ziel.kalorien.max}
+              onChange={(e) => onKalorienAendern('max', e.target.value)}
+              placeholder={ziel.typ === 'proTag' ? 'z. B. 2200' : 'z. B. 700'}
+              className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text"
+            />
+            kcal
+          </label>
+          <span className="text-sm text-text-muted">{ziel.typ === 'proMahlzeit' ? 'pro Mahlzeit' : 'pro Tag'}</span>
         </div>
       )}
 
