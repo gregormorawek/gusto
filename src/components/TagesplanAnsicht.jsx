@@ -9,9 +9,8 @@ function labelFuer(mahlzeitTyp) {
 // Zeigt den kompletten Tagesplan: eine Karte pro Mahlzeit-Typ mit den vier
 // Zutaten-Slots (jeder einzeln neu wuerfelbar) und der jeweiligen
 // Naehrwert-Summe, darunter eine Tagesuebersicht mit Gesamt-Summen und
-// kompakter Auflistung pro Mahlzeit. Ersetzt waehrenddessen die
-// Einzel-Mahlzeit-Ansicht in App.jsx.
-function TagesplanAnsicht({ tagesplan, onSlotWuerfeln, onZurueck, onNeuPlanen }) {
+// kompakter Auflistung pro Mahlzeit.
+function TagesplanAnsicht({ tagesplan, onSlotWuerfeln, onZurueck, onMahlzeitenAnpassen, onNeuPlanen }) {
   // Die Tagesuebersicht ist KEIN eigener State, sondern wird bei jedem
   // Rendern frisch aus den vier Mahlzeit-Eintraegen summiert.
   const gesamtKalorien = tagesplan.reduce((summe, eintrag) => summe + eintrag.summeKalorien, 0)
@@ -21,9 +20,14 @@ function TagesplanAnsicht({ tagesplan, onSlotWuerfeln, onZurueck, onNeuPlanen })
 
   return (
     <>
-      <button type="button" onClick={onZurueck} className="mx-4 mt-2 text-sm text-primary hover:underline">
-        ← zurück zur Einzel-Ansicht
-      </button>
+      <div className="mx-4 mt-2 flex items-center gap-4">
+        <button type="button" onClick={onZurueck} className="text-sm text-primary hover:underline">
+          ← Zurück
+        </button>
+        <button type="button" onClick={onMahlzeitenAnpassen} className="text-sm text-primary hover:underline">
+          Mahlzeiten anpassen
+        </button>
+      </div>
 
       {tagesplan.map((eintrag, index) => (
         <section

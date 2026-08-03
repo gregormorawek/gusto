@@ -1,5 +1,6 @@
 import ZielEinstellungen from './ZielEinstellungen'
 import DiaetFilter from './DiaetFilter'
+import SuessDeftigFilter from './SuessDeftigFilter'
 import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
 
 // Modal-Panel fuer die Werte, die nach dem Onboarding nicht mehr staendig
@@ -9,6 +10,12 @@ import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
 // einem Overlay statt als eigener Schritt. Wird sowohl ueber das
 // Zahnrad-Icon als auch ueber den "Mahlzeiten anpassen"-Link in der
 // Haupt-Ansicht geoeffnet (beide teilen sich denselben einstellungenOffen-State).
+//
+// Der SuessDeftigFilter lebt zusaetzlich zur Einzel-Ansicht (dort nur bei
+// fruehstueck/snack sichtbar) auch hier, IMMER sichtbar - genau wie
+// DiaetFilter. Das ist der einzige Weg, den Filter im Tagesplan-Modus
+// (ziel.typ === 'proTag') ueberhaupt zu erreichen, da dort die Einzel-
+// Ansicht (und damit ihr SuessDeftigFilter) nicht gerendert wird.
 function EinstellungenPanel({
   offen,
   onSchliessen,
@@ -18,6 +25,8 @@ function EinstellungenPanel({
   onMakroAendern,
   diaeten,
   onDiaetenAendern,
+  suessDeftig,
+  onSuessDeftigAendern,
   tagesplanMahlzeiten,
   onTagesplanMahlzeitenAendern,
 }) {
@@ -69,6 +78,14 @@ function EinstellungenPanel({
           <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Ernährungsform</h3>
           <div className="mt-2">
             <DiaetFilter ausgewaehlt={diaeten} onAendern={onDiaetenAendern} />
+          </div>
+        </div>
+
+        <div className="mt-4">
+          <h3 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Süß oder deftig</h3>
+          <p className="mt-1 text-xs text-text-muted">Gilt für Frühstück und Snacks.</p>
+          <div className="mt-2">
+            <SuessDeftigFilter aktuell={suessDeftig} onAendern={onSuessDeftigAendern} />
           </div>
         </div>
       </div>

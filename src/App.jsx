@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react'
 import './App.css'
 import SlotKarte from './components/SlotKarte'
 import MahlzeitFilter from './components/MahlzeitFilter'
+import SuessDeftigFilter from './components/SuessDeftigFilter'
 import TagesplanAnsicht from './components/TagesplanAnsicht'
 import OnboardingWizard from './components/OnboardingWizard'
 import EinstellungenPanel from './components/EinstellungenPanel'
@@ -125,9 +126,34 @@ function nachDiaetenGefiltert(liste, ausgewaehlteDiaeten) {
   return passt.length > 0 ? passt : liste
 }
 
-// Wendet Mahlzeit- und Diaet-Filter nacheinander auf eine Zutaten-Liste an.
-function gefiltertePoolFuer(liste, mahlzeitWert, diaetenWert) {
-  return nachDiaetenGefiltert(nachMahlzeitGefiltert(liste, mahlzeitWert), diaetenWert)
+// Filtert eine Zutaten-Liste nach der kommafreien "eigenschaft"-Spalte
+// (suess/deftig/leer). '' (Alles, der Default) = Filter inaktiv, komplette
+// Liste bleibt bestehen. Zutaten OHNE eigenschaft (z. B. Topfen, Mandeln,
+// Hirse, Walnuesse, Butter) gelten laut Datenmodell als neutral und passen
+// bei "Suess" UND "Deftig" gleichermassen mit rein. Ist das Ergebnis leer,
+// wird - wie bei den anderen Filtern - auf die ungefilterte Liste
+// zurueckgefallen.
+function nachSuessDeftigGefiltert(liste, suessDeftig) {
+  if (!suessDeftig) {
+    return liste
+  }
+
+  const passt = liste.filter((z) => {
+    const eigenschaft = (z.eigenschaft ?? '').trim()
+    return eigenschaft === '' || eigenschaft === suessDeftig
+  })
+  return passt.length > 0 ? passt : liste
+}
+
+// Wendet Mahlzeit-, Diaet- und Suess/Deftig-Filter nacheinander auf eine
+// Zutaten-Liste an. Der Suess/Deftig-Filter wird NUR bei fruehstueck/snack
+// angewendet - bei mittag/abend ergibt die Unterscheidung keinen Sinn (siehe
+// SuessDeftigFilter), deshalb wird suessDeftigWert dort ignoriert, selbst
+// falls er von einem vorherigen fruehstueck/snack-Filter noch gesetzt ist.
+function gefiltertePoolFuer(liste, mahlzeitWert, diaetenWert, suessDeftigWert) {
+  const nachMahlzeitUndDiaet = nachDiaetenGefiltert(nachMahlzeitGefiltert(liste, mahlzeitWert), diaetenWert)
+  const suessDeftigRelevant = mahlzeitWert === 'fruehstueck' || mahlzeitWert === 'snack'
+  return suessDeftigRelevant ? nachSuessDeftigGefiltert(nachMahlzeitUndDiaet, suessDeftigWert) : nachMahlzeitUndDiaet
 }
 
 // Hilfsfunktion: rechnet einen 100g-Referenzwert (z. B. Kalorien pro 100g)
@@ -370,6 +396,13 @@ function App() {
   // kommen infrage.
   const [diaeten, setDiaeten] = useState([])
 
+  // Aktuell gewaehlter Suess/Deftig-Filter ('suess' | 'deftig' | '' fuer
+  // "Alles" = Default, kein echter DB-Tag). Nur relevant, wenn mahlzeit
+  // 'fruehstueck' oder 'snack' ist - gefiltertePoolFuer ignoriert den Wert
+  // fuer die anderen Mahlzeit-Typen automatisch, und SuessDeftigFilter wird
+  // dort auch gar nicht erst gerendert (siehe Rendering unten).
+  const [suessDeftig, setSuessDeftig] = useState('')
+
   // Kalorienziel-Einstellung: { typ: 'kein' | 'proMahlzeit' | 'proTag', kalorien }.
   // Lazy initializer laedt den zuletzt gespeicherten Wert aus dem localStorage.
   const [ziel, setZiel] = useState(zielLaden)
@@ -522,7 +555,7 @@ function App() {
         // Zusaetzlich zu name und kategorie laden wir jetzt auch die
         // Naehrwert-Spalten und die Portionsgroesse (portion_g) mit,
         // damit wir spaeter eine Summe berechnen koennen.
-        .select('name, kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten, diaeten')
+        .select('name, kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten, diaeten, eigenschaft')
         .eq('aktiv', true)
 
       if (error) {
@@ -546,10 +579,10 @@ function App() {
 
       // Direkt eine erste zufaellige Auswahl setzen, sobald die Daten da sind,
       // passend zum aktuell (per Uhrzeit) vorausgewaehlten Mahlzeit-Filter.
-      const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteine, mahlzeit, diaeten))
-      const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsListe, mahlzeit, diaeten))
-      const neuFett = zufaelligesElement(gefiltertePoolFuer(fetteListe, mahlzeit, diaeten))
-      const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseListe, mahlzeit, diaeten))
+      const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteine, mahlzeit, diaeten, suessDeftig))
+      const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsListe, mahlzeit, diaeten, suessDeftig))
+      const neuFett = zufaelligesElement(gefiltertePoolFuer(fetteListe, mahlzeit, diaeten, suessDeftig))
+      const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseListe, mahlzeit, diaeten, suessDeftig))
 
       setProtein(neuProtein)
       setCarbs(neuCarbs)
@@ -566,10 +599,10 @@ function App() {
   // Waehlt fuer jede Kategorie eine neue zufaellige Zutat aus dem Pool des
   // aktuellen Mahlzeit-Filters aus und schreibt sie in den jeweiligen State.
   function neueAuswahlWuerfeln() {
-    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten))
-    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten))
-    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten))
-    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten))
+    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten, suessDeftig))
+    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten, suessDeftig))
+    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten, suessDeftig))
+    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten, suessDeftig))
 
     setProtein(neuProtein)
     setCarbs(neuCarbs)
@@ -584,25 +617,25 @@ function App() {
   // passende SlotKarte weitergegeben, damit deren kleiner Re-Roll-Button nur
   // diesen einen Slot neu wuerfelt.
   function proteinWuerfeln() {
-    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten))
+    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten, suessDeftig))
     setProtein(neuProtein)
     portionenMitMakroZielenSetzen(neuProtein, carbs, fett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
 
   function carbsWuerfeln() {
-    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten))
+    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten, suessDeftig))
     setCarbs(neuCarbs)
     portionenMitMakroZielenSetzen(protein, neuCarbs, fett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
 
   function fettWuerfeln() {
-    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten))
+    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten, suessDeftig))
     setFett(neuFett)
     portionenMitMakroZielenSetzen(protein, carbs, neuFett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
 
   function gemueseWuerfeln() {
-    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten))
+    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten, suessDeftig))
     setGemuese(neuGemuese)
     portionenMitMakroZielenSetzen(protein, carbs, fett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
@@ -617,10 +650,10 @@ function App() {
       return
     }
 
-    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, neueMahlzeit, diaeten))
-    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, neueMahlzeit, diaeten))
-    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, neueMahlzeit, diaeten))
-    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, neueMahlzeit, diaeten))
+    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, neueMahlzeit, diaeten, suessDeftig))
+    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, neueMahlzeit, diaeten, suessDeftig))
+    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, neueMahlzeit, diaeten, suessDeftig))
+    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, neueMahlzeit, diaeten, suessDeftig))
 
     setMahlzeit(neueMahlzeit)
     setProtein(neuProtein)
@@ -628,6 +661,40 @@ function App() {
     setFett(neuFett)
     setGemuese(neuGemuese)
     portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, neueMahlzeit, makroZieleFuer(neueMahlzeit))
+  }
+
+  // Wird vom SuessDeftigFilter aufgerufen - sowohl der Instanz in der
+  // Einzel-Ansicht (nur bei mahlzeit === 'fruehstueck'/'snack' sichtbar) als
+  // auch der im EinstellungenPanel (dort immer sichtbar, unabhaengig vom
+  // aktuellen Screen - genau wie DiaetFilter). Einzelauswahl statt
+  // Mehrfachauswahl wie bei diaetenAendern, da sich Suess/Deftig/Alles
+  // gegenseitig ausschliessen. Wuerfelt danach sofort alle vier Kategorien
+  // neu, passend zur neuen Auswahl. neuerWert wird direkt verwendet statt
+  // ueber den State zu lesen, weil setSuessDeftig asynchron ist und der
+  // State-Wert im selben Funktionsdurchlauf noch der alte waere.
+  function suessDeftigAendern(neuerWert) {
+    if (neuerWert === suessDeftig) {
+      return
+    }
+
+    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten, neuerWert))
+    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten, neuerWert))
+    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten, neuerWert))
+    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, diaeten, neuerWert))
+
+    setSuessDeftig(neuerWert)
+    setProtein(neuProtein)
+    setCarbs(neuCarbs)
+    setFett(neuFett)
+    setGemuese(neuGemuese)
+    portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
+
+    // Ist gerade ein Tagesplan sichtbar, muss der ebenfalls neu gewuerfelt
+    // werden, sonst wuerden dort weiterhin Fruehstueck-/Snack-Zutaten stehen,
+    // die die neue Suess/Deftig-Auswahl nicht erfuellen.
+    if (tagesplan) {
+      setTagesplan(tagesplanErzeugen(diaeten, tagesplanMahlzeiten, neuerWert))
+    }
   }
 
   // Wird vom DiaetFilter aufgerufen, wenn der User eine Diaetform an- oder
@@ -648,10 +715,10 @@ function App() {
       neueDiaeten = [...diaeten.filter((d) => d !== 'keine'), slug]
     }
 
-    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, neueDiaeten))
-    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, neueDiaeten))
-    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, neueDiaeten))
-    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, neueDiaeten))
+    const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeit, neueDiaeten, suessDeftig))
+    const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeit, neueDiaeten, suessDeftig))
+    const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeit, neueDiaeten, suessDeftig))
+    const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeit, neueDiaeten, suessDeftig))
 
     setDiaeten(neueDiaeten)
     setProtein(neuProtein)
@@ -664,7 +731,7 @@ function App() {
     // werden, sonst wuerden dort weiterhin Zutaten stehen, die die neue
     // Diaet-Auswahl nicht erfuellen.
     if (tagesplan) {
-      setTagesplan(tagesplanErzeugen(neueDiaeten, tagesplanMahlzeiten))
+      setTagesplan(tagesplanErzeugen(neueDiaeten, tagesplanMahlzeiten, suessDeftig))
     }
   }
 
@@ -689,7 +756,7 @@ function App() {
     setTagesplanMahlzeiten(neueMahlzeiten)
 
     if (tagesplan) {
-      setTagesplan(tagesplanErzeugen(diaeten, neueMahlzeiten))
+      setTagesplan(tagesplanErzeugen(diaeten, neueMahlzeiten, suessDeftig))
     }
   }
 
@@ -734,15 +801,18 @@ function App() {
   // mit dem auf die Auswahl normalisierten Tages-Anteil (normalisierteTagesAnteile)
   // und gibt den kompletten neuen Tagesplan zurueck (setzt selbst KEINEN State,
   // damit die Funktion sowohl fuer den "Ganzen Tag planen"-Button als auch fuer
-  // eine Diaet-/Mahlzeiten-Auswahl-Aenderung waehrend eines aktiven Tagesplans
-  // wiederverwendet werden kann).
-  function tagesplanErzeugen(diaetenWert, tagesplanMahlzeitenWert) {
+  // eine Diaet-/Mahlzeiten-/Suess-Deftig-Auswahl-Aenderung waehrend eines
+  // aktiven Tagesplans wiederverwendet werden kann). suessDeftigWert wird -
+  // wie diaetenWert - explizit als Param uebergeben statt aus dem State
+  // gelesen, damit suessDeftigAendern den gerade erst gewaehlten Wert OHNE
+  // Verzoegerung durch asynchrones setState hier schon beruecksichtigen kann.
+  function tagesplanErzeugen(diaetenWert, tagesplanMahlzeitenWert, suessDeftigWert) {
     const anteile = normalisierteTagesAnteile(tagesplanMahlzeitenWert)
     return MAHLZEIT_REIHENFOLGE.filter((typ) => tagesplanMahlzeitenWert.includes(typ)).map((mahlzeitTyp) => {
-      const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeitTyp, diaetenWert))
-      const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeitTyp, diaetenWert))
-      const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeitTyp, diaetenWert))
-      const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeitTyp, diaetenWert))
+      const neuProtein = zufaelligesElement(gefiltertePoolFuer(proteinOptionen, mahlzeitTyp, diaetenWert, suessDeftigWert))
+      const neuCarbs = zufaelligesElement(gefiltertePoolFuer(carbsOptionen, mahlzeitTyp, diaetenWert, suessDeftigWert))
+      const neuFett = zufaelligesElement(gefiltertePoolFuer(fettOptionen, mahlzeitTyp, diaetenWert, suessDeftigWert))
+      const neuGemuese = zufaelligesElement(gefiltertePoolFuer(gemueseOptionen, mahlzeitTyp, diaetenWert, suessDeftigWert))
       const anteil = anteile[mahlzeitTyp]
       return tagesplanEintragBauen(
         mahlzeitTyp,
@@ -758,7 +828,7 @@ function App() {
 
   // Wird vom "Ganzen Tag planen"- bzw. "Ganzen Tag neu planen"-Button aufgerufen.
   function tagPlanen() {
-    setTagesplan(tagesplanErzeugen(diaeten, tagesplanMahlzeiten))
+    setTagesplan(tagesplanErzeugen(diaeten, tagesplanMahlzeiten, suessDeftig))
   }
 
   // Wuerfelt im Tagesplan EINEN Slot (kategorie: protein/carbs/fett/gemuese)
@@ -774,7 +844,7 @@ function App() {
         gemuese: gemueseOptionen,
       }
       const neueZutat = zufaelligesElement(
-        gefiltertePoolFuer(optionenNachKategorie[kategorie], eintrag.mahlzeitTyp, diaeten)
+        gefiltertePoolFuer(optionenNachKategorie[kategorie], eintrag.mahlzeitTyp, diaeten, suessDeftig)
       )
       const zutaten = {
         protein: eintrag.protein,
@@ -879,6 +949,8 @@ function App() {
         onMakroAendern={zielMakroAendern}
         diaeten={diaeten}
         onDiaetenAendern={diaetenAendern}
+        suessDeftig={suessDeftig}
+        onSuessDeftigAendern={suessDeftigAendern}
         tagesplanMahlzeiten={tagesplanMahlzeiten}
         onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
       />
@@ -889,6 +961,7 @@ function App() {
             tagesplan={tagesplan}
             onSlotWuerfeln={tagesplanSlotWuerfeln}
             onZurueck={() => setTagesplan(null)}
+            onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
             onNeuPlanen={tagPlanen}
           />
         ) : (
@@ -912,6 +985,18 @@ function App() {
       ) : (
         <>
           <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />
+
+          {(mahlzeit === 'fruehstueck' || mahlzeit === 'snack') && (
+            <SuessDeftigFilter aktuell={suessDeftig} onAendern={suessDeftigAendern} />
+          )}
+
+          <button
+            type="button"
+            onClick={() => setEinstellungenOffen(true)}
+            className="mt-2 px-4 text-sm text-primary hover:underline"
+          >
+            Einstellungen anpassen
+          </button>
 
           <section id="slots" className="grid grid-cols-2 gap-4 p-4">
             <SlotKarte
