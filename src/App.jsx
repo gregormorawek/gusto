@@ -310,41 +310,63 @@ function makroZielExaktePortion(zutat, zielGramm, naehrwertSchluessel) {
   return naehrwertProGramm > 0 ? zielGramm / naehrwertProGramm : null
 }
 
-// Schraenkt den Pool eines Slots MIT gesetztem Makro-Ziel auf Kandidaten ein,
-// deren exakte Ziel-Portion (Makro-Ziele gewinnen - siehe
-// makroZielPortionBerechnen, KEINE Klemmung mehr) realistisch sinnvoll ist.
-// Zwei Bedingungen, IMMER beide geprueft:
-// 1. Plausibilitaet: die exakte Portion muss zwischen
-//    MAKRO_PORTION_PLAUSIBEL_MIN/MAX x der Datenbank-Standardportion liegen -
-//    unabhaengig davon, ob ein Kalorienziel aktiv ist, damit ein Makro-Ziel
-//    nicht zu einer absurd grossen/kleinen Portion einer ungeeigneten Zutat
-//    fuehrt.
-// 2. NUR bei aktivem Kalorienziel zusaetzlich: die Kalorien dieser exakten
-//    Portion duerfen zusammen mit kalorienAndereSlots das Kalorien-MAXIMUM
-//    nicht ueberschreiten (das Minimum bleibt Aufgabe der flexiblen Slots,
-//    die koennen ihre Portion ja noch hochskalieren).
-// Kandidaten ohne den Naehrwert ueberhaupt (naehrwertProGramm <= 0) fallen
-// immer raus. Leeres Ergebnis faellt - wie ueberall - auf den ungefilterten
-// Pool zurueck.
-function nachErreichbaremMakroZielGefiltert(liste, naehrwertSchluessel, zielGramm, kalorienAndereSlots, kalorienFenster) {
+// Schraenkt einen Zutaten-Pool auf Kandidaten ein, deren exakte Makro-Ziel-
+// Portion plausibel ist (zwischen MAKRO_PORTION_PLAUSIBEL_MIN/MAX x der
+// Datenbank-Standardportion) - UNABHAENGIG vom Kalorienziel-Status, siehe
+// MAKRO_PORTION_PLAUSIBEL_MIN/MAX. Kandidaten ohne den Naehrwert ueberhaupt
+// (naehrwertProGramm <= 0) fallen immer raus. Leeres Ergebnis faellt - wie
+// bei allen anderen Filtern - auf den ungefilterten Pool zurueck. Eigene
+// Funktion (statt in einem Rutsch mit dem Kalorien-Check), damit ein
+// gescheiterter Kalorien-Check (siehe nachErreichbaremMakroZielGefiltert)
+// NICHT auch noch die Plausibilitaets-Grenze mit wegwirft - gestaffelter
+// Fallback, gleiches Prinzip wie gefiltertePoolFuer (Mahlzeit- vor Diaet- vor
+// Suess/Deftig-Filter, jede Stufe mit eigenem Fallback).
+function nachPlausiblerMakroZielPortionGefiltert(liste, naehrwertSchluessel, zielGramm) {
   const passt = liste.filter((z) => {
     const exaktePortion = makroZielExaktePortion(z, zielGramm, naehrwertSchluessel)
     if (exaktePortion === null) {
       return false
     }
-    const plausibel =
-      exaktePortion >= z.portion_g * MAKRO_PORTION_PLAUSIBEL_MIN && exaktePortion <= z.portion_g * MAKRO_PORTION_PLAUSIBEL_MAX
-    if (!plausibel) {
-      return false
-    }
-    if (kalorienFenster === null) {
-      return true
-    }
-    const kalorienBeiZielPortion = aufPortionSkalieren(z.kalorien, exaktePortion)
-    return kalorienAndereSlots + kalorienBeiZielPortion <= kalorienFenster.max
+    return exaktePortion >= z.portion_g * MAKRO_PORTION_PLAUSIBEL_MIN && exaktePortion <= z.portion_g * MAKRO_PORTION_PLAUSIBEL_MAX
   })
   return passt.length > 0 ? passt : liste
 }
+
+// Schraenkt den (bereits plausibilitaets-gefilterten) Pool eines Slots MIT
+// gesetztem Makro-Ziel zusaetzlich auf Kandidaten ein, deren Kalorien bei
+// ihrer exakten Ziel-Portion zusammen mit kalorienAndereSlots das erlaubte
+// kalorienMax nicht ueberschreiten (das Minimum bleibt Aufgabe der
+// flexiblen Slots, die koennen ihre Portion ja noch hochskalieren).
+// kalorienMax === null (kein Kalorienziel aktiv) laesst den plausiblen Pool
+// unveraendert. kalorienMax ist bewusst ein separater Parameter (nicht
+// einfach kalorienFenster.max) - siehe vierSlotsWuerfeln: ein frueher Slot
+// in der Wuerfel-Reihenfolge darf NICHT das komplette Fenster fuer sich
+// beanspruchen, wenn danach noch WEITERE fixierte Slots folgen, die auch
+// noch Platz brauchen. Findet sich KEIN Kandidat, der zusaetzlich zur
+// Plausibilitaet auch noch das Kalorien-Budget einhaelt, gewinnt das
+// Makro-Ziel: Fallback auf den plausiblen (aber ggf. zu kalorienreichen)
+// Pool, NICHT auf den komplett ungefilterten Pool - die Plausibilitaets-
+// Grenze bleibt also in jedem Fall gewahrt.
+function nachErreichbaremMakroZielGefiltert(liste, naehrwertSchluessel, zielGramm, kalorienAndereSlots, kalorienMax) {
+  const plausiblerPool = nachPlausiblerMakroZielPortionGefiltert(liste, naehrwertSchluessel, zielGramm)
+  if (kalorienMax === null) {
+    return plausiblerPool
+  }
+
+  const passt = plausiblerPool.filter((z) => {
+    const exaktePortion = makroZielExaktePortion(z, zielGramm, naehrwertSchluessel)
+    const kalorienBeiZielPortion = aufPortionSkalieren(z.kalorien, exaktePortion)
+    return kalorienAndereSlots + kalorienBeiZielPortion <= kalorienMax
+  })
+  return passt.length > 0 ? passt : plausiblerPool
+}
+
+// Standard-Umrechnung Makro-Gramm -> Kalorien (Protein/Carbs 4 kcal/g, Fett
+// 9 kcal/g). Dient NUR als theoretische UNTERGRENZE, um beim Wuerfeln
+// Kalorien-Budget fuer noch nicht gezogene, aber ebenfalls fixierte Slots zu
+// reservieren (siehe vierSlotsWuerfeln) - reale Zutaten brauchen wegen ihrer
+// "Verunreinigung" mit anderen Naehrwerten fast immer mehr.
+const KALORIEN_PRO_GRAMM_NACH_KATEGORIE = { protein: 4, carbs: 4, fett: 9 }
 
 // Kalorien, die ein gerade gezogener Kandidat TATSAECHLICH beitragen wird -
 // als Grundlage fuer den "bereits gefuellt"-Stand der naechsten Slots in der
@@ -394,10 +416,30 @@ function vierSlotsWuerfeln(
   const fettZiel = makroZielGrammFuer(makroZieleWert, 'fett')
   const alleDreiFixiert = proteinZiel !== null && carbsZiel !== null && fettZiel !== null
 
+  // Theoretische MINDEST-Kalorien (reine Makro-Umrechnung, siehe
+  // KALORIEN_PRO_GRAMM_NACH_KATEGORIE) der fixierten Slots - dient NUR dazu,
+  // beim Pruefen eines FRUEHEREN Slots Budget fuer noch nicht gezogene,
+  // ebenfalls fixierte Slots zu reservieren. Ohne diese Reservierung koennte
+  // z. B. Protein (immer zuerst dran) das komplette Kalorienfenster fuer
+  // sich beanspruchen und Carbs/Fett komplett aushungern.
+  const theoretischeKalorien = {
+    protein: proteinZiel !== null ? proteinZiel * KALORIEN_PRO_GRAMM_NACH_KATEGORIE.protein : 0,
+    carbs: carbsZiel !== null ? carbsZiel * KALORIEN_PRO_GRAMM_NACH_KATEGORIE.carbs : 0,
+    fett: fettZiel !== null ? fettZiel * KALORIEN_PRO_GRAMM_NACH_KATEGORIE.fett : 0,
+  }
+  const kalorienMaxAbzueglichReservierung = (reservierungFuerNochAusstehendeFixierteSlots) =>
+    kalorienFenster === null ? null : kalorienFenster.max - reservierungFuerNochAusstehendeFixierteSlots
+
   const proteinBasis = gefiltertePoolFuer(proteinPool, mahlzeitWert, diaetenWert, suessDeftigWert)
   const neuProtein = zufaelligesElement(
     proteinZiel !== null
-      ? nachErreichbaremMakroZielGefiltert(proteinBasis, 'protein_g', proteinZiel, 0, kalorienFenster)
+      ? nachErreichbaremMakroZielGefiltert(
+          proteinBasis,
+          'protein_g',
+          proteinZiel,
+          0,
+          kalorienMaxAbzueglichReservierung(theoretischeKalorien.carbs + theoretischeKalorien.fett)
+        )
       : nachErreichbaremKalorienBeitragGefiltert(proteinBasis, zielKalorienBeitragFuerSlot(kalorienFenster, 0, 4))
   )
   const proteinKalorien = erwarteteSlotKalorien(neuProtein, proteinZiel, 'protein_g')
@@ -405,7 +447,13 @@ function vierSlotsWuerfeln(
   const carbsBasis = gefiltertePoolFuer(carbsPool, mahlzeitWert, diaetenWert, suessDeftigWert)
   const neuCarbs = zufaelligesElement(
     carbsZiel !== null
-      ? nachErreichbaremMakroZielGefiltert(carbsBasis, 'carbs_g', carbsZiel, proteinKalorien, kalorienFenster)
+      ? nachErreichbaremMakroZielGefiltert(
+          carbsBasis,
+          'carbs_g',
+          carbsZiel,
+          proteinKalorien,
+          kalorienMaxAbzueglichReservierung(theoretischeKalorien.fett)
+        )
       : nachErreichbaremKalorienBeitragGefiltert(carbsBasis, zielKalorienBeitragFuerSlot(kalorienFenster, proteinKalorien, 3))
   )
   const carbsKalorien = erwarteteSlotKalorien(neuCarbs, carbsZiel, 'carbs_g')
@@ -413,7 +461,13 @@ function vierSlotsWuerfeln(
   const fettBasis = gefiltertePoolFuer(fettPool, mahlzeitWert, diaetenWert, suessDeftigWert)
   const neuFett = zufaelligesElement(
     fettZiel !== null
-      ? nachErreichbaremMakroZielGefiltert(fettBasis, 'fett_g', fettZiel, proteinKalorien + carbsKalorien, kalorienFenster)
+      ? nachErreichbaremMakroZielGefiltert(
+          fettBasis,
+          'fett_g',
+          fettZiel,
+          proteinKalorien + carbsKalorien,
+          kalorienMaxAbzueglichReservierung(0)
+        )
       : nachErreichbaremKalorienBeitragGefiltert(
           fettBasis,
           zielKalorienBeitragFuerSlot(kalorienFenster, proteinKalorien + carbsKalorien, 2)
@@ -457,8 +511,19 @@ function einzelnenSlotWuerfeln(
   const kalorienFenster = zielKalorienFensterFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschreibung)
 
   if (zielGramm !== null) {
+    // Anders als in vierSlotsWuerfeln muss hier NICHTS fuer noch nicht
+    // gezogene Slots reserviert werden - die anderen drei Slots stehen beim
+    // Reroll eines einzelnen Slots schon FEST (kalorienAndereSlots ist ihr
+    // tatsaechlicher, bereits berechneter Wert), es kommt kein weiterer
+    // fixierter Slot mehr danach.
     return zufaelligesElement(
-      nachErreichbaremMakroZielGefiltert(kandidatenPool, naehrwertSchluessel, zielGramm, kalorienAndereSlots, kalorienFenster)
+      nachErreichbaremMakroZielGefiltert(
+        kandidatenPool,
+        naehrwertSchluessel,
+        zielGramm,
+        kalorienAndereSlots,
+        kalorienFenster === null ? null : kalorienFenster.max
+      )
     )
   }
 
