@@ -229,12 +229,11 @@ function zielKalorienFensterFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschr
   return { min: minZahl * anteil, max: maxZahl * anteil }
 }
 
-// Einheitliche Toleranz fuer "kann eine Zutat einen Kalorienwert realistisch
-// erreichen" - sowohl beim Vorfiltern des Wuerfel-Pools
-// (nachErreichbaremKalorienBeitragGefiltert) als auch bei der spaeteren
-// Makro-Ziel-Anpassung (portionenMitMakroZielenBerechnen). Eine einzige
-// Konstante statt zweier unabhaengiger Werte, damit beide Schritte denselben
-// Massstab fuer "realistisch erreichbar" anlegen.
+// Toleranz fuer "kann eine Zutat OHNE Makro-Ziel einen Kalorien-Beitrag
+// realistisch erreichen" beim Vorfiltern des Wuerfel-Pools (siehe
+// nachErreichbaremKalorienBeitragGefiltert). Gilt NICHT fuer Slots MIT
+// Makro-Ziel - deren Portion wird nie geklemmt, siehe
+// makroZielPortionBerechnen und MAKRO_PORTION_PLAUSIBEL_MIN/MAX.
 const KALORIEN_TOLERANZ = 0.15
 
 // Berechnet den ungefaehren Kalorien-Beitrag, den EIN Slot beisteuern sollte,
@@ -253,12 +252,14 @@ function zielKalorienBeitragFuerSlot(kalorienFenster, kalorienBereitsGefuellt, a
 
 // Schraenkt einen Zutaten-Pool VOR dem Wuerfeln auf Kandidaten ein, die den
 // gewuenschten Kalorien-Beitrag realistisch erreichen koennen - "realistisch"
-// heisst: innerhalb der bestehenden 0,5x-2x-Portionsklemmung (siehe
-// skalierungsfaktorBerechnen), aufgeweitet um KALORIEN_TOLERANZ. zielBeitrag
-// === null (kein Kalorienziel aktiv) laesst den Pool unveraendert. Ist das
-// Ergebnis leer, wird - wie bei allen anderen Filtern (nachMahlzeitGefiltert
-// etc.) - auf den ungefilterten Pool zurueckgefallen, statt eine leere
-// Auswahl zu liefern.
+// heisst: innerhalb der bestehenden 0,5x-2x-Portionsklemmung der FLEXIBLEN
+// Slots (siehe portionenMitMakroZielenBerechnen), aufgeweitet um
+// KALORIEN_TOLERANZ. zielBeitrag === null (kein Kalorienziel aktiv) laesst
+// den Pool unveraendert. Ist das Ergebnis leer, wird - wie bei allen anderen
+// Filtern (nachMahlzeitGefiltert etc.) - auf den ungefilterten Pool
+// zurueckgefallen, statt eine leere Auswahl zu liefern. Gilt NUR fuer Slots
+// OHNE Makro-Ziel - fuer Slots MIT Makro-Ziel siehe
+// nachErreichbaremMakroZielGefiltert.
 function nachErreichbaremKalorienBeitragGefiltert(liste, zielBeitrag) {
   if (zielBeitrag === null) {
     return liste
@@ -275,15 +276,105 @@ function nachErreichbaremKalorienBeitragGefiltert(liste, zielBeitrag) {
   return passt.length > 0 ? passt : liste
 }
 
+// Naehrwert-Spalte je Protein/Carbs/Fett-Kategorie - fuer generische Stellen
+// (z. B. tagesplanSlotWuerfeln), die die Kategorie nur als String kennen.
+const NAEHRWERT_SCHLUESSEL_NACH_KATEGORIE = { protein: 'protein_g', carbs: 'carbs_g', fett: 'fett_g' }
+
+// Grosszuegige, aber sinnvolle Plausibilitaets-Spanne fuer die EXAKTE
+// Makro-Ziel-Portion einer Zutat, relativ zu ihrer Datenbank-Standardportion
+// (portion_g). Gilt IMMER, unabhaengig vom Kalorienziel-Status - anders als
+// die 0,5x-2x-Spanne der flexiblen Slots (die durch die Portions-Skalierung
+// dort noch nachtraeglich geklemmt wird) gibt es fuer Makro-Ziel-Slots ab
+// jetzt KEINE Klemmung mehr (Makro-Ziele gewinnen), die exakte Portion wird
+// 1:1 uebernommen. Deshalb muss schon beim Wuerfeln ausgeschlossen werden,
+// dass eine ungeeignete Zutat (z. B. sehr proteinarmes Gemuese fuer ein
+// hohes Protein-Ziel) zu einer absurd grossen oder kleinen Portion fuehrt.
+const MAKRO_PORTION_PLAUSIBEL_MIN = 0.25
+const MAKRO_PORTION_PLAUSIBEL_MAX = 4
+
+// Liefert das gesetzte Makro-Ziel (Gramm, > 0) fuer Protein/Carbs/Fett einer
+// Mahlzeit, oder null, wenn kein gueltiges Ziel gesetzt ist (leerer String,
+// 0 oder negativ). null bedeutet in der gesamten Wuerfel-/Portionslogik
+// "dieser Slot ist flexibel", ein Zahlenwert bedeutet "dieser Slot ist auf
+// die exakte Ziel-Portion fixiert".
+function makroZielGrammFuer(makroZieleWert, kategorie) {
+  const wert = Number(makroZieleWert?.[kategorie])
+  return wert > 0 ? wert : null
+}
+
+// Rechnet ein Makro-Ziel (Gramm) fuer EINE Zutat in die exakte Portion
+// (Gramm) um, die dieses Ziel genau trifft. null, wenn die Zutat den
+// Naehrwert gar nicht enthaelt (Ziel prinzipiell unerreichbar).
+function makroZielExaktePortion(zutat, zielGramm, naehrwertSchluessel) {
+  const naehrwertProGramm = zutat[naehrwertSchluessel] / 100
+  return naehrwertProGramm > 0 ? zielGramm / naehrwertProGramm : null
+}
+
+// Schraenkt den Pool eines Slots MIT gesetztem Makro-Ziel auf Kandidaten ein,
+// deren exakte Ziel-Portion (Makro-Ziele gewinnen - siehe
+// makroZielPortionBerechnen, KEINE Klemmung mehr) realistisch sinnvoll ist.
+// Zwei Bedingungen, IMMER beide geprueft:
+// 1. Plausibilitaet: die exakte Portion muss zwischen
+//    MAKRO_PORTION_PLAUSIBEL_MIN/MAX x der Datenbank-Standardportion liegen -
+//    unabhaengig davon, ob ein Kalorienziel aktiv ist, damit ein Makro-Ziel
+//    nicht zu einer absurd grossen/kleinen Portion einer ungeeigneten Zutat
+//    fuehrt.
+// 2. NUR bei aktivem Kalorienziel zusaetzlich: die Kalorien dieser exakten
+//    Portion duerfen zusammen mit kalorienAndereSlots das Kalorien-MAXIMUM
+//    nicht ueberschreiten (das Minimum bleibt Aufgabe der flexiblen Slots,
+//    die koennen ihre Portion ja noch hochskalieren).
+// Kandidaten ohne den Naehrwert ueberhaupt (naehrwertProGramm <= 0) fallen
+// immer raus. Leeres Ergebnis faellt - wie ueberall - auf den ungefilterten
+// Pool zurueck.
+function nachErreichbaremMakroZielGefiltert(liste, naehrwertSchluessel, zielGramm, kalorienAndereSlots, kalorienFenster) {
+  const passt = liste.filter((z) => {
+    const exaktePortion = makroZielExaktePortion(z, zielGramm, naehrwertSchluessel)
+    if (exaktePortion === null) {
+      return false
+    }
+    const plausibel =
+      exaktePortion >= z.portion_g * MAKRO_PORTION_PLAUSIBEL_MIN && exaktePortion <= z.portion_g * MAKRO_PORTION_PLAUSIBEL_MAX
+    if (!plausibel) {
+      return false
+    }
+    if (kalorienFenster === null) {
+      return true
+    }
+    const kalorienBeiZielPortion = aufPortionSkalieren(z.kalorien, exaktePortion)
+    return kalorienAndereSlots + kalorienBeiZielPortion <= kalorienFenster.max
+  })
+  return passt.length > 0 ? passt : liste
+}
+
+// Kalorien, die ein gerade gezogener Kandidat TATSAECHLICH beitragen wird -
+// als Grundlage fuer den "bereits gefuellt"-Stand der naechsten Slots in der
+// Wuerfel-Reihenfolge. Bei gesetztem Makro-Ziel die exakte Ziel-Portion
+// (keine Klemmung mehr), sonst die Kalorien bei Datenbank-Standardportion
+// (die eigentliche Fein-Skalierung der flexiblen Slots folgt erst als
+// Nachbearbeitung in portionenMitMakroZielenBerechnen).
+function erwarteteSlotKalorien(zutat, zielGramm, naehrwertSchluessel) {
+  if (zielGramm !== null) {
+    const exaktePortion = makroZielExaktePortion(zutat, zielGramm, naehrwertSchluessel)
+    if (exaktePortion !== null) {
+      return aufPortionSkalieren(zutat.kalorien, exaktePortion)
+    }
+  }
+  return aufPortionSkalieren(zutat.kalorien, zutat.portion_g)
+}
+
 // Wuerfelt alle vier Slots NACHEINANDER in der festen Reihenfolge
 // Protein -> Carbs -> Fett -> Gemuese/Obst (dieselbe Reihenfolge wie bei der
-// Makro-Ziel-Anpassung). Ist ein Kalorienziel aktiv, wird der Pool jedes
-// Slots vor dem Wuerfeln per nachErreichbaremKalorienBeitragGefiltert auf
-// Kandidaten eingegrenzt, die zum bis dahin verbleibenden Kalorien-
-// Spielraum der Mahlzeit passen - der Wuerfel-Charakter bleibt dabei
-// erhalten, nur der Pool ist vorgefiltert statt komplett offen. Die
-// anschliessende Portions-Skalierung (portionenMitMakroZielenBerechnen)
-// bleibt UNVERAENDERT ein separater, nachgelagerter Schritt.
+// Makro-Ziel-Anpassung). Fuer Slots MIT gesetztem Makro-Ziel gewinnt das
+// Makro-Ziel (siehe nachErreichbaremMakroZielGefiltert): der Pool wird auf
+// Kandidaten eingegrenzt, deren exakte Ziel-Portion realistisch UND (bei
+// aktivem Kalorienziel) im Rahmen des Kalorien-Maximums bleibt. Fuer Slots
+// OHNE Makro-Ziel bleibt die bisherige, flexible Vorfilterung
+// (nachErreichbaremKalorienBeitragGefiltert) unveraendert bestehen. Haben
+// Protein, Carbs UND Fett alle ein Makro-Ziel, bleibt kein steuerbarer Slot
+// mehr uebrig - Gemuese/Obst wird dann ganz ohne Kalorien-Vorfilter
+// gewuerfelt (siehe portionenMitMakroZielenBerechnen fuer die passende
+// Nachbearbeitung). Der Wuerfel-Charakter bleibt in jedem Fall erhalten, nur
+// der Pool ist vorgefiltert statt komplett offen.
 function vierSlotsWuerfeln(
   proteinPool,
   carbsPool,
@@ -294,40 +385,50 @@ function vierSlotsWuerfeln(
   diaetenWert,
   suessDeftigWert,
   zielWert,
+  makroZieleWert,
   anteilUeberschreibung
 ) {
   const kalorienFenster = zielKalorienFensterFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschreibung)
+  const proteinZiel = makroZielGrammFuer(makroZieleWert, 'protein')
+  const carbsZiel = makroZielGrammFuer(makroZieleWert, 'carbs')
+  const fettZiel = makroZielGrammFuer(makroZieleWert, 'fett')
+  const alleDreiFixiert = proteinZiel !== null && carbsZiel !== null && fettZiel !== null
 
-  const proteinKandidaten = gefiltertePoolFuer(proteinPool, mahlzeitWert, diaetenWert, suessDeftigWert)
+  const proteinBasis = gefiltertePoolFuer(proteinPool, mahlzeitWert, diaetenWert, suessDeftigWert)
   const neuProtein = zufaelligesElement(
-    nachErreichbaremKalorienBeitragGefiltert(proteinKandidaten, zielKalorienBeitragFuerSlot(kalorienFenster, 0, 4))
+    proteinZiel !== null
+      ? nachErreichbaremMakroZielGefiltert(proteinBasis, 'protein_g', proteinZiel, 0, kalorienFenster)
+      : nachErreichbaremKalorienBeitragGefiltert(proteinBasis, zielKalorienBeitragFuerSlot(kalorienFenster, 0, 4))
   )
-  const proteinKalorien = aufPortionSkalieren(neuProtein.kalorien, neuProtein.portion_g)
+  const proteinKalorien = erwarteteSlotKalorien(neuProtein, proteinZiel, 'protein_g')
 
-  const carbsKandidaten = gefiltertePoolFuer(carbsPool, mahlzeitWert, diaetenWert, suessDeftigWert)
+  const carbsBasis = gefiltertePoolFuer(carbsPool, mahlzeitWert, diaetenWert, suessDeftigWert)
   const neuCarbs = zufaelligesElement(
-    nachErreichbaremKalorienBeitragGefiltert(
-      carbsKandidaten,
-      zielKalorienBeitragFuerSlot(kalorienFenster, proteinKalorien, 3)
-    )
+    carbsZiel !== null
+      ? nachErreichbaremMakroZielGefiltert(carbsBasis, 'carbs_g', carbsZiel, proteinKalorien, kalorienFenster)
+      : nachErreichbaremKalorienBeitragGefiltert(carbsBasis, zielKalorienBeitragFuerSlot(kalorienFenster, proteinKalorien, 3))
   )
-  const carbsKalorien = aufPortionSkalieren(neuCarbs.kalorien, neuCarbs.portion_g)
+  const carbsKalorien = erwarteteSlotKalorien(neuCarbs, carbsZiel, 'carbs_g')
 
-  const fettKandidaten = gefiltertePoolFuer(fettPool, mahlzeitWert, diaetenWert, suessDeftigWert)
+  const fettBasis = gefiltertePoolFuer(fettPool, mahlzeitWert, diaetenWert, suessDeftigWert)
   const neuFett = zufaelligesElement(
-    nachErreichbaremKalorienBeitragGefiltert(
-      fettKandidaten,
-      zielKalorienBeitragFuerSlot(kalorienFenster, proteinKalorien + carbsKalorien, 2)
-    )
+    fettZiel !== null
+      ? nachErreichbaremMakroZielGefiltert(fettBasis, 'fett_g', fettZiel, proteinKalorien + carbsKalorien, kalorienFenster)
+      : nachErreichbaremKalorienBeitragGefiltert(
+          fettBasis,
+          zielKalorienBeitragFuerSlot(kalorienFenster, proteinKalorien + carbsKalorien, 2)
+        )
   )
-  const fettKalorien = aufPortionSkalieren(neuFett.kalorien, neuFett.portion_g)
+  const fettKalorien = erwarteteSlotKalorien(neuFett, fettZiel, 'fett_g')
 
-  const gemueseKandidaten = vierterSlotOptionenFuer(gemuesePool, obstPool, mahlzeitWert, diaetenWert, suessDeftigWert)
+  const gemueseBasis = vierterSlotOptionenFuer(gemuesePool, obstPool, mahlzeitWert, diaetenWert, suessDeftigWert)
   const neuGemuese = zufaelligesElement(
-    nachErreichbaremKalorienBeitragGefiltert(
-      gemueseKandidaten,
-      zielKalorienBeitragFuerSlot(kalorienFenster, proteinKalorien + carbsKalorien + fettKalorien, 1)
-    )
+    alleDreiFixiert
+      ? gemueseBasis
+      : nachErreichbaremKalorienBeitragGefiltert(
+          gemueseBasis,
+          zielKalorienBeitragFuerSlot(kalorienFenster, proteinKalorien + carbsKalorien + fettKalorien, 1)
+        )
   )
 
   return { protein: neuProtein, carbs: neuCarbs, fett: neuFett, gemuese: neuGemuese }
@@ -338,9 +439,33 @@ function vierSlotsWuerfeln(
 // vierSlotsWuerfeln fuer den Reroll-Fall "nur 1 verbleibender Slot".
 // kandidatenPool ist bereits durch gefiltertePoolFuer/vierterSlotOptionenFuer
 // vorgefiltert; kalorienAndereSlots sind die aktuellen (bereits skalierten)
-// Kalorien der drei feststehenden Slots.
-function einzelnenSlotWuerfeln(kandidatenPool, kalorienAndereSlots, mahlzeitWert, zielWert, anteilUeberschreibung) {
+// Kalorien der drei feststehenden Slots. zielGramm/naehrwertSchluessel sind
+// null, wenn DIESER Slot kein Makro-Ziel hat (dann greift die bisherige
+// flexible Logik). gemueseNichtSteuerbar unterdrueckt den Kalorien-Vorfilter
+// fuer den Sonderfall "Gemuese/Obst ist der einzige verbliebene Slot, weil
+// Protein/Carbs/Fett bereits alle fixiert sind" (siehe vierSlotsWuerfeln).
+function einzelnenSlotWuerfeln(
+  kandidatenPool,
+  kalorienAndereSlots,
+  mahlzeitWert,
+  zielWert,
+  zielGramm,
+  naehrwertSchluessel,
+  gemueseNichtSteuerbar,
+  anteilUeberschreibung
+) {
   const kalorienFenster = zielKalorienFensterFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschreibung)
+
+  if (zielGramm !== null) {
+    return zufaelligesElement(
+      nachErreichbaremMakroZielGefiltert(kandidatenPool, naehrwertSchluessel, zielGramm, kalorienAndereSlots, kalorienFenster)
+    )
+  }
+
+  if (gemueseNichtSteuerbar) {
+    return zufaelligesElement(kandidatenPool)
+  }
+
   const zielBeitrag = zielKalorienBeitragFuerSlot(kalorienFenster, kalorienAndereSlots, 1)
   return zufaelligesElement(nachErreichbaremKalorienBeitragGefiltert(kandidatenPool, zielBeitrag))
 }
@@ -370,149 +495,86 @@ function makroZielFuerMahlzeitAusTagesziel(zielWert, mahlzeitWert, anteilUebersc
   }
 }
 
-// Berechnet den Faktor, mit dem alle vier Portionen GLEICHMAESSIG multipliziert
-// werden, damit die Kalorien-Summe moeglichst nah an der MITTE des
-// Kalorienfensters (zielFenster.min/max) liegt. Kalorien skalieren linear
-// mit der Portionsgroesse, deshalb trifft mitte / basisKalorien die Mitte
-// exakt - ausser die Grenze (50%-200% der urspruenglichen Portion, eine rein
-// physische Sinnhaftigkeits-Grenze, UNABHAENGIG vom Kalorienfenster) wird
-// ueberschritten, dann kommt der naechstmoegliche Wert heraus.
-function skalierungsfaktorBerechnen(zielFenster, basisKalorien) {
-  if (zielFenster === null || basisKalorien <= 0) {
-    return 1
-  }
-  const mitte = (zielFenster.min + zielFenster.max) / 2
-  return Math.min(2, Math.max(0.5, mitte / basisKalorien))
-}
-
-// Berechnet aus den vier (ungefilterten, in ihrer Datenbank-Portionsgroesse
-// vorliegenden) Zutaten die neuen, gleichmaessig skalierten Portionsgroessen
-// fuer die angegebene Mahlzeit und das aktuelle Kalorienziel. Ohne aktives
-// Ziel ist der Faktor 1, die Portionen bleiben also beim Datenbank-Wert.
-function portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert, anteilUeberschreibung) {
-  const basisKalorien =
-    aufPortionSkalieren(proteinZutat.kalorien, proteinZutat.portion_g) +
-    aufPortionSkalieren(carbsZutat.kalorien, carbsZutat.portion_g) +
-    aufPortionSkalieren(fettZutat.kalorien, fettZutat.portion_g) +
-    aufPortionSkalieren(gemueseZutat.kalorien, gemueseZutat.portion_g)
-
-  const faktor = skalierungsfaktorBerechnen(zielKalorienFensterFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschreibung), basisKalorien)
-
-  return {
-    proteinPortion: Math.round(proteinZutat.portion_g * faktor),
-    carbsPortion: Math.round(carbsZutat.portion_g * faktor),
-    fettPortion: Math.round(fettZutat.portion_g * faktor),
-    gemuesePortion: Math.round(gemueseZutat.portion_g * faktor),
-  }
-}
-
-// Passt EINE Portion so an, dass ihr Makro-Wert (in Gramm) moeglichst nah am
-// Ziel liegt - in beide Richtungen -, waehrend die Kalorien-Summe der GESAMTEN
-// Mahlzeit innerhalb des Kalorienfensters (kalorienFenster.min/max) bleibt.
-// kalorienAndereSlots sind die (bereits feststehenden) Kalorien der jeweils
-// anderen drei Slots. Ist das Ziel innerhalb des Fensters nicht erreichbar,
-// wird die Portion so weit wie moeglich angepasst (bestmoegliche
-// Annaeherung) und erreichbar = false gesetzt.
-function makroZielPortionBerechnen(zutat, aktuellePortion, zielGramm, naehrwertSchluessel, kalorienAndereSlots, kalorienFenster) {
+// Berechnet die Portion (Gramm) fuer EINEN Slot mit gesetztem Makro-Ziel:
+// IMMER exakt zielGramm / Naehrwert pro Gramm, OHNE jegliche Klemmung
+// Richtung Kalorienfenster - Makro-Ziele gewinnen bei Konflikten mit dem
+// Kalorienfenster (das wird stattdessen ausschliesslich ueber die Slots OHNE
+// Makro-Ziel eingehalten, siehe portionenMitMakroZielenBerechnen). Die
+// Realitaets-Pruefung (passt diese Zutat ueberhaupt plausibel UND ins
+// Kalorienfenster) passiert bereits VORHER beim Wuerfeln
+// (nachErreichbaremMakroZielGefiltert) - erreichbar ist hier deshalb
+// praktisch immer true. Die false-Faelle bleiben nur als Robustheits-
+// Fallback fuer Aufrufer ausserhalb des Wuerfelns (z. B. wenn der User ein
+// Makro-Ziel fuer eine bereits angezeigte Zutat eintippt, die diesen
+// Naehrwert gar nicht enthaelt).
+function makroZielPortionBerechnen(zutat, aktuellePortion, zielGramm, naehrwertSchluessel) {
   if (!zielGramm || zielGramm <= 0) {
     return { portion: aktuellePortion, erreichbar: true }
   }
 
-  const naehrwertProGramm = zutat[naehrwertSchluessel] / 100
-  if (naehrwertProGramm <= 0) {
+  const exaktePortion = makroZielExaktePortion(zutat, zielGramm, naehrwertSchluessel)
+  if (exaktePortion === null) {
     // Die Zutat traegt dieses Makro gar nicht - das Ziel ist prinzipiell unerreichbar.
     return { portion: aktuellePortion, erreichbar: false }
   }
 
-  const kandidatPortion = zielGramm / naehrwertProGramm
-  const kalorienProGramm = zutat.kalorien / 100
-  if (kalorienProGramm <= 0) {
-    // Kalorienfreie Zutat: die Fenster-Grenze betrifft diese Portion nicht.
-    return { portion: Math.round(kandidatPortion), erreichbar: true }
-  }
-
-  const portionMin = Math.max(0, (kalorienFenster.min - kalorienAndereSlots) / kalorienProGramm)
-  const portionMax = Math.max(0, (kalorienFenster.max - kalorienAndereSlots) / kalorienProGramm)
-  const geklemmtePortion = Math.min(portionMax, Math.max(portionMin, kandidatPortion))
-
-  return {
-    portion: Math.round(geklemmtePortion),
-    erreichbar: Math.abs(geklemmtePortion - kandidatPortion) < 0.5,
-  }
+  return { portion: Math.round(exaktePortion), erreichbar: true }
 }
 
-// Wendet zuerst die bestehende, gleichmaessige Kalorienziel-Skalierung an und
-// passt danach - falls gesetzt - Protein-, Carbs- und Fett-Portion NACHEINANDER
-// an ihr jeweiliges Makro-Ziel an (Gemuese hat kein Makro-Ziel). Jede Anpassung
-// bezieht sich auf den bis dahin aktuellen Kalorien-Stand der Mahlzeit, d. h.
-// die Reihenfolge Protein -> Carbs -> Fett kann das Ergebnis beeinflussen, wenn
-// mehrere Ziele gleichzeitig gesetzt sind und die Toleranz knapp wird.
+// Berechnet die Portionen aller vier Slots nach der neuen Prioritaets-Regel:
+// Slots MIT gesetztem Makro-Ziel bekommen IMMER ihre exakte Ziel-Portion
+// (makroZielPortionBerechnen, keine Klemmung). Das Kalorienfenster wird
+// ausschliesslich ueber die Slots OHNE Makro-Ziel eingehalten - die werden
+// gemeinsam mit EINEM Skalierungsfaktor (weiterhin 0,5x-2x geklemmt) so
+// skaliert, dass die Fenstermitte abzueglich der bereits feststehenden
+// Makro-Ziel-Kalorien erreicht wird. Ohne aktives Kalorienziel bleibt der
+// Faktor 1 (Datenbank-Standardportion). Sonderfall: Haben Protein, Carbs UND
+// Fett alle ein Makro-Ziel, bleibt kein steuerbarer Slot mehr uebrig ausser
+// Gemuese/Obst - der wird dann NICHT mehr versucht kuenstlich einzupassen,
+// sondern behaelt schlicht seine Datenbank-Standardportion, das Ergebnis
+// wird einfach angezeigt.
 function portionenMitMakroZielenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert, makroZieleWert, anteilUeberschreibung) {
-  const basisPortionen = portionenBerechnen(proteinZutat, carbsZutat, fettZutat, gemueseZutat, mahlzeitWert, zielWert, anteilUeberschreibung)
+  const proteinZiel = makroZielGrammFuer(makroZieleWert, 'protein')
+  const carbsZiel = makroZielGrammFuer(makroZieleWert, 'carbs')
+  const fettZiel = makroZielGrammFuer(makroZieleWert, 'fett')
 
-  const zielFenster = zielKalorienFensterFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschreibung)
-  const kalorienVorMakroAnpassung =
-    aufPortionSkalieren(proteinZutat.kalorien, basisPortionen.proteinPortion) +
-    aufPortionSkalieren(carbsZutat.kalorien, basisPortionen.carbsPortion) +
-    aufPortionSkalieren(fettZutat.kalorien, basisPortionen.fettPortion) +
-    aufPortionSkalieren(gemueseZutat.kalorien, basisPortionen.gemuesePortion)
-  // Ohne aktives/gueltiges Kalorienziel ("Kein Ziel") bleibt das bisherige
-  // Verhalten erhalten: eine echte Bandbreite (KALORIEN_TOLERANZ) um die
-  // tatsaechlich berechneten Basis-Kalorien, DAMIT DIE MAKRO-ZIEL-ANPASSUNG
-  // WEITERHIN SPIELRAUM HAT (ein einzelner Punkt wuerde jede Makro-Anpassung
-  // blockieren). Nur bei "Pro Mahlzeit"/"Pro Tag" kommt stattdessen das
-  // echte, vom User eingegebene Min/Max-Fenster zum Einsatz.
-  const referenzFenster = zielFenster ?? {
-    min: kalorienVorMakroAnpassung * (1 - KALORIEN_TOLERANZ),
-    max: kalorienVorMakroAnpassung * (1 + KALORIEN_TOLERANZ),
+  const proteinErgebnis = makroZielPortionBerechnen(proteinZutat, proteinZutat.portion_g, proteinZiel, 'protein_g')
+  const carbsErgebnis = makroZielPortionBerechnen(carbsZutat, carbsZutat.portion_g, carbsZiel, 'carbs_g')
+  const fettErgebnis = makroZielPortionBerechnen(fettZutat, fettZutat.portion_g, fettZiel, 'fett_g')
+
+  const fixierteSlots = []
+  if (proteinZiel !== null) fixierteSlots.push({ zutat: proteinZutat, portion: proteinErgebnis.portion })
+  if (carbsZiel !== null) fixierteSlots.push({ zutat: carbsZutat, portion: carbsErgebnis.portion })
+  if (fettZiel !== null) fixierteSlots.push({ zutat: fettZutat, portion: fettErgebnis.portion })
+  const kalorienFixiert = fixierteSlots.reduce((summe, slot) => summe + aufPortionSkalieren(slot.zutat.kalorien, slot.portion), 0)
+
+  // Flexible Protein/Carbs/Fett-Slots (ohne Makro-Ziel). Gemuese/Obst ist NIE
+  // fixiert und ergaenzt diese Gruppe unten - AUSSER im Sonderfall, in dem
+  // alle drei P/C/F-Slots fixiert sind.
+  const flexibleProCarbsFett = []
+  if (proteinZiel === null) flexibleProCarbsFett.push(proteinZutat)
+  if (carbsZiel === null) flexibleProCarbsFett.push(carbsZutat)
+  if (fettZiel === null) flexibleProCarbsFett.push(fettZutat)
+  const gemueseSteuerbar = flexibleProCarbsFett.length > 0
+
+  let flexibleFaktor = 1
+  const kalorienFenster = zielKalorienFensterFuerMahlzeit(zielWert, mahlzeitWert, anteilUeberschreibung)
+  if (kalorienFenster !== null && gemueseSteuerbar) {
+    const flexibleSlots = [...flexibleProCarbsFett, gemueseZutat]
+    const basisKalorienFlexibel = flexibleSlots.reduce(
+      (summe, zutat) => summe + aufPortionSkalieren(zutat.kalorien, zutat.portion_g),
+      0
+    )
+    const mitte = (kalorienFenster.min + kalorienFenster.max) / 2
+    const restMitte = mitte - kalorienFixiert
+    flexibleFaktor = basisKalorienFlexibel > 0 ? Math.min(2, Math.max(0.5, restMitte / basisKalorienFlexibel)) : 1
   }
 
-  let proteinPortion = basisPortionen.proteinPortion
-  let carbsPortion = basisPortionen.carbsPortion
-  let fettPortion = basisPortionen.fettPortion
-  const gemuesePortion = basisPortionen.gemuesePortion
-
-  const proteinErgebnis = makroZielPortionBerechnen(
-    proteinZutat,
-    proteinPortion,
-    Number(makroZieleWert.protein),
-    'protein_g',
-    aufPortionSkalieren(carbsZutat.kalorien, carbsPortion) +
-      aufPortionSkalieren(fettZutat.kalorien, fettPortion) +
-      aufPortionSkalieren(gemueseZutat.kalorien, gemuesePortion),
-    referenzFenster
-  )
-  proteinPortion = proteinErgebnis.portion
-
-  const carbsErgebnis = makroZielPortionBerechnen(
-    carbsZutat,
-    carbsPortion,
-    Number(makroZieleWert.carbs),
-    'carbs_g',
-    aufPortionSkalieren(proteinZutat.kalorien, proteinPortion) +
-      aufPortionSkalieren(fettZutat.kalorien, fettPortion) +
-      aufPortionSkalieren(gemueseZutat.kalorien, gemuesePortion),
-    referenzFenster
-  )
-  carbsPortion = carbsErgebnis.portion
-
-  const fettErgebnis = makroZielPortionBerechnen(
-    fettZutat,
-    fettPortion,
-    Number(makroZieleWert.fett),
-    'fett_g',
-    aufPortionSkalieren(proteinZutat.kalorien, proteinPortion) +
-      aufPortionSkalieren(carbsZutat.kalorien, carbsPortion) +
-      aufPortionSkalieren(gemueseZutat.kalorien, gemuesePortion),
-    referenzFenster
-  )
-  fettPortion = fettErgebnis.portion
-
   return {
-    proteinPortion,
-    carbsPortion,
-    fettPortion,
-    gemuesePortion,
+    proteinPortion: proteinZiel !== null ? proteinErgebnis.portion : Math.round(proteinZutat.portion_g * flexibleFaktor),
+    carbsPortion: carbsZiel !== null ? carbsErgebnis.portion : Math.round(carbsZutat.portion_g * flexibleFaktor),
+    fettPortion: fettZiel !== null ? fettErgebnis.portion : Math.round(fettZutat.portion_g * flexibleFaktor),
+    gemuesePortion: gemueseSteuerbar ? Math.round(gemueseZutat.portion_g * flexibleFaktor) : gemueseZutat.portion_g,
     proteinZielErreichbar: proteinErgebnis.erreichbar,
     carbsZielErreichbar: carbsErgebnis.erreichbar,
     fettZielErreichbar: fettErgebnis.erreichbar,
@@ -747,7 +809,7 @@ function App() {
       // Direkt eine erste zufaellige Auswahl setzen, sobald die Daten da sind,
       // passend zum aktuell (per Uhrzeit) vorausgewaehlten Mahlzeit-Filter.
       const { protein: neuProtein, carbs: neuCarbs, fett: neuFett, gemuese: neuGemuese } = vierSlotsWuerfeln(
-        proteine, carbsListe, fetteListe, gemueseListe, obstListe, mahlzeit, diaeten, suessDeftig, ziel
+        proteine, carbsListe, fetteListe, gemueseListe, obstListe, mahlzeit, diaeten, suessDeftig, ziel, makroZieleFuer(mahlzeit)
       )
 
       setProtein(neuProtein)
@@ -766,7 +828,7 @@ function App() {
   // aktuellen Mahlzeit-Filters aus und schreibt sie in den jeweiligen State.
   function neueAuswahlWuerfeln() {
     const { protein: neuProtein, carbs: neuCarbs, fett: neuFett, gemuese: neuGemuese } = vierSlotsWuerfeln(
-      proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, mahlzeit, diaeten, suessDeftig, ziel
+      proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, mahlzeit, diaeten, suessDeftig, ziel, makroZieleFuer(mahlzeit)
     )
 
     setProtein(neuProtein)
@@ -787,7 +849,8 @@ function App() {
       aufPortionSkalieren(carbs.kalorien, carbsPortion ?? carbs.portion_g) +
       aufPortionSkalieren(fett.kalorien, fettPortion ?? fett.portion_g) +
       aufPortionSkalieren(gemuese.kalorien, gemuesePortion ?? gemuese.portion_g)
-    const neuProtein = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel)
+    const proteinZiel = makroZielGrammFuer(makroZieleFuer(mahlzeit), 'protein')
+    const neuProtein = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel, proteinZiel, 'protein_g', false)
     setProtein(neuProtein)
     portionenMitMakroZielenSetzen(neuProtein, carbs, fett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
@@ -798,7 +861,8 @@ function App() {
       aufPortionSkalieren(protein.kalorien, proteinPortion ?? protein.portion_g) +
       aufPortionSkalieren(fett.kalorien, fettPortion ?? fett.portion_g) +
       aufPortionSkalieren(gemuese.kalorien, gemuesePortion ?? gemuese.portion_g)
-    const neuCarbs = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel)
+    const carbsZiel = makroZielGrammFuer(makroZieleFuer(mahlzeit), 'carbs')
+    const neuCarbs = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel, carbsZiel, 'carbs_g', false)
     setCarbs(neuCarbs)
     portionenMitMakroZielenSetzen(protein, neuCarbs, fett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
@@ -809,7 +873,8 @@ function App() {
       aufPortionSkalieren(protein.kalorien, proteinPortion ?? protein.portion_g) +
       aufPortionSkalieren(carbs.kalorien, carbsPortion ?? carbs.portion_g) +
       aufPortionSkalieren(gemuese.kalorien, gemuesePortion ?? gemuese.portion_g)
-    const neuFett = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel)
+    const fettZiel = makroZielGrammFuer(makroZieleFuer(mahlzeit), 'fett')
+    const neuFett = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel, fettZiel, 'fett_g', false)
     setFett(neuFett)
     portionenMitMakroZielenSetzen(protein, carbs, neuFett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
   }
@@ -820,9 +885,14 @@ function App() {
       aufPortionSkalieren(protein.kalorien, proteinPortion ?? protein.portion_g) +
       aufPortionSkalieren(carbs.kalorien, carbsPortion ?? carbs.portion_g) +
       aufPortionSkalieren(fett.kalorien, fettPortion ?? fett.portion_g)
-    const neuGemuese = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel)
+    const aktuelleMakroZiele = makroZieleFuer(mahlzeit)
+    const alleDreiFixiert =
+      makroZielGrammFuer(aktuelleMakroZiele, 'protein') !== null &&
+      makroZielGrammFuer(aktuelleMakroZiele, 'carbs') !== null &&
+      makroZielGrammFuer(aktuelleMakroZiele, 'fett') !== null
+    const neuGemuese = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel, null, null, alleDreiFixiert)
     setGemuese(neuGemuese)
-    portionenMitMakroZielenSetzen(protein, carbs, fett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
+    portionenMitMakroZielenSetzen(protein, carbs, fett, neuGemuese, mahlzeit, aktuelleMakroZiele)
   }
 
   // Wird vom MahlzeitFilter aufgerufen, wenn der User einen anderen Filter
@@ -836,7 +906,7 @@ function App() {
     }
 
     const { protein: neuProtein, carbs: neuCarbs, fett: neuFett, gemuese: neuGemuese } = vierSlotsWuerfeln(
-      proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, neueMahlzeit, diaeten, suessDeftig, ziel
+      proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, neueMahlzeit, diaeten, suessDeftig, ziel, makroZieleFuer(neueMahlzeit)
     )
 
     setMahlzeit(neueMahlzeit)
@@ -862,7 +932,7 @@ function App() {
     }
 
     const { protein: neuProtein, carbs: neuCarbs, fett: neuFett, gemuese: neuGemuese } = vierSlotsWuerfeln(
-      proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, mahlzeit, diaeten, neuerWert, ziel
+      proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, mahlzeit, diaeten, neuerWert, ziel, makroZieleFuer(mahlzeit)
     )
 
     setSuessDeftig(neuerWert)
@@ -899,7 +969,7 @@ function App() {
     }
 
     const { protein: neuProtein, carbs: neuCarbs, fett: neuFett, gemuese: neuGemuese } = vierSlotsWuerfeln(
-      proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, mahlzeit, neueDiaeten, suessDeftig, ziel
+      proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, mahlzeit, neueDiaeten, suessDeftig, ziel, makroZieleFuer(mahlzeit)
     )
 
     setDiaeten(neueDiaeten)
@@ -993,18 +1063,11 @@ function App() {
     const anteile = normalisierteTagesAnteile(tagesplanMahlzeitenWert)
     return MAHLZEIT_REIHENFOLGE.filter((typ) => tagesplanMahlzeitenWert.includes(typ)).map((mahlzeitTyp) => {
       const anteil = anteile[mahlzeitTyp]
+      const makroZieleWert = makroZielFuerMahlzeitAusTagesziel(ziel, mahlzeitTyp, anteil)
       const { protein: neuProtein, carbs: neuCarbs, fett: neuFett, gemuese: neuGemuese } = vierSlotsWuerfeln(
-        proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, mahlzeitTyp, diaetenWert, suessDeftigWert, ziel, anteil
+        proteinOptionen, carbsOptionen, fettOptionen, gemueseOptionen, obstOptionen, mahlzeitTyp, diaetenWert, suessDeftigWert, ziel, makroZieleWert, anteil
       )
-      return tagesplanEintragBauen(
-        mahlzeitTyp,
-        neuProtein,
-        neuCarbs,
-        neuFett,
-        neuGemuese,
-        makroZielFuerMahlzeitAusTagesziel(ziel, mahlzeitTyp, anteil),
-        anteil
-      )
+      return tagesplanEintragBauen(mahlzeitTyp, neuProtein, neuCarbs, neuFett, neuGemuese, makroZieleWert, anteil)
     })
   }
 
@@ -1045,7 +1108,24 @@ function App() {
         .filter(([slotKategorie]) => slotKategorie !== kategorie)
         .reduce((summe, [, kalorien]) => summe + kalorien, 0)
       const anteil = normalisierteTagesAnteile(tagesplanMahlzeiten)[eintrag.mahlzeitTyp]
-      const neueZutat = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, eintrag.mahlzeitTyp, ziel, anteil)
+      const makroZieleWert = makroZielFuerMahlzeitAusTagesziel(ziel, eintrag.mahlzeitTyp, anteil)
+      const zielGramm = kategorie === 'gemuese' ? null : makroZielGrammFuer(makroZieleWert, kategorie)
+      const naehrwertSchluessel = kategorie === 'gemuese' ? null : NAEHRWERT_SCHLUESSEL_NACH_KATEGORIE[kategorie]
+      const alleDreiFixiert =
+        makroZielGrammFuer(makroZieleWert, 'protein') !== null &&
+        makroZielGrammFuer(makroZieleWert, 'carbs') !== null &&
+        makroZielGrammFuer(makroZieleWert, 'fett') !== null
+      const gemueseNichtSteuerbar = kategorie === 'gemuese' && alleDreiFixiert
+      const neueZutat = einzelnenSlotWuerfeln(
+        kandidaten,
+        kalorienAndereSlots,
+        eintrag.mahlzeitTyp,
+        ziel,
+        zielGramm,
+        naehrwertSchluessel,
+        gemueseNichtSteuerbar,
+        anteil
+      )
       const zutaten = {
         protein: eintrag.protein,
         carbs: eintrag.carbs,
@@ -1059,7 +1139,7 @@ function App() {
         zutaten.carbs,
         zutaten.fett,
         zutaten.gemuese,
-        makroZielFuerMahlzeitAusTagesziel(ziel, eintrag.mahlzeitTyp, anteil),
+        makroZieleWert,
         anteil
       )
 
