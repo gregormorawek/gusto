@@ -6,6 +6,7 @@ import SuessDeftigFilter from './components/SuessDeftigFilter'
 import TagesplanAnsicht from './components/TagesplanAnsicht'
 import OnboardingWizard from './components/OnboardingWizard'
 import EinstellungenPanel from './components/EinstellungenPanel'
+import AnimatedButton from './components/AnimatedButton'
 import { MAHLZEITEN } from './mahlzeiten'
 import { supabase } from './supabase'
 import { gefiltertePoolFuer, vierterSlotOptionenFuer } from './zutatenFilter'
@@ -1505,14 +1506,14 @@ function App() {
           <h1 className="font-display text-3xl font-semibold text-primary">gusto</h1>
           <p className="text-sm text-text-muted">deine nächste mahlzeit, gewürfelt</p>
         </div>
-        <button
+        <AnimatedButton
           type="button"
           onClick={() => setEinstellungenOffen(true)}
           aria-label="Einstellungen öffnen"
           className="mt-1 text-2xl text-text-muted hover:text-primary"
         >
           ⚙
-        </button>
+        </AnimatedButton>
       </header>
 
       <EinstellungenPanel
@@ -1550,20 +1551,20 @@ function App() {
           />
         ) : (
           <div className="mx-4 mt-6 text-center">
-            <button
+            <AnimatedButton
               type="button"
               onClick={tagPlanen}
               className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-card shadow-sm"
             >
               Ganzen Tag planen
-            </button>
-            <button
+            </AnimatedButton>
+            <AnimatedButton
               type="button"
               onClick={() => setEinstellungenOffen(true)}
               className="mt-3 text-sm text-primary hover:underline"
             >
               Mahlzeiten anpassen
-            </button>
+            </AnimatedButton>
           </div>
         )
       ) : (
@@ -1574,13 +1575,13 @@ function App() {
             <SuessDeftigFilter aktuell={suessDeftig} onAendern={suessDeftigAendern} />
           )}
 
-          <button
+          <AnimatedButton
             type="button"
             onClick={() => setEinstellungenOffen(true)}
             className="mt-2 px-4 text-sm text-primary hover:underline"
           >
             Einstellungen anpassen
-          </button>
+          </AnimatedButton>
 
           <section id="slots" className="grid grid-cols-2 gap-4 p-4">
             <SlotKarte
@@ -1638,9 +1639,9 @@ function App() {
             </p>
           </section>
 
-          <button type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
+          <AnimatedButton type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
             Neue Auswahl würfeln
-          </button>
+          </AnimatedButton>
         </>
       )}
     </>

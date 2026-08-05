@@ -1,6 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import AnimierteZahl from './AnimierteZahl'
+import AnimatedButton from './AnimatedButton'
 import { FADE_UEBERGANG, SLIDE_DISTANZ, SPRING_REVEAL, transitionFuer } from '../motionConfig'
 
 // SlotKarte ist eine wiederverwendbare Komponente fuer einen einzelnen "Slot".
@@ -84,13 +85,13 @@ function SlotKarte({
         <p className="mt-0.5 text-xs text-primary/70">Ziel nicht ganz erreichbar</p>
       )}
 
-      <button
+      <AnimatedButton
         type="button"
         onClick={onWuerfeln}
         className="mt-2 text-sm text-primary hover:underline"
       >
         ↻ neu würfeln
-      </button>
+      </AnimatedButton>
 
       <AnimatePresence>
         {sucheAnzeigen && (

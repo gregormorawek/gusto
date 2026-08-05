@@ -1,4 +1,5 @@
 import SlotKarte from './SlotKarte'
+import AnimatedButton from './AnimatedButton'
 import { MAHLZEITEN } from '../mahlzeiten'
 import { gefiltertePoolFuer, vierterSlotOptionenFuer } from '../zutatenFilter'
 
@@ -44,12 +45,12 @@ function TagesplanAnsicht({
   return (
     <>
       <div className="mx-4 mt-2 flex items-center gap-4">
-        <button type="button" onClick={onZurueck} className="text-sm text-primary hover:underline">
+        <AnimatedButton type="button" onClick={onZurueck} className="text-sm text-primary hover:underline">
           ← Zurück
-        </button>
-        <button type="button" onClick={onMahlzeitenAnpassen} className="text-sm text-primary hover:underline">
+        </AnimatedButton>
+        <AnimatedButton type="button" onClick={onMahlzeitenAnpassen} className="text-sm text-primary hover:underline">
           Mahlzeiten anpassen
-        </button>
+        </AnimatedButton>
       </div>
 
       {tagesplan.map((eintrag, index) => {
@@ -139,9 +140,9 @@ function TagesplanAnsicht({
         </ul>
       </section>
 
-      <button type="button" onClick={onNeuPlanen} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
+      <AnimatedButton type="button" onClick={onNeuPlanen} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
         Ganzen Tag neu planen
-      </button>
+      </AnimatedButton>
     </>
   )
 }
