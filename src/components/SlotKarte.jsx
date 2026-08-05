@@ -1,4 +1,7 @@
 import { useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import AnimierteZahl from './AnimierteZahl'
+import { SPRING_REVEAL, transitionFuer } from '../motionConfig'
 
 // SlotKarte ist eine wiederverwendbare Komponente fuer einen einzelnen "Slot".
 // Sie bekommt ihre Inhalte ueber Props (titel und text) und zeigt sie in einer Karte an.
@@ -29,6 +32,7 @@ function SlotKarte({
   suchPool,
   onZutatWaehlen,
 }) {
+  const reduzierteBewegung = useReducedMotion()
   const [suchtext, setSuchtext] = useState('')
 
   const suchtextBereinigt = suchtext.trim().toLowerCase()
@@ -44,8 +48,20 @@ function SlotKarte({
   return (
     <div className="rounded-lg border border-text-muted/20 bg-card p-4 shadow-sm">
       <h3 className="text-xs font-semibold uppercase tracking-wide text-text-muted">{titel}</h3>
-      <p className="text-lg font-semibold text-text">{text}</p>
-      <p className="text-xs text-text-muted">{portion} g</p>
+      <AnimatePresence mode="popLayout">
+        <motion.div
+          key={text}
+          initial={{ opacity: 0, scale: 0.95 }}
+          animate={{ opacity: 1, scale: 1 }}
+          exit={{ opacity: 0, scale: 0.95 }}
+          transition={transitionFuer(reduzierteBewegung, SPRING_REVEAL)}
+        >
+          <p className="text-lg font-semibold text-text">{text}</p>
+          <p className="text-xs text-text-muted">
+            <AnimierteZahl wert={portion ?? 0} /> g
+          </p>
+        </motion.div>
+      </AnimatePresence>
 
       {onZielAendern && (
         <label className="mt-2 flex flex-wrap items-center gap-2 text-xs text-text-muted">
