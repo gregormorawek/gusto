@@ -1,3 +1,5 @@
+import AnimatedButton from './AnimatedButton'
+
 // Die drei moeglichen Werte des Suess/Deftig-Filters. slug ist der Wert,
 // gegen den in der DB-Spalte "eigenschaft" verglichen wird (siehe
 // nachSuessDeftigGefiltert in App.jsx). '' (Alles) ist kein echter DB-Tag und
@@ -16,7 +18,7 @@ function SuessDeftigFilter({ aktuell, onAendern }) {
   return (
     <div className="mt-2 flex gap-2 px-4">
       {SUESS_DEFTIG_OPTIONEN.map(({ slug, label }) => (
-        <button
+        <AnimatedButton
           key={slug || 'alles'}
           type="button"
           onClick={() => onAendern(slug)}
@@ -27,7 +29,7 @@ function SuessDeftigFilter({ aktuell, onAendern }) {
           }
         >
           {label}
-        </button>
+        </AnimatedButton>
       ))}
     </div>
   )

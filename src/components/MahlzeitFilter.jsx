@@ -1,4 +1,5 @@
 import { MAHLZEITEN } from '../mahlzeiten'
+import AnimatedButton from './AnimatedButton'
 
 // Zeigt vier Buttons, einer pro Mahlzeit. aktuell ist der gerade aktive
 // Filter-Slug, onAendern wird mit dem geklickten Slug aufgerufen.
@@ -6,7 +7,7 @@ function MahlzeitFilter({ aktuell, onAendern }) {
   return (
     <div className="flex gap-2 px-4">
       {MAHLZEITEN.map(({ slug, label }) => (
-        <button
+        <AnimatedButton
           key={slug}
           type="button"
           onClick={() => onAendern(slug)}
@@ -17,7 +18,7 @@ function MahlzeitFilter({ aktuell, onAendern }) {
           }
         >
           {label}
-        </button>
+        </AnimatedButton>
       ))}
     </div>
   )
