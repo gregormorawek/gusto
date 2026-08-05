@@ -4,7 +4,7 @@ import DiaetFilter from './DiaetFilter'
 import SuessDeftigFilter from './SuessDeftigFilter'
 import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
 import AnimatedButton from './AnimatedButton'
-import { FADE_UEBERGANG, SPRING_REVEAL, transitionFuer } from '../motionConfig'
+import { FADE_UEBERGANG, SPRING_REVEAL, motionPropsFuer, transitionFuer } from '../motionConfig'
 
 // Modal-Panel fuer die Werte, die nach dem Onboarding nicht mehr staendig
 // gebraucht werden (Kalorienziel, Ernaehrungsform, bei "Pro Tag" zusaetzlich
@@ -47,10 +47,12 @@ function EinstellungenPanel({
           onClick={onSchliessen}
         >
           <motion.div
-            initial={{ opacity: 0, y: -16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -16 }}
-            transition={transitionFuer(reduzierteBewegung, SPRING_REVEAL)}
+            {...motionPropsFuer(reduzierteBewegung, {
+              initial: { opacity: 0, y: -16 },
+              animate: { opacity: 1, y: 0 },
+              exit: { opacity: 0, y: -16 },
+              transition: SPRING_REVEAL,
+            })}
             className="mt-16 w-full max-w-sm rounded-lg bg-card p-4 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >

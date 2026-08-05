@@ -11,7 +11,7 @@ import {
 } from '@tabler/icons-react'
 import { MAHLZEITEN } from '../mahlzeiten'
 import { kalorienZielGueltig } from '../kalorienZiel'
-import { SPRING_REVEAL, transitionFuer } from '../motionConfig'
+import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 import AnimierteZahl from './AnimierteZahl'
 
 const MAHLZEIT_ICON = {
@@ -63,10 +63,12 @@ function IconChip({ Icon, label, aktiv, farbKlasse, reduzierteBewegung }) {
       <AnimatePresence>
         {aktiv && (
           <motion.span
-            initial={{ opacity: 0, scale: 0.6 }}
-            animate={{ opacity: 1, scale: 1 }}
-            exit={{ opacity: 0, scale: 0.85 }}
-            transition={transitionFuer(reduzierteBewegung, SPRING_REVEAL)}
+            {...motionPropsFuer(reduzierteBewegung, {
+              initial: { opacity: 0, scale: 0.6 },
+              animate: { opacity: 1, scale: 1 },
+              exit: { opacity: 0, scale: 0.85 },
+              transition: SPRING_REVEAL,
+            })}
             className={`absolute inset-0 rounded-2xl border ${farbKlasse.aktivBorder} ${farbKlasse.aktivBg}`}
           />
         )}
@@ -118,19 +120,23 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
 
   return (
     <motion.div
-      initial={{ opacity: 0, y: 12 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={transitionFuer(reduzierteBewegung, { duration: 0.3, ease: 'easeOut' })}
+      {...motionPropsFuer(reduzierteBewegung, {
+        initial: { opacity: 0, y: 12 },
+        animate: { opacity: 1, y: 0 },
+        transition: { duration: 0.3, ease: 'easeOut' },
+      })}
       className="rounded-[14px] bg-card p-5 shadow-sm"
     >
       <AnimatePresence>
         {kalorienGueltig && (
           <motion.div
             key="kalorien"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={transitionFuer(reduzierteBewegung, { duration: 0.3, ease: 'easeOut' })}
+            {...motionPropsFuer(reduzierteBewegung, {
+              initial: { opacity: 0, y: 12 },
+              animate: { opacity: 1, y: 0 },
+              exit: { opacity: 0, y: 12 },
+              transition: { duration: 0.3, ease: 'easeOut' },
+            })}
             className="flex items-center gap-2"
           >
             <IconFlame size={28} stroke={1.75} className="shrink-0 text-primary" />
@@ -146,10 +152,12 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
         {zeigeMahlzeiten && (
           <motion.div
             key="mahlzeiten"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={transitionFuer(reduzierteBewegung, { duration: 0.3, ease: 'easeOut' })}
+            {...motionPropsFuer(reduzierteBewegung, {
+              initial: { opacity: 0, y: 12 },
+              animate: { opacity: 1, y: 0 },
+              exit: { opacity: 0, y: 12 },
+              transition: { duration: 0.3, ease: 'easeOut' },
+            })}
             className={`flex gap-2 ${kalorienGueltig ? 'mt-4' : ''}`}
           >
             {MAHLZEITEN.map(({ slug, label }) => (
@@ -170,10 +178,12 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
         {zeigeDiaet && (
           <motion.div
             key="diaet"
-            initial={{ opacity: 0, y: 16 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 16 }}
-            transition={transitionFuer(reduzierteBewegung, SPRING_REVEAL)}
+            {...motionPropsFuer(reduzierteBewegung, {
+              initial: { opacity: 0, y: 16 },
+              animate: { opacity: 1, y: 0 },
+              exit: { opacity: 0, y: 16 },
+              transition: SPRING_REVEAL,
+            })}
             className={`flex flex-wrap gap-2 ${zeigeMahlzeiten ? 'mt-4' : ''}`}
           >
             {Object.keys(DIAET_ICON).map((slug) => (
@@ -194,10 +204,12 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
         {zeigeMakros && (
           <motion.div
             key="makros"
-            initial={{ opacity: 0, y: 12 }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: 12 }}
-            transition={transitionFuer(reduzierteBewegung, { duration: 0.3, ease: 'easeOut' })}
+            {...motionPropsFuer(reduzierteBewegung, {
+              initial: { opacity: 0, y: 12 },
+              animate: { opacity: 1, y: 0 },
+              exit: { opacity: 0, y: 12 },
+              transition: { duration: 0.3, ease: 'easeOut' },
+            })}
             className={`flex gap-4 ${zeigtEtwasVorMakros ? 'mt-4' : ''}`}
           >
             {sichtbareMakros.map(({ kategorie, label }) => (

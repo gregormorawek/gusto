@@ -2,7 +2,7 @@ import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import AnimierteZahl from './AnimierteZahl'
 import AnimatedButton from './AnimatedButton'
-import { FADE_UEBERGANG, SLIDE_DISTANZ, SPRING_REVEAL, transitionFuer } from '../motionConfig'
+import { FADE_UEBERGANG, SLIDE_DISTANZ, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 
 // SlotKarte ist eine wiederverwendbare Komponente fuer einen einzelnen "Slot".
 // Sie bekommt ihre Inhalte ueber Props (titel und text) und zeigt sie in einer Karte an.
@@ -52,10 +52,12 @@ function SlotKarte({
       <AnimatePresence mode="popLayout">
         <motion.div
           key={text}
-          initial={{ opacity: 0, scale: 0.95 }}
-          animate={{ opacity: 1, scale: 1 }}
-          exit={{ opacity: 0, scale: 0.95 }}
-          transition={transitionFuer(reduzierteBewegung, SPRING_REVEAL)}
+          {...motionPropsFuer(reduzierteBewegung, {
+            initial: { opacity: 0, scale: 0.95 },
+            animate: { opacity: 1, scale: 1 },
+            exit: { opacity: 0, scale: 0.95 },
+            transition: SPRING_REVEAL,
+          })}
         >
           <p className="text-lg font-semibold text-text">{text}</p>
           <p className="text-xs text-text-muted">
@@ -96,10 +98,12 @@ function SlotKarte({
       <AnimatePresence>
         {sucheAnzeigen && (
           <motion.div
-            initial={{ opacity: 0, y: -SLIDE_DISTANZ }}
-            animate={{ opacity: 1, y: 0 }}
-            exit={{ opacity: 0, y: -SLIDE_DISTANZ }}
-            transition={transitionFuer(reduzierteBewegung, FADE_UEBERGANG)}
+            {...motionPropsFuer(reduzierteBewegung, {
+              initial: { opacity: 0, y: -SLIDE_DISTANZ },
+              animate: { opacity: 1, y: 0 },
+              exit: { opacity: 0, y: -SLIDE_DISTANZ },
+              transition: FADE_UEBERGANG,
+            })}
             className="mt-2"
           >
             <input
