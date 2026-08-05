@@ -8,6 +8,7 @@ import OnboardingWizard from './components/OnboardingWizard'
 import EinstellungenPanel from './components/EinstellungenPanel'
 import { MAHLZEITEN } from './mahlzeiten'
 import { supabase } from './supabase'
+import { gefiltertePoolFuer, vierterSlotOptionenFuer } from './zutatenFilter'
 
 // Feste Reihenfolge der Mahlzeit-Typen fuer den Tagesplan, uebernommen aus
 // den Filter-Slugs (fruehstueck, mittag, abend, snack).
@@ -94,92 +95,6 @@ function standardMahlzeit(datum = new Date()) {
   if (stunde >= 15 && stunde < 18) return 'snack'
   if (stunde >= 18 && stunde < 22) return 'abend'
   return 'snack'
-}
-
-// Filtert eine Zutaten-Liste auf die, deren kommaseparierte "mahlzeiten"-Spalte
-// den gewuenschten Filter enthaelt. Ist das Ergebnis leer (z. B. weil die
-// Kategorie noch keine passend getaggten Zutaten hat), wird auf die
-// ungefilterte Liste zurueckgefallen, statt eine leere Auswahl zu liefern.
-function nachMahlzeitGefiltert(liste, mahlzeit) {
-  const passt = liste.filter((z) =>
-    (z.mahlzeiten ?? '').split(',').map((m) => m.trim()).includes(mahlzeit)
-  )
-  return passt.length > 0 ? passt : liste
-}
-
-// Filtert eine Zutaten-Liste auf die, deren kommaseparierte "diaeten"-Spalte
-// ALLE aktuell ausgewaehlten Diaetformen enthaelt. Keine Auswahl (oder die
-// Auswahl "keine" = Keine Einschraenkung, die kein echter DB-Tag ist) = Filter
-// inaktiv, komplette Liste bleibt bestehen. Ist das Ergebnis leer (z. B. weil
-// die Kategorie noch keine passend getaggten Zutaten hat), wird auf die
-// ungefilterte Liste zurueckgefallen, statt eine leere Auswahl zu liefern.
-function nachDiaetenGefiltert(liste, ausgewaehlteDiaeten) {
-  const aktiveDiaeten = ausgewaehlteDiaeten.filter((d) => d !== 'keine')
-  if (aktiveDiaeten.length === 0) {
-    return liste
-  }
-
-  const passt = liste.filter((z) => {
-    const vorhandeneDiaeten = (z.diaeten ?? '').split(',').map((d) => d.trim())
-    return aktiveDiaeten.every((d) => vorhandeneDiaeten.includes(d))
-  })
-  return passt.length > 0 ? passt : liste
-}
-
-// Filtert eine Zutaten-Liste nach der kommafreien "eigenschaft"-Spalte
-// (suess/deftig/leer). '' (Alles, der Default) = Filter inaktiv, komplette
-// Liste bleibt bestehen. Zutaten OHNE eigenschaft (z. B. Topfen, Mandeln,
-// Hirse, Walnuesse, Butter) gelten laut Datenmodell als neutral und passen
-// bei "Suess" UND "Deftig" gleichermassen mit rein. Ist das Ergebnis leer,
-// wird - wie bei den anderen Filtern - auf die ungefilterte Liste
-// zurueckgefallen.
-function nachSuessDeftigGefiltert(liste, suessDeftig) {
-  if (!suessDeftig) {
-    return liste
-  }
-
-  const passt = liste.filter((z) => {
-    const eigenschaft = (z.eigenschaft ?? '').trim()
-    return eigenschaft === '' || eigenschaft === suessDeftig
-  })
-  return passt.length > 0 ? passt : liste
-}
-
-// Wendet Mahlzeit-, Diaet- und Suess/Deftig-Filter nacheinander auf eine
-// Zutaten-Liste an. Der Suess/Deftig-Filter wird NUR bei fruehstueck/snack
-// angewendet - bei mittag/abend ergibt die Unterscheidung keinen Sinn (siehe
-// SuessDeftigFilter), deshalb wird suessDeftigWert dort ignoriert, selbst
-// falls er von einem vorherigen fruehstueck/snack-Filter noch gesetzt ist.
-function gefiltertePoolFuer(liste, mahlzeitWert, diaetenWert, suessDeftigWert) {
-  const nachMahlzeitUndDiaet = nachDiaetenGefiltert(nachMahlzeitGefiltert(liste, mahlzeitWert), diaetenWert)
-  const suessDeftigRelevant = mahlzeitWert === 'fruehstueck' || mahlzeitWert === 'snack'
-  return suessDeftigRelevant ? nachSuessDeftigGefiltert(nachMahlzeitUndDiaet, suessDeftigWert) : nachMahlzeitUndDiaet
-}
-
-// Waehlt den Rohpool fuer den 4. Slot (kann Obst ODER Gemuese sein) anhand
-// des Suess/Deftig-Filters, wendet danach dieselben Mahlzeit-/Diaet-Filter
-// (inkl. deren eigenem Leer-Pool-Fallback) an wie gefiltertePoolFuer. Bewusst
-// OHNE nachSuessDeftigGefiltert (eigenschaft-Spalte) - die Kategorie-Auswahl
-// selbst ist hier der Suess/Deftig-Mechanismus, kein zusaetzlicher
-// eigenschaft-Filter innerhalb der Kategorie. Nur bei fruehstueck/snack MIT
-// aktivem "Suess" wird obst gezogen - "Alles", "Deftig" und mittag/abend
-// (der Filter existiert dort nicht) liefern wie vor Einfuehrung von obst
-// ausschliesslich gemuese, KEINE Vereinigung.
-//
-// obstListe.length > 0 ist ein eigener Sicherheits-Fallback: Ist die
-// obst-Kategorie (noch) komplett leer - z. B. weil in der DB noch keine
-// obst-Zutaten angelegt sind -, wird trotzdem gemuese gezogen statt einer
-// leeren Liste. Ohne diesen Fallback liefert zufaelligesElement(liste) bei
-// leerer Liste undefined zurueck, und das naechste Rendern (gemuese.name,
-// gemuese.kategorie, ...) stuerzt dann die GESAMTE Seite ab (kein
-// Error-Boundary vorhanden), statt nur diesen einen Slot zu betreffen - der
-// bestehende "bei leerem Pool auf die naechstbreitere Liste zurueckfallen"-
-// Grundsatz (siehe nachMahlzeitGefiltert/nachDiaetenGefiltert) gilt also
-// auch fuer die Obst/Gemuese-Kategoriewahl selbst.
-function vierterSlotOptionenFuer(gemueseListe, obstListe, mahlzeitWert, diaetenWert, suessDeftigWert) {
-  const suessAktiv = (mahlzeitWert === 'fruehstueck' || mahlzeitWert === 'snack') && suessDeftigWert === 'suess'
-  const rohPool = suessAktiv && obstListe.length > 0 ? obstListe : gemueseListe
-  return nachDiaetenGefiltert(nachMahlzeitGefiltert(rohPool, mahlzeitWert), diaetenWert)
 }
 
 // Hilfsfunktion: rechnet einen 100g-Referenzwert (z. B. Kalorien pro 100g)
@@ -833,6 +748,17 @@ function portionenMitMakroZielenBerechnen(proteinZutat, carbsZutat, fettZutat, g
   }
 }
 
+// Startwert eines Reroll-Zaehler-Objekts: ein Zaehlerstand pro Kategorie,
+// alle bei 0. Wird sowohl fuer die Einzel-Ansicht (ein Objekt) als auch pro
+// Tagesplan-Eintrag (ein Objekt je Mahlzeit) verwendet.
+function leererRerollZaehler() {
+  return { protein: 0, carbs: 0, fett: 0, gemuese: 0 }
+}
+
+// Ab wie vielen aufeinanderfolgenden Rerolls DESSELBEN Slots das Suchfeld
+// automatisch erscheint.
+const REROLL_SCHWELLE_FUER_SUCHE = 3
+
 function App() {
   // Diese Listen kamen frueher aus hartcodierten Arrays,
   // jetzt fuellen wir sie per useEffect aus der Datenbank.
@@ -862,6 +788,16 @@ function App() {
   const [carbsPortion, setCarbsPortion] = useState(null)
   const [fettPortion, setFettPortion] = useState(null)
   const [gemuesePortion, setGemuesePortion] = useState(null)
+
+  // Zaehlt pro Kategorie, wie oft HINTEREINANDER derselbe Slot ueber den
+  // Reroll-Button neu gewuerfelt wurde (Einzel-Ansicht). Ab
+  // REROLL_SCHWELLE_FUER_SUCHE erscheint fuer den betroffenen Slot das
+  // Suchfeld (siehe sucheAnzeigen weiter unten). Wird bei jeder manuellen
+  // Auswahl (fuer den gewaehlten Slot) sowie bei jedem "globalen" Neu-
+  // Wuerfeln/Filterwechsel (fuer ALLE Slots) wieder auf 0 zurueckgesetzt,
+  // weil der Slot dann ohnehin schon eine neue Zutat zeigt und ein sofort
+  // sichtbares Suchfeld dort ueberraschend waere.
+  const [rerollZaehler, setRerollZaehler] = useState(leererRerollZaehler)
 
   // Solange die Daten noch nicht aus der Datenbank geladen sind, zeigen wir "Laedt...".
   const [laedt, setLaedt] = useState(true)
@@ -913,6 +849,12 @@ function App() {
   // gezeigt). Sonst ein Array mit einem Eintrag pro AUSGEWAEHLTER Mahlzeit
   // (siehe tagesplanMahlzeiten), die die Einzel-Ansicht ersetzen.
   const [tagesplan, setTagesplan] = useState(null)
+
+  // Analog zu rerollZaehler, aber EIN Zaehler-Objekt PRO Tagesplan-Eintrag
+  // (Array, Index passend zu tagesplan). Wird immer gemeinsam mit tagesplan
+  // per setTagesplan(tagesplanErzeugen(...)) neu aufgebaut (siehe
+  // tagesplanNeuSetzen), damit beide Arrays nie aus dem Tritt geraten.
+  const [tagesplanRerollZaehler, setTagesplanRerollZaehler] = useState(null)
 
   // Welche Mahlzeiten bei "Ganzen Tag planen" beruecksichtigt werden sollen
   // (Mehrfachauswahl, mind. 1 - siehe tagesplanMahlzeitenAendern). Lazy
@@ -1088,6 +1030,14 @@ function App() {
     setFett(neuFett)
     setGemuese(neuGemuese)
     portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
+    setRerollZaehler(leererRerollZaehler())
+  }
+
+  // Erhoeht den Reroll-Zaehler (Einzel-Ansicht) fuer GENAU eine Kategorie um
+  // 1 - siehe rerollZaehler weiter oben fuer den Zweck (Suchfeld nach
+  // REROLL_SCHWELLE_FUER_SUCHE aufeinanderfolgenden Rerolls desselben Slots).
+  function rerollZaehlerErhoehen(kategorie) {
+    setRerollZaehler((aktuell) => ({ ...aktuell, [kategorie]: aktuell[kategorie] + 1 }))
   }
 
   // Diese vier Funktionen aendern jeweils nur EINEN Slot, skalieren danach
@@ -1105,6 +1055,7 @@ function App() {
     const neuProtein = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel, proteinZiel, 'protein_g', false)
     setProtein(neuProtein)
     portionenMitMakroZielenSetzen(neuProtein, carbs, fett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
+    rerollZaehlerErhoehen('protein')
   }
 
   function carbsWuerfeln() {
@@ -1117,6 +1068,7 @@ function App() {
     const neuCarbs = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel, carbsZiel, 'carbs_g', false)
     setCarbs(neuCarbs)
     portionenMitMakroZielenSetzen(protein, neuCarbs, fett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
+    rerollZaehlerErhoehen('carbs')
   }
 
   function fettWuerfeln() {
@@ -1129,6 +1081,7 @@ function App() {
     const neuFett = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel, fettZiel, 'fett_g', false)
     setFett(neuFett)
     portionenMitMakroZielenSetzen(protein, carbs, neuFett, gemuese, mahlzeit, makroZieleFuer(mahlzeit))
+    rerollZaehlerErhoehen('fett')
   }
 
   function gemueseWuerfeln() {
@@ -1145,6 +1098,37 @@ function App() {
     const neuGemuese = einzelnenSlotWuerfeln(kandidaten, kalorienAndereSlots, mahlzeit, ziel, null, null, alleDreiFixiert)
     setGemuese(neuGemuese)
     portionenMitMakroZielenSetzen(protein, carbs, fett, neuGemuese, mahlzeit, aktuelleMakroZiele)
+    rerollZaehlerErhoehen('gemuese')
+  }
+
+  // Wird aufgerufen, wenn der User im Suchfeld eines Slots (erscheint ab
+  // REROLL_SCHWELLE_FUER_SUCHE Rerolls desselben Slots) gezielt eine Zutat
+  // auswaehlt. Behandelt die Auswahl wie einen Reroll: derselbe
+  // Portionsberechnungs-Pfad (portionenMitMakroZielenSetzen), keine
+  // Sonderbehandlung. Setzt zusaetzlich NUR den Zaehler dieser Kategorie
+  // zurueck, die anderen drei Slots behalten ihren Zaehlerstand.
+  function zutatManuellWaehlen(kategorie, zutat) {
+    const naechsteZutaten = {
+      protein: kategorie === 'protein' ? zutat : protein,
+      carbs: kategorie === 'carbs' ? zutat : carbs,
+      fett: kategorie === 'fett' ? zutat : fett,
+      gemuese: kategorie === 'gemuese' ? zutat : gemuese,
+    }
+
+    if (kategorie === 'protein') setProtein(zutat)
+    if (kategorie === 'carbs') setCarbs(zutat)
+    if (kategorie === 'fett') setFett(zutat)
+    if (kategorie === 'gemuese') setGemuese(zutat)
+
+    portionenMitMakroZielenSetzen(
+      naechsteZutaten.protein,
+      naechsteZutaten.carbs,
+      naechsteZutaten.fett,
+      naechsteZutaten.gemuese,
+      mahlzeit,
+      makroZieleFuer(mahlzeit)
+    )
+    setRerollZaehler((aktuell) => ({ ...aktuell, [kategorie]: 0 }))
   }
 
   // Wird vom MahlzeitFilter aufgerufen, wenn der User einen anderen Filter
@@ -1167,6 +1151,7 @@ function App() {
     setFett(neuFett)
     setGemuese(neuGemuese)
     portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, neueMahlzeit, makroZieleFuer(neueMahlzeit))
+    setRerollZaehler(leererRerollZaehler())
   }
 
   // Wird vom SuessDeftigFilter aufgerufen - sowohl der Instanz in der
@@ -1193,12 +1178,13 @@ function App() {
     setFett(neuFett)
     setGemuese(neuGemuese)
     portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
+    setRerollZaehler(leererRerollZaehler())
 
     // Ist gerade ein Tagesplan sichtbar, muss der ebenfalls neu gewuerfelt
     // werden, sonst wuerden dort weiterhin Fruehstueck-/Snack-Zutaten stehen,
     // die die neue Suess/Deftig-Auswahl nicht erfuellen.
     if (tagesplan) {
-      setTagesplan(tagesplanErzeugen(diaeten, tagesplanMahlzeiten, neuerWert))
+      tagesplanNeuSetzen(tagesplanErzeugen(diaeten, tagesplanMahlzeiten, neuerWert))
     }
   }
 
@@ -1230,12 +1216,13 @@ function App() {
     setFett(neuFett)
     setGemuese(neuGemuese)
     portionenMitMakroZielenSetzen(neuProtein, neuCarbs, neuFett, neuGemuese, mahlzeit, makroZieleFuer(mahlzeit))
+    setRerollZaehler(leererRerollZaehler())
 
     // Ist gerade ein Tagesplan sichtbar, muss der ebenfalls neu gewuerfelt
     // werden, sonst wuerden dort weiterhin Zutaten stehen, die die neue
     // Diaet-Auswahl nicht erfuellen.
     if (tagesplan) {
-      setTagesplan(tagesplanErzeugen(neueDiaeten, tagesplanMahlzeiten, suessDeftig))
+      tagesplanNeuSetzen(tagesplanErzeugen(neueDiaeten, tagesplanMahlzeiten, suessDeftig))
     }
   }
 
@@ -1260,7 +1247,7 @@ function App() {
     setTagesplanMahlzeiten(neueMahlzeiten)
 
     if (tagesplan) {
-      setTagesplan(tagesplanErzeugen(diaeten, neueMahlzeiten, suessDeftig))
+      tagesplanNeuSetzen(tagesplanErzeugen(diaeten, neueMahlzeiten, suessDeftig))
     }
   }
 
@@ -1323,9 +1310,19 @@ function App() {
     })
   }
 
+  // Setzt einen frisch erzeugten Tagesplan UND initialisiert dazu passend
+  // tagesplanRerollZaehler neu (ein leerer Zaehler pro Eintrag) - beide
+  // Arrays muessen immer gemeinsam und mit gleicher Laenge/Reihenfolge
+  // entstehen, sonst zeigt tagesplanSlotWuerfeln fuer den falschen Eintrag
+  // das Suchfeld an.
+  function tagesplanNeuSetzen(neuerPlan) {
+    setTagesplan(neuerPlan)
+    setTagesplanRerollZaehler(neuerPlan.map(() => leererRerollZaehler()))
+  }
+
   // Wird vom "Ganzen Tag planen"- bzw. "Ganzen Tag neu planen"-Button aufgerufen.
   function tagPlanen() {
-    setTagesplan(tagesplanErzeugen(diaeten, tagesplanMahlzeiten, suessDeftig))
+    tagesplanNeuSetzen(tagesplanErzeugen(diaeten, tagesplanMahlzeiten, suessDeftig))
   }
 
   // Wuerfelt im Tagesplan EINEN Slot (kategorie: protein/carbs/fett/gemuese)
@@ -1397,6 +1394,45 @@ function App() {
 
       return aktuellerPlan.map((e, i) => (i === index ? neuerEintrag : e))
     })
+
+    setTagesplanRerollZaehler((aktuelleZaehler) =>
+      aktuelleZaehler.map((z, i) => (i === index ? { ...z, [kategorie]: z[kategorie] + 1 } : z))
+    )
+  }
+
+  // Analog zu zutatManuellWaehlen, aber fuer EINEN Eintrag des Tagesplans:
+  // Wird aufgerufen, wenn der User im Suchfeld eines Tagesplan-Slots gezielt
+  // eine Zutat auswaehlt. Baut den Eintrag ueber denselben
+  // tagesplanEintragBauen-Pfad wie tagesplanSlotWuerfeln neu auf (keine
+  // Sonderbehandlung der Portionsberechnung fuer manuell gewaehlte Zutaten).
+  function tagesplanZutatWaehlen(index, kategorie, zutat) {
+    setTagesplan((aktuellerPlan) => {
+      const eintrag = aktuellerPlan[index]
+      const anteil = normalisierteTagesAnteile(tagesplanMahlzeiten)[eintrag.mahlzeitTyp]
+      const makroZieleWert = makroZielFuerMahlzeitAusTagesziel(ziel, eintrag.mahlzeitTyp, anteil)
+      const zutaten = {
+        protein: eintrag.protein,
+        carbs: eintrag.carbs,
+        fett: eintrag.fett,
+        gemuese: eintrag.gemuese,
+        [kategorie]: zutat,
+      }
+      const neuerEintrag = tagesplanEintragBauen(
+        eintrag.mahlzeitTyp,
+        zutaten.protein,
+        zutaten.carbs,
+        zutaten.fett,
+        zutaten.gemuese,
+        makroZieleWert,
+        anteil
+      )
+
+      return aktuellerPlan.map((e, i) => (i === index ? neuerEintrag : e))
+    })
+
+    setTagesplanRerollZaehler((aktuelleZaehler) =>
+      aktuelleZaehler.map((z, i) => (i === index ? { ...z, [kategorie]: 0 } : z))
+    )
   }
 
   if (!onboardingAbgeschlossen) {
@@ -1454,6 +1490,14 @@ function App() {
 
   const aktuelleMakroZiele = makroZieleFuer(mahlzeit)
 
+  // Fuer jeden Slot exakt derselbe gefilterte Pool wie beim Wuerfeln (siehe
+  // proteinWuerfeln etc.) - das Suchfeld darf KEINE eigene, ungefilterte
+  // Zutatenliste verwenden, sondern nur innerhalb dieses Pools suchen.
+  const proteinSuchPool = gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten, suessDeftig)
+  const carbsSuchPool = gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten, suessDeftig)
+  const fettSuchPool = gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten, suessDeftig)
+  const gemueseSuchPool = vierterSlotOptionenFuer(gemueseOptionen, obstOptionen, mahlzeit, diaeten, suessDeftig)
+
   return (
     <>
       <header className="flex items-start justify-between p-4">
@@ -1490,7 +1534,16 @@ function App() {
         tagesplan ? (
           <TagesplanAnsicht
             tagesplan={tagesplan}
+            tagesplanRerollZaehler={tagesplanRerollZaehler}
             onSlotWuerfeln={tagesplanSlotWuerfeln}
+            onZutatWaehlen={tagesplanZutatWaehlen}
+            proteinOptionen={proteinOptionen}
+            carbsOptionen={carbsOptionen}
+            fettOptionen={fettOptionen}
+            gemueseOptionen={gemueseOptionen}
+            obstOptionen={obstOptionen}
+            diaeten={diaeten}
+            suessDeftig={suessDeftig}
             onZurueck={() => setTagesplan(null)}
             onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
             onNeuPlanen={tagPlanen}
@@ -1538,6 +1591,9 @@ function App() {
               zielWert={aktuelleMakroZiele.protein}
               onZielAendern={(wert) => makroZielAendern('protein', wert)}
               zielErreichbar={proteinZielErreichbar}
+              sucheAnzeigen={rerollZaehler.protein >= REROLL_SCHWELLE_FUER_SUCHE}
+              suchPool={proteinSuchPool}
+              onZutatWaehlen={(zutat) => zutatManuellWaehlen('protein', zutat)}
             />
             <SlotKarte
               titel="Carbs"
@@ -1547,6 +1603,9 @@ function App() {
               zielWert={aktuelleMakroZiele.carbs}
               onZielAendern={(wert) => makroZielAendern('carbs', wert)}
               zielErreichbar={carbsZielErreichbar}
+              sucheAnzeigen={rerollZaehler.carbs >= REROLL_SCHWELLE_FUER_SUCHE}
+              suchPool={carbsSuchPool}
+              onZutatWaehlen={(zutat) => zutatManuellWaehlen('carbs', zutat)}
             />
             <SlotKarte
               titel="Fett"
@@ -1556,12 +1615,18 @@ function App() {
               zielWert={aktuelleMakroZiele.fett}
               onZielAendern={(wert) => makroZielAendern('fett', wert)}
               zielErreichbar={fettZielErreichbar}
+              sucheAnzeigen={rerollZaehler.fett >= REROLL_SCHWELLE_FUER_SUCHE}
+              suchPool={fettSuchPool}
+              onZutatWaehlen={(zutat) => zutatManuellWaehlen('fett', zutat)}
             />
             <SlotKarte
               titel={gemuese.kategorie === 'obst' ? 'Obst' : 'Gemüse'}
               text={gemuese.name}
               portion={gemuesePortion}
               onWuerfeln={gemueseWuerfeln}
+              sucheAnzeigen={rerollZaehler.gemuese >= REROLL_SCHWELLE_FUER_SUCHE}
+              suchPool={gemueseSuchPool}
+              onZutatWaehlen={(zutat) => zutatManuellWaehlen('gemuese', zutat)}
             />
           </section>
 
