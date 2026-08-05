@@ -5,6 +5,7 @@ import MahlzeitFilter from './MahlzeitFilter'
 import DiaetFilter from './DiaetFilter'
 import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
 import WizardTageskarte from './WizardTageskarte'
+import AnimatedButton from './AnimatedButton'
 import { kalorienZielGueltig } from '../kalorienZiel'
 
 const SCHRITT_TITEL = {
@@ -89,14 +90,14 @@ function OnboardingWizard({
       <header className="px-6 pt-8">
         <div className="flex items-center gap-3">
           {schritt > 1 ? (
-            <button
+            <AnimatedButton
               type="button"
               onClick={zurueckKlicken}
               aria-label="Zurück"
               className="-ml-2 rounded-full p-2 text-2xl text-text-muted hover:text-primary"
             >
               ←
-            </button>
+            </AnimatedButton>
           ) : (
             // Platzhalter in derselben Groesse wie der Zurueck-Pfeil, damit
             // der Titel beim Wechsel von Schritt 1 zu Schritt 2 nicht springt.
@@ -205,25 +206,23 @@ function OnboardingWizard({
 
         <div className="mt-6">
           {schritt < 3 ? (
-            <motion.button
+            <AnimatedButton
               type="button"
               onClick={weiterKlicken}
               disabled={schritt === 1 && !zielGueltig}
-              whileTap={{ scale: 0.97 }}
               className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
             >
               Weiter
-            </motion.button>
+            </AnimatedButton>
           ) : (
-            <motion.button
+            <AnimatedButton
               type="button"
               onClick={onAbschluss}
               disabled={!diaetGueltig}
-              whileTap={{ scale: 0.97 }}
               className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
             >
               Los geht's
-            </motion.button>
+            </AnimatedButton>
           )}
         </div>
       </div>

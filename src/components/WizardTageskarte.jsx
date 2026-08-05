@@ -1,5 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
-import { AnimatePresence, animate, motion } from 'framer-motion'
+import { AnimatePresence, motion } from 'framer-motion'
 import {
   IconApple,
   IconCheck,
@@ -12,6 +11,8 @@ import {
 } from '@tabler/icons-react'
 import { MAHLZEITEN } from '../mahlzeiten'
 import { kalorienZielGueltig } from '../kalorienZiel'
+import { SPRING_REVEAL, transitionFuer } from '../motionConfig'
+import AnimierteZahl from './AnimierteZahl'
 
 const MAHLZEIT_ICON = {
   fruehstueck: IconCoffee,
@@ -34,40 +35,19 @@ const DIAET_LABEL = {
   keine: 'Alles',
 }
 
-const UEBERSCHWING_FEDER = { type: 'spring', stiffness: 300, damping: 20 }
+// Die drei Makro-Felder aus dem Tages-Makroziel (ziel.makro, nur bei
+// proTag gesetzt) - Reihenfolge wie in ZielEinstellungen.
+const MAKRO_FELDER = [
+  { kategorie: 'protein', label: 'P' },
+  { kategorie: 'carbs', label: 'C' },
+  { kategorie: 'fett', label: 'F' },
+]
 
-// Zaehlt eine angezeigte Ganzzahl sanft von ihrem zuletzt angezeigten Wert
-// auf "ziel" hoch/runter (statt hart zu springen). anzeigeRef haelt den
-// ZWISCHENSTAND der laufenden Animation fest (nicht nur den Zielwert), damit
-// ein erneuter Zielwechsel WAEHREND einer laufenden Animation sauber vom
-// aktuell sichtbaren Wert aus weiterzaehlt statt neu bei 0 anzusetzen.
-// Reduzierte Bewegung (prefers-reduced-motion) ueberspringt die Animation
-// komplett und springt direkt zum Zielwert.
-function useAnimierteZahl(ziel, reduzierteBewegung) {
-  const [anzeige, setAnzeige] = useState(0)
-  const anzeigeRef = useRef(0)
-
-  useEffect(() => {
-    if (reduzierteBewegung) {
-      anzeigeRef.current = ziel
-      setAnzeige(ziel)
-      return
-    }
-    if (anzeigeRef.current === ziel) {
-      return
-    }
-    const controls = animate(anzeigeRef.current, ziel, {
-      duration: 0.7,
-      ease: 'easeOut',
-      onUpdate: (wert) => {
-        anzeigeRef.current = wert
-        setAnzeige(Math.round(wert))
-      },
-    })
-    return () => controls.stop()
-  }, [ziel, reduzierteBewegung])
-
-  return anzeige
+// Ein einzelnes Makro-Feld ist "gesetzt", wenn ein positiver Zahlenwert
+// eingetragen wurde - leer oder 0 zaehlt nicht (analog zu kalorienZielGueltig).
+function makroWertGueltig(wert) {
+  const zahl = Number(wert)
+  return wert !== '' && Number.isFinite(zahl) && zahl > 0
 }
 
 // Ein einzelner Icon-Chip (Mahlzeit ODER Diaetform) - der Chip selbst ist
@@ -78,8 +58,6 @@ function useAnimierteZahl(ziel, reduzierteBewegung) {
 // Chip selbst ver- oder auftaucht. farbKlasse bestimmt Terrakotta (Mahlzeit)
 // vs. Oliv (Diaetform).
 function IconChip({ Icon, label, aktiv, farbKlasse, reduzierteBewegung }) {
-  const federOderFade = reduzierteBewegung ? { duration: 0.15 } : UEBERSCHWING_FEDER
-
   return (
     <div className="relative flex flex-col items-center gap-1 rounded-2xl border border-dashed border-text-muted/50 px-3 py-2">
       <AnimatePresence>
@@ -88,7 +66,7 @@ function IconChip({ Icon, label, aktiv, farbKlasse, reduzierteBewegung }) {
             initial={{ opacity: 0, scale: 0.6 }}
             animate={{ opacity: 1, scale: 1 }}
             exit={{ opacity: 0, scale: 0.85 }}
-            transition={federOderFade}
+            transition={transitionFuer(reduzierteBewegung, SPRING_REVEAL)}
             className={`absolute inset-0 rounded-2xl border ${farbKlasse.aktivBorder} ${farbKlasse.aktivBg}`}
           />
         )}
@@ -110,31 +88,39 @@ const OLIVE = { aktivBorder: 'border-secondary', aktivBg: 'bg-secondary/15', akt
 
 // Live-Vorschau des Onboarding-Wizards: statt eines abstrakten Fortschritts-
 // Fuellstands zeigt diese Tageskarte die ECHTEN, bereits gegebenen
-// Antworten (Kalorienziel/Mahlzeiten/Ernaehrungsform) und waechst mit jedem
-// Schritt inhaltlich mit. Erscheint erst, sobald mindestens ein Teil echten
-// Inhalt hat - kein leerer Platzhalter-Rahmen auf Schritt 1, bevor ein
-// Kalorienziel gewaehlt wurde.
+// Antworten (Kalorienziel/Mahlzeiten/Ernaehrungsform/Makro-Gesamtziel) und
+// waechst mit jedem Schritt inhaltlich mit. Erscheint erst, sobald
+// mindestens ein Teil echten Inhalt hat - kein leerer Platzhalter-Rahmen auf
+// Schritt 1, bevor ein Kalorienziel gewaehlt wurde.
 function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag, diaeten, reduzierteBewegung }) {
   const kalorienGueltig = ziel.typ !== 'kein' && kalorienZielGueltig(ziel)
   const kalorienMittelwert = kalorienGueltig
     ? Math.round((Number(ziel.kalorien.min) + Number(ziel.kalorien.max)) / 2)
     : 0
-  const angezeigteKalorien = useAnimierteZahl(kalorienMittelwert, reduzierteBewegung)
 
   const ausgewaehlteMahlzeiten = proTag ? tagesplanMahlzeiten : [mahlzeit]
   const zeigeMahlzeiten = schritt >= 2
   const zeigeDiaet = schritt >= 3 && diaeten.length > 0
 
-  const hatInhalt = kalorienGueltig || zeigeMahlzeiten || zeigeDiaet
+  // Makro-Gesamtziel wird bereits in Schritt 1 (bei proTag) eingegeben,
+  // erscheint aber layoutmaessig als LETZTE Zeile der Karte (unterhalb des
+  // Diaet-Badges) - die JSX-Reihenfolge unten sorgt dafuer automatisch,
+  // auch wenn Mahlzeiten/Diaet noch gar nicht gerendert werden.
+  const sichtbareMakros = proTag ? MAKRO_FELDER.filter(({ kategorie }) => makroWertGueltig(ziel.makro[kategorie])) : []
+  const zeigeMakros = sichtbareMakros.length > 0
+
+  const hatInhalt = kalorienGueltig || zeigeMahlzeiten || zeigeDiaet || zeigeMakros
   if (!hatInhalt) {
     return null
   }
+
+  const zeigtEtwasVorMakros = kalorienGueltig || zeigeMahlzeiten || zeigeDiaet
 
   return (
     <motion.div
       initial={{ opacity: 0, y: 12 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={reduzierteBewegung ? { duration: 0.15 } : { duration: 0.3, ease: 'easeOut' }}
+      transition={transitionFuer(reduzierteBewegung, { duration: 0.3, ease: 'easeOut' })}
       className="rounded-[14px] bg-card p-5 shadow-sm"
     >
       <AnimatePresence>
@@ -144,12 +130,12 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
-            transition={reduzierteBewegung ? { duration: 0.15 } : { duration: 0.3, ease: 'easeOut' }}
+            transition={transitionFuer(reduzierteBewegung, { duration: 0.3, ease: 'easeOut' })}
             className="flex items-center gap-2"
           >
             <IconFlame size={28} stroke={1.75} className="shrink-0 text-primary" />
             <p className="font-display text-4xl font-semibold text-text">
-              {angezeigteKalorien}
+              <AnimierteZahl wert={kalorienMittelwert} />
               <span className="ml-1 text-base font-medium text-text-muted">kcal</span>
             </p>
           </motion.div>
@@ -163,7 +149,7 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
             initial={{ opacity: 0, y: 12 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 12 }}
-            transition={reduzierteBewegung ? { duration: 0.15 } : { duration: 0.3, ease: 'easeOut' }}
+            transition={transitionFuer(reduzierteBewegung, { duration: 0.3, ease: 'easeOut' })}
             className={`flex gap-2 ${kalorienGueltig ? 'mt-4' : ''}`}
           >
             {MAHLZEITEN.map(({ slug, label }) => (
@@ -187,7 +173,7 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
             initial={{ opacity: 0, y: 16 }}
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0, y: 16 }}
-            transition={reduzierteBewegung ? { duration: 0.15 } : UEBERSCHWING_FEDER}
+            transition={transitionFuer(reduzierteBewegung, SPRING_REVEAL)}
             className={`flex flex-wrap gap-2 ${zeigeMahlzeiten ? 'mt-4' : ''}`}
           >
             {Object.keys(DIAET_ICON).map((slug) => (
@@ -199,6 +185,27 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
                 farbKlasse={OLIVE}
                 reduzierteBewegung={reduzierteBewegung}
               />
+            ))}
+          </motion.div>
+        )}
+      </AnimatePresence>
+
+      <AnimatePresence>
+        {zeigeMakros && (
+          <motion.div
+            key="makros"
+            initial={{ opacity: 0, y: 12 }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: 12 }}
+            transition={transitionFuer(reduzierteBewegung, { duration: 0.3, ease: 'easeOut' })}
+            className={`flex gap-4 ${zeigtEtwasVorMakros ? 'mt-4' : ''}`}
+          >
+            {sichtbareMakros.map(({ kategorie, label }) => (
+              <p key={kategorie} className="text-sm font-medium text-text-muted">
+                <span className="text-text-muted/70">{label}</span>{' '}
+                <AnimierteZahl wert={Math.round(Number(ziel.makro[kategorie]))} className="font-display text-lg font-semibold text-text" />
+                <span className="text-xs">g</span>
+              </p>
             ))}
           </motion.div>
         )}
