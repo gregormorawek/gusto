@@ -22,8 +22,8 @@ function SuessDeftigFilter({ aktuell, onAendern }) {
           onClick={() => onAendern(slug)}
           className={
             slug === aktuell
-              ? 'rounded-full bg-primary px-3 py-1 text-sm font-medium text-card'
-              : 'rounded-full border border-primary/30 px-3 py-1 text-sm font-medium text-primary hover:bg-primary/10'
+              ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
+              : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
           }
         >
           {label}
