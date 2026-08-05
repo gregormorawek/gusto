@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import AnimierteZahl from './AnimierteZahl'
-import { SPRING_REVEAL, transitionFuer } from '../motionConfig'
+import { FADE_UEBERGANG, SLIDE_DISTANZ, SPRING_REVEAL, transitionFuer } from '../motionConfig'
 
 // SlotKarte ist eine wiederverwendbare Komponente fuer einen einzelnen "Slot".
 // Sie bekommt ihre Inhalte ueber Props (titel und text) und zeigt sie in einer Karte an.
@@ -92,37 +92,45 @@ function SlotKarte({
         ↻ neu würfeln
       </button>
 
-      {sucheAnzeigen && (
-        <div className="mt-2">
-          <input
-            type="text"
-            value={suchtext}
-            onChange={(e) => setSuchtext(e.target.value)}
-            placeholder={`${titel} suchen…`}
-            className="w-full rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
-          />
+      <AnimatePresence>
+        {sucheAnzeigen && (
+          <motion.div
+            initial={{ opacity: 0, y: -SLIDE_DISTANZ }}
+            animate={{ opacity: 1, y: 0 }}
+            exit={{ opacity: 0, y: -SLIDE_DISTANZ }}
+            transition={transitionFuer(reduzierteBewegung, FADE_UEBERGANG)}
+            className="mt-2"
+          >
+            <input
+              type="text"
+              value={suchtext}
+              onChange={(e) => setSuchtext(e.target.value)}
+              placeholder={`${titel} suchen…`}
+              className="w-full rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+            />
 
-          {suchtextBereinigt && (
-            treffer.length > 0 ? (
-              <ul className="mt-1 max-h-40 overflow-y-auto rounded-md border border-text-muted/20 bg-card">
-                {treffer.map((z) => (
-                  <li key={z.name}>
-                    <button
-                      type="button"
-                      onClick={() => zutatWaehlen(z)}
-                      className="block w-full px-2 py-1 text-left text-sm text-text hover:bg-primary/10"
-                    >
-                      {z.name}
-                    </button>
-                  </li>
-                ))}
-              </ul>
-            ) : (
-              <p className="mt-1 text-xs text-text-muted">Keine passende Zutat gefunden</p>
-            )
-          )}
-        </div>
-      )}
+            {suchtextBereinigt && (
+              treffer.length > 0 ? (
+                <ul className="mt-1 max-h-40 overflow-y-auto rounded-md border border-text-muted/20 bg-card">
+                  {treffer.map((z) => (
+                    <li key={z.name}>
+                      <button
+                        type="button"
+                        onClick={() => zutatWaehlen(z)}
+                        className="block w-full px-2 py-1 text-left text-sm text-text hover:bg-primary/10"
+                      >
+                        {z.name}
+                      </button>
+                    </li>
+                  ))}
+                </ul>
+              ) : (
+                <p className="mt-1 text-xs text-text-muted">Keine passende Zutat gefunden</p>
+              )
+            )}
+          </motion.div>
+        )}
+      </AnimatePresence>
     </div>
   )
 }
