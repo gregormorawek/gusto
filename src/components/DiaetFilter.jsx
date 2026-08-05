@@ -12,24 +12,33 @@ const DIAETEN = [
 
 // Zeigt eine Checkbox pro Diaetform (Mehrfachauswahl). ausgewaehlt ist das
 // Array der aktuell aktiven Slugs, onAendern wird mit dem geklickten Slug
-// aufgerufen (das eigentliche Toggle passiert in App.jsx).
+// aufgerufen (das eigentliche Toggle passiert in App.jsx). Farb-/Border-
+// Uebergang beim Umschalten analog zu MahlzeitFilter/SuessDeftigFilter
+// (transition-colors duration-200, gefuellte Pille bei aktivem Zustand).
 function DiaetFilter({ ausgewaehlt, onAendern }) {
   return (
     <div className="mt-3 flex flex-wrap gap-3 px-4">
-      {DIAETEN.map(({ slug, label }) => (
-        <label
-          key={slug}
-          className="flex items-center gap-1.5 rounded-full border border-primary/30 px-3 py-1 text-sm font-medium text-primary"
-        >
-          <input
-            type="checkbox"
-            checked={ausgewaehlt.includes(slug)}
-            onChange={() => onAendern(slug)}
-            className="accent-primary"
-          />
-          {label}
-        </label>
-      ))}
+      {DIAETEN.map(({ slug, label }) => {
+        const aktiv = ausgewaehlt.includes(slug)
+        return (
+          <label
+            key={slug}
+            className={
+              aktiv
+                ? 'flex items-center gap-1.5 rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
+                : 'flex items-center gap-1.5 rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
+            }
+          >
+            <input
+              type="checkbox"
+              checked={aktiv}
+              onChange={() => onAendern(slug)}
+              className="accent-primary"
+            />
+            {label}
+          </label>
+        )
+      })}
     </div>
   )
 }
