@@ -81,6 +81,23 @@ function tagesplanMahlzeitenLaden() {
   }
 }
 
+const DIAETEN_LOCALSTORAGE_KEY = 'gusto-diaeten'
+
+// Laedt die im Onboarding gewaehlte Ernaehrungsform (Array von Slugs, z. B.
+// ['vegan'] oder ['keine']) aus dem localStorage. Ist noch nichts
+// gespeichert oder der Inhalt beschaedigt, wird ein leeres Array
+// zurueckgegeben (= kein Diaet-Filter aktiv, entspricht dem Verhalten vor
+// Einfuehrung dieser Persistierung).
+function diaetenLaden() {
+  try {
+    const gespeichert = localStorage.getItem(DIAETEN_LOCALSTORAGE_KEY)
+    const geparst = gespeichert ? JSON.parse(gespeichert) : []
+    return Array.isArray(geparst) ? geparst : []
+  } catch {
+    return []
+  }
+}
+
 // Hilfsfunktion: gibt aus einer beliebigen Liste ein zufaelliges Element zurueck.
 function zufaelligesElement(liste) {
   const zufallsIndex = Math.floor(Math.random() * liste.length)
@@ -809,8 +826,14 @@ function App() {
 
   // Aktuell ausgewaehlte Diaetform-Filter (vegan/vegetarisch/glutenfrei),
   // Mehrfachauswahl. Leeres Array = kein Diaet-Filter aktiv, alle Zutaten
-  // kommen infrage.
-  const [diaeten, setDiaeten] = useState([])
+  // kommen infrage. Lazy initializer laedt den zuletzt gespeicherten Wert
+  // aus dem localStorage (analog zu ziel/makroZiele/tagesplanMahlzeiten),
+  // damit die im Onboarding gewaehlte Ernaehrungsform einen Reload uebersteht.
+  const [diaeten, setDiaeten] = useState(diaetenLaden)
+
+  useEffect(() => {
+    localStorage.setItem(DIAETEN_LOCALSTORAGE_KEY, JSON.stringify(diaeten))
+  }, [diaeten])
 
   // Aktuell gewaehlter Suess/Deftig-Filter ('suess' | 'deftig' | '' fuer
   // "Alles" = Default, kein echter DB-Tag). Nur relevant, wenn mahlzeit
