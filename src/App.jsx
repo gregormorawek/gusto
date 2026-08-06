@@ -550,12 +550,15 @@ function App() {
   // des Onboardings ueber das Zahnrad-Icon erreichbar) gerade offen ist.
   const [einstellungenOffen, setEinstellungenOffen] = useState(false)
 
-  // Wird vom Wizard aufgerufen, wenn der User Schritt 3 mit "Los geht's"
-  // abschliesst. Persistiert den Abschluss, damit der Wizard bei
-  // zukuenftigen Besuchen nicht mehr erscheint.
-  function onboardingAbschliessen() {
+  // Wird vom Wizard aufgerufen, wenn der User auf Schritt 4 (Abschluss-
+  // Screen) eine der beiden Tap-Karten waehlt. gewaehlteAnsicht ist 'haupt'
+  // oder 'rezepte' (siehe ansicht-State) - der Tap ist gleichzeitig die
+  // Start-Auswahl UND der Abschluss des Onboardings. Persistiert den
+  // Abschluss, damit der Wizard bei zukuenftigen Besuchen nicht mehr erscheint.
+  function onboardingAbschliessen(gewaehlteAnsicht) {
     localStorage.setItem(ONBOARDING_LOCALSTORAGE_KEY, 'true')
     setOnboardingAbgeschlossen(true)
+    setAnsicht(gewaehlteAnsicht)
   }
 
   // Tagesplan: null = nicht aktiv (normale Einzel-Mahlzeit-Ansicht wird

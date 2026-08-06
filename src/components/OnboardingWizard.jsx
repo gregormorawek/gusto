@@ -1,5 +1,6 @@
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
+import { IconBook2, IconDice5 } from '@tabler/icons-react'
 import ZielEinstellungen from './ZielEinstellungen'
 import MahlzeitFilter from './MahlzeitFilter'
 import DiaetFilter from './DiaetFilter'
@@ -7,6 +8,7 @@ import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
 import WizardTageskarte from './WizardTageskarte'
 import AnimatedButton from './AnimatedButton'
 import { kalorienZielGueltig } from '../kalorienZiel'
+import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 
 const SCHRITT_TITEL = {
   1: 'Kalorienziel',
@@ -35,21 +37,31 @@ function schrittVarianten(reduzierteBewegung) {
   }
 }
 
-// Einmaliger 3-Schritte-Wizard fuer den allerersten Besuch. Der Schritt-
-// Zaehler ist reiner interner UI-State - App.jsx muss nur wissen, WANN der
-// Wizard fertig ist (onAbschluss), nicht bei welchem Schritt er gerade steht.
-// Alle Schritte rendern exakt dieselben Komponenten wie die Haupt-Ansicht
+// Wizard fuer den allerersten Besuch: 3 Frage-Schritte (Kalorienziel/
+// Mahlzeit/Ernaehrungsform) + 1 Abschluss-Screen (Schritt 4, "Los geht's"-
+// Auswahl zwischen Wuerfeln/Rezepte). Der Schritt-Zaehler ist reiner
+// interner UI-State - App.jsx muss nur wissen, WANN der Wizard fertig ist
+// (onAbschluss) UND in welcher Ansicht er starten soll (Parameter von
+// onAbschluss), nicht bei welchem Schritt er gerade steht. Schritt 1-3
+// rendern exakt dieselben Komponenten wie die Haupt-Ansicht
 // (ZielEinstellungen/MahlzeitFilter/DiaetFilter/TagesplanMahlzeitenFilter)
 // mit denselben Props/Handlern, damit sich Wizard und spaeteres
-// Einstellungen-Panel identisch verhalten - dieses Redesign aendert NUR den
-// Container drumherum (Vollbild + Slide-Uebergaenge + Live-Tageskarte
-// unten), nicht die Fragen/Optionen/Validierung selbst.
+// Einstellungen-Panel identisch verhalten.
 //
-// Layout pro Schritt: Kopfbereich (Zurueck-Pfeil ab Schritt 2 + 3-Segmente-
+// Layout Schritt 1-3: Kopfbereich (Zurueck-Pfeil ab Schritt 2 + 3-Segmente-
 // Fortschrittsbalken mit Width-Transition + Titel), mittlerer Bereich (die
 // eigentliche Frage, per AnimatePresence beim Schritt-Wechsel geslided),
-// unteres Drittel (WizardTageskarte + Weiter/Los-geht's-Button). Nur
-// bestehende Marken-Tokens, keine neuen Farben/Fonts.
+// unteres Drittel (WizardTageskarte + "Weiter"-Button).
+//
+// Schritt 4 ist BEWUSST ANDERS (kein Datenfeld mehr, sondern der
+// Abschluss): kein Fortschrittsbalken, celebratorische Ueberschrift statt
+// Frage-Titel, keine WizardTageskarte/kein Button-Footer - stattdessen zwei
+// grosse Tap-Karten (Wuerfeln/Rezepte), deren Tap selbst die Aktion ist.
+// Bleibt trotzdem im SELBEN AnimatePresence wie Schritt 1-3 (nur mit
+// eigenen, nicht-geslideten Animate-Props statt der gemeinsamen
+// schrittVarianten), damit der Uebergang 3->4 weiterhin sauber ausspielt
+// statt abrupt zu wirken. Nur bestehende Marken-Tokens, keine neuen
+// Farben/Fonts.
 function OnboardingWizard({
   ziel,
   onTypAendern,
@@ -106,35 +118,53 @@ function OnboardingWizard({
           <p className="font-display text-lg font-semibold text-primary">gusto</p>
         </div>
 
-        <div className="mt-6 flex gap-1.5">
-          {[1, 2, 3].map((s) => (
-            <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-muted/20">
-              <span
-                className="block h-full rounded-full bg-primary transition-[width] duration-[400ms] ease-out motion-reduce:transition-none"
-                style={{ width: s <= schritt ? '100%' : '0%' }}
-              />
-            </span>
-          ))}
-        </div>
+        {schritt <= 3 ? (
+          <>
+            <div className="mt-6 flex gap-1.5">
+              {[1, 2, 3].map((s) => (
+                <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-muted/20">
+                  <span
+                    className="block h-full rounded-full bg-primary transition-[width] duration-[400ms] ease-out motion-reduce:transition-none"
+                    style={{ width: s <= schritt ? '100%' : '0%' }}
+                  />
+                </span>
+              ))}
+            </div>
 
-        <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-text-muted">
-          Schritt {schritt} von 3
-        </p>
-        <h1 className="mt-1 font-display text-4xl font-semibold text-text sm:text-5xl">
-          {SCHRITT_TITEL[schritt]}
-        </h1>
+            <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-text-muted">
+              Schritt {schritt} von 3
+            </p>
+            <h1 className="mt-1 font-display text-4xl font-semibold text-text sm:text-5xl">
+              {SCHRITT_TITEL[schritt]}
+            </h1>
+          </>
+        ) : (
+          <>
+            <h1 className="mt-8 font-display text-4xl font-semibold text-text sm:text-5xl">Alles bereit!</h1>
+            <p className="mt-2 text-text-muted">Wie möchtest du starten?</p>
+          </>
+        )}
       </header>
 
       <div className="relative flex flex-1 flex-col justify-center overflow-hidden px-6 py-6">
         <AnimatePresence mode="wait" custom={richtung} initial={false}>
           <motion.div
             key={schritt}
-            custom={richtung}
-            variants={schrittVarianten(reduzierteBewegung)}
-            initial="eintritt"
-            animate="mitte"
-            exit="austritt"
-            transition={reduzierteBewegung ? { duration: 0.15 } : { duration: 0.32, ease: 'easeOut' }}
+            {...(schritt === 4
+              ? motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0, scale: 0.95 },
+                  animate: { opacity: 1, scale: 1 },
+                  exit: { opacity: 0, scale: 0.95 },
+                  transition: SPRING_REVEAL,
+                })
+              : {
+                  custom: richtung,
+                  variants: schrittVarianten(reduzierteBewegung),
+                  initial: 'eintritt',
+                  animate: 'mitte',
+                  exit: 'austritt',
+                  transition: reduzierteBewegung ? { duration: 0.15 } : { duration: 0.32, ease: 'easeOut' },
+                })}
           >
             {schritt === 1 && (
               <>
@@ -189,43 +219,68 @@ function OnboardingWizard({
                 )}
               </>
             )}
+
+            {schritt === 4 && (
+              <>
+                <div className="flex flex-col gap-4 sm:flex-row">
+                  <AnimatedButton
+                    type="button"
+                    onClick={() => onAbschluss('haupt')}
+                    className="flex flex-1 flex-col items-start gap-2 rounded-2xl border border-secondary/20 bg-card p-6 text-left shadow-sm"
+                  >
+                    <IconDice5 size={32} stroke={1.75} className="text-primary" />
+                    <h2 className="font-display text-xl font-semibold text-text">Würfeln</h2>
+                    <p className="text-sm text-text-muted">
+                      Eine einzelne Zutaten-Kombination für deine nächste Mahlzeit auswürfeln.
+                    </p>
+                  </AnimatedButton>
+
+                  <AnimatedButton
+                    type="button"
+                    onClick={() => onAbschluss('rezepte')}
+                    className="flex flex-1 flex-col items-start gap-2 rounded-2xl border border-secondary/20 bg-card p-6 text-left shadow-sm"
+                  >
+                    <IconBook2 size={32} stroke={1.75} className="text-primary" />
+                    <h2 className="font-display text-xl font-semibold text-text">Rezepte</h2>
+                    <p className="text-sm text-text-muted">
+                      Fertige, kuratierte Rezept-Ideen zum Durchstöbern.
+                    </p>
+                  </AnimatedButton>
+                </div>
+
+                <p className="mt-4 text-center text-xs text-text-muted">
+                  Du kannst jederzeit zwischen beiden wechseln.
+                </p>
+              </>
+            )}
           </motion.div>
         </AnimatePresence>
       </div>
 
-      <div className="px-6 pb-8 pt-4">
-        <WizardTageskarte
-          schritt={schritt}
-          ziel={ziel}
-          mahlzeit={mahlzeit}
-          tagesplanMahlzeiten={tagesplanMahlzeiten}
-          proTag={proTag}
-          diaeten={diaeten}
-          reduzierteBewegung={reduzierteBewegung}
-        />
+      {schritt <= 3 && (
+        <div className="px-6 pb-8 pt-4">
+          <WizardTageskarte
+            schritt={schritt}
+            ziel={ziel}
+            mahlzeit={mahlzeit}
+            tagesplanMahlzeiten={tagesplanMahlzeiten}
+            proTag={proTag}
+            diaeten={diaeten}
+            reduzierteBewegung={reduzierteBewegung}
+          />
 
-        <div className="mt-6">
-          {schritt < 3 ? (
+          <div className="mt-6">
             <AnimatedButton
               type="button"
               onClick={weiterKlicken}
-              disabled={schritt === 1 && !zielGueltig}
+              disabled={(schritt === 1 && !zielGueltig) || (schritt === 3 && !diaetGueltig)}
               className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
             >
               Weiter
             </AnimatedButton>
-          ) : (
-            <AnimatedButton
-              type="button"
-              onClick={onAbschluss}
-              disabled={!diaetGueltig}
-              className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Los geht's
-            </AnimatedButton>
-          )}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   )
 }
