@@ -2,10 +2,15 @@ import { MAHLZEITEN } from '../mahlzeiten'
 import AnimatedButton from './AnimatedButton'
 
 // Zeigt vier Buttons, einer pro Mahlzeit. aktuell ist der gerade aktive
-// Filter-Slug, onAendern wird mit dem geklickten Slug aufgerufen.
+// Filter-Slug, onAendern wird mit dem geklickten Slug aufgerufen. flex-wrap
+// statt einer starren Einzelreihe, damit auf schmalen Viewports (v. a. im
+// Wizard, wo die Reihe zusaetzlich durch die Karten-Innenabstaende
+// eingeengt wird) die 4. Pille ("Snack") umbricht statt aus der Karte
+// herauszuragen - bei ausreichend Breite (z. B. Haupt-Ansicht) bleibt die
+// Reihe einzeilig, da genug Platz vorhanden ist.
 function MahlzeitFilter({ aktuell, onAendern }) {
   return (
-    <div className="flex gap-2 px-4">
+    <div className="flex flex-wrap gap-2 px-4">
       {MAHLZEITEN.map(({ slug, label }) => (
         <AnimatedButton
           key={slug}
