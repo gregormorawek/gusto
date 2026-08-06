@@ -21,6 +21,11 @@ import { FADE_UEBERGANG, SLIDE_DISTANZ, SPRING_REVEAL, motionPropsFuer } from '.
 // (der bereits nach Kategorie/Mahlzeit/Diaet/Suess-Deftig gefilterte Pool,
 // exakt derselbe wie beim Wuerfeln) ausgewaehlt werden kann. Die Namens-
 // Filterung selbst passiert lokal hier in der Komponente.
+//
+// onWuerfeln ist ebenfalls optional (analog zu onZielAendern): ohne die Prop
+// verschwindet der "neu wuerfeln"-Button komplett - fuer die Rezepte-Ansicht
+// (Schritt 3), wo die 4 Zutaten fest durch das Rezept vorgegeben sind und es
+// bewusst KEINEN Einzel-Slot-Reroll gibt.
 function SlotKarte({
   titel,
   text,
@@ -87,13 +92,15 @@ function SlotKarte({
         <p className="mt-0.5 text-xs text-primary/70">Ziel nicht ganz erreichbar</p>
       )}
 
-      <AnimatedButton
-        type="button"
-        onClick={onWuerfeln}
-        className="mt-2 text-sm text-primary hover:underline"
-      >
-        ↻ neu würfeln
-      </AnimatedButton>
+      {onWuerfeln && (
+        <AnimatedButton
+          type="button"
+          onClick={onWuerfeln}
+          className="mt-2 text-sm text-primary hover:underline"
+        >
+          ↻ neu würfeln
+        </AnimatedButton>
+      )}
 
       <AnimatePresence>
         {sucheAnzeigen && (
