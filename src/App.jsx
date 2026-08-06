@@ -4,10 +4,11 @@ import SlotKarte from './components/SlotKarte'
 import MahlzeitFilter from './components/MahlzeitFilter'
 import SuessDeftigFilter from './components/SuessDeftigFilter'
 import TagesplanAnsicht from './components/TagesplanAnsicht'
+import RezepteAnsicht from './components/RezepteAnsicht'
 import OnboardingWizard from './components/OnboardingWizard'
 import EinstellungenPanel from './components/EinstellungenPanel'
 import AnimatedButton from './components/AnimatedButton'
-import { MAHLZEITEN } from './mahlzeiten'
+import { MAHLZEITEN, standardMahlzeit } from './mahlzeiten'
 import { supabase } from './supabase'
 import { gefiltertePoolFuer, vierterSlotOptionenFuer } from './zutatenFilter'
 
@@ -102,17 +103,6 @@ function diaetenLaden() {
 function zufaelligesElement(liste) {
   const zufallsIndex = Math.floor(Math.random() * liste.length)
   return liste[zufallsIndex]
-}
-
-// Ermittelt anhand der Uhrzeit einen sinnvollen Standard-Filter,
-// z. B. morgens vorausgewaehlt "fruehstueck".
-function standardMahlzeit(datum = new Date()) {
-  const stunde = datum.getHours()
-  if (stunde >= 5 && stunde < 11) return 'fruehstueck'
-  if (stunde >= 11 && stunde < 15) return 'mittag'
-  if (stunde >= 15 && stunde < 18) return 'snack'
-  if (stunde >= 18 && stunde < 22) return 'abend'
-  return 'snack'
 }
 
 // Hilfsfunktion: rechnet einen 100g-Referenzwert (z. B. Kalorien pro 100g)
@@ -820,6 +810,25 @@ function App() {
   // Solange die Daten noch nicht aus der Datenbank geladen sind, zeigen wir "Laedt...".
   const [laedt, setLaedt] = useState(true)
 
+  // Welche Hauptansicht gerade sichtbar ist. 'haupt' zeigt exakt das
+  // bisherige Verhalten (Einzel- oder Tagesplan-Ansicht, weiterhin ueber
+  // ziel.typ gesteuert), 'rezepte' zeigt die neue RezepteAnsicht. Bewusst ein
+  // eigener, unabhaengiger State statt einer Erweiterung von ziel.typ - die
+  // bestehende Einzel/Tagesplan-Weiche ist an das Kalorienziel-Konzept
+  // gekoppelt, Rezepte-Browsing ist davon inhaltlich unabhaengig.
+  const [ansicht, setAnsicht] = useState('haupt')
+
+  // Alle Rezepte aus der Datenbank (ungefiltert, siehe rezepteFilter.js fuer
+  // die clientseitige Filterung). Bei nur ~30 Eintraegen reicht ein
+  // einzelner Fetch beim Laden, siehe zutatenLaden-Effekt unten.
+  const [rezepte, setRezepte] = useState([])
+
+  // Nachschlage-Map zutat.id -> Zutat-Objekt, fuer den Zutaten-Join in der
+  // Rezepte-Anzeige (jedes Rezept referenziert 4 Zutaten nur per id). Wird
+  // im selben Effekt wie proteinOptionen etc. aus den geladenen Zutaten
+  // gebaut, siehe zutatenLaden-Effekt unten.
+  const [zutatenNachId, setZutatenNachId] = useState({})
+
   // Aktuell gewaehlter Mahlzeit-Filter (fruehstueck/mittag/abend/snack).
   // Lazy initializer: wird nur einmal beim ersten Rendern anhand der Uhrzeit berechnet.
   const [mahlzeit, setMahlzeit] = useState(standardMahlzeit)
@@ -995,19 +1004,39 @@ function App() {
   // wenn die Komponente zum ersten Mal angezeigt wird.
   useEffect(() => {
     async function zutatenLaden() {
-      const { data, error } = await supabase
-        .from('zutaten')
-        // Zusaetzlich zu name und kategorie laden wir jetzt auch die
-        // Naehrwert-Spalten und die Portionsgroesse (portion_g) mit,
-        // damit wir spaeter eine Summe berechnen koennen.
-        .select('name, kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten, diaeten, eigenschaft')
-        .eq('aktiv', true)
+      // Zutaten und Rezepte parallel laden (zwei unabhaengige Tabellen) -
+      // beide muessen fertig sein, bevor "laedt" auf false geht, sonst
+      // waere die Rezepte-Ansicht kurz mit einer leeren Liste sichtbar.
+      const [zutatenErgebnis, rezepteErgebnis] = await Promise.all([
+        supabase
+          .from('zutaten')
+          // "id" brauchen wir fuer den Zutaten-Join in der Rezepte-Ansicht
+          // (jedes Rezept referenziert 4 Zutaten nur per id) - wird sonst
+          // im bestehenden Zutaten-Flow selbst nirgends benoetigt.
+          // Zusaetzlich zu name und kategorie laden wir jetzt auch die
+          // Naehrwert-Spalten und die Portionsgroesse (portion_g) mit,
+          // damit wir spaeter eine Summe berechnen koennen.
+          .select('id, name, kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten, diaeten, eigenschaft')
+          .eq('aktiv', true),
+        supabase
+          .from('rezepte')
+          .select('id, titel, beschreibung, bild_url, mahlzeit, eigenschaft, diaeten, protein_zutat_id, carbs_zutat_id, fett_zutat_id, gemuese_obst_zutat_id'),
+      ])
 
-      if (error) {
-        console.error('Fehler beim Laden der Zutaten:', error)
+      if (zutatenErgebnis.error) {
+        console.error('Fehler beim Laden der Zutaten:', zutatenErgebnis.error)
         setLaedt(false)
         return
       }
+      if (rezepteErgebnis.error) {
+        // Rezepte sind (noch) nicht kritisch fuer die Haupt-Ansicht - ein
+        // Fehler hier soll nicht die ganze App blockieren, nur die
+        // Rezepte-Ansicht bleibt dann leer (siehe RezepteAnsicht.jsx,
+        // zeigt in dem Fall den "kein Rezept gefunden"-Hinweistext).
+        console.error('Fehler beim Laden der Rezepte:', rezepteErgebnis.error)
+      }
+
+      const data = zutatenErgebnis.data
 
       // Die geladenen Zeilen (alle Kategorien gemischt) nach kategorie aufteilen.
       // Wir behalten diesmal die KOMPLETTEN Objekte (nicht nur den Namen),
@@ -1023,6 +1052,8 @@ function App() {
       setFettOptionen(fetteListe)
       setGemueseOptionen(gemueseListe)
       setObstOptionen(obstListe)
+      setZutatenNachId(Object.fromEntries(data.map((z) => [z.id, z])))
+      setRezepte(rezepteErgebnis.data ?? [])
 
       // Direkt eine erste zufaellige Auswahl setzen, sobald die Daten da sind,
       // passend zum aktuell (per Uhrzeit) vorausgewaehlten Mahlzeit-Filter.
@@ -1539,6 +1570,31 @@ function App() {
         </AnimatedButton>
       </header>
 
+      <div className="flex gap-2 px-4">
+        <AnimatedButton
+          type="button"
+          onClick={() => setAnsicht('haupt')}
+          className={
+            ansicht === 'haupt'
+              ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
+              : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
+          }
+        >
+          Planen
+        </AnimatedButton>
+        <AnimatedButton
+          type="button"
+          onClick={() => setAnsicht('rezepte')}
+          className={
+            ansicht === 'rezepte'
+              ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
+              : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
+          }
+        >
+          Rezepte
+        </AnimatedButton>
+      </div>
+
       <EinstellungenPanel
         offen={einstellungenOffen}
         onSchliessen={() => setEinstellungenOffen(false)}
@@ -1554,7 +1610,14 @@ function App() {
         onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
       />
 
-      {ziel.typ === 'proTag' ? (
+      {ansicht === 'rezepte' ? (
+        <RezepteAnsicht
+          rezepte={rezepte}
+          zutatenNachId={zutatenNachId}
+          diaeten={diaeten}
+          onDiaetenAendern={diaetenAendern}
+        />
+      ) : ziel.typ === 'proTag' ? (
         tagesplan ? (
           <TagesplanAnsicht
             tagesplan={tagesplan}
