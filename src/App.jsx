@@ -1570,7 +1570,7 @@ function App() {
         </AnimatedButton>
       </header>
 
-      <div className="flex gap-2 px-4">
+      <div className="mb-4 flex gap-2 px-4">
         <AnimatedButton
           type="button"
           onClick={() => setAnsicht('haupt')}
