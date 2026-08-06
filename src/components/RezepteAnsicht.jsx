@@ -1,15 +1,41 @@
 import { useEffect, useState } from 'react'
-import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { IconPhotoOff } from '@tabler/icons-react'
 import MahlzeitFilter from './MahlzeitFilter'
 import SuessDeftigFilter from './SuessDeftigFilter'
-import DiaetFilter from './DiaetFilter'
 import AnimatedButton from './AnimatedButton'
-import SlotKarte from './SlotKarte'
-import { standardMahlzeit } from '../mahlzeiten'
+import RezeptKarte from './RezeptKarte'
+import { MAHLZEITEN, standardMahlzeit } from '../mahlzeiten'
 import { gefiltertePoolFuerRezepte, zufaelligesElement } from '../rezepteFilter'
-import { aufPortionSkalieren, portionenMitMakroZielenBerechnen } from '../portionenRechner'
-import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
+
+// Reine Weiche zwischen den beiden Betriebsarten der Rezepte-Ansicht: bei
+// ziel.typ === 'proTag' soll man (wie im "Planen"-Tab) alle aktiven
+// Mahlzeiten abdecken koennen, OHNE Scrollen - dafuer die Tab-Variante
+// RezepteTagesplan. Sonst (kein Ziel / proMahlzeit) die bisherige
+// Einzel-Mahlzeit-Ansicht aus Schritt 2/3.
+//
+// KEIN inline DiaetFilter mehr in dieser Ansicht (weder Einzel- noch
+// Tagesplan-Variante) - war der groesste verbleibende Platzfresser (72px,
+// 2 Zeilen wegen Zeilenumbruch) auf dem Weg zur 390px-ohne-Scrollen-Vorgabe.
+// Die Diaet-Auswahl bleibt ueber das Zahnrad-Icon (EinstellungenPanel)
+// erreichbar - diaeten selbst bleibt als Wert weiterhin Pflicht-Prop (fuer
+// die Pool-Filterung), nur der Aendern-Callback wird hier nicht mehr gebraucht.
+function RezepteAnsicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, tagesplanMahlzeiten, onMahlzeitenAnpassen }) {
+  if (ziel.typ === 'proTag') {
+    return (
+      <RezepteTagesplan
+        rezepte={rezepte}
+        zutatenNachId={zutatenNachId}
+        diaeten={diaeten}
+        ziel={ziel}
+        makroZiele={makroZiele}
+        tagesplanMahlzeiten={tagesplanMahlzeiten}
+        onMahlzeitenAnpassen={onMahlzeitenAnpassen}
+      />
+    )
+  }
+
+  return <RezepteEinzelansicht rezepte={rezepte} zutatenNachId={zutatenNachId} diaeten={diaeten} ziel={ziel} makroZiele={makroZiele} />
+}
 
 // mahlzeit und eigenschaft sind BEWUSST eigener, lokaler State (nicht der
 // globale State der Einzel-Ansicht) - die bestehenden App.jsx-Handler fuer
@@ -19,17 +45,12 @@ import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 // von App.jsx) - Ernaehrungsform ist eine App-weite Praeferenz, dieselbe
 // Instanz wie in der Einzel-Ansicht/im Einstellungen-Panel. ziel/makroZiele
 // sind ebenfalls geteilter State - dieselben Kalorien-/Makro-Ziele wie in
-// den Einstellungen, damit die Portionszahlen unten live darauf reagieren.
-function RezepteAnsicht({ rezepte, zutatenNachId, diaeten, onDiaetenAendern, ziel, makroZiele }) {
-  const reduzierteBewegung = useReducedMotion()
+// den Einstellungen, damit die Portionszahlen in RezeptKarte live darauf
+// reagieren.
+function RezepteEinzelansicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiele }) {
   const [mahlzeit, setMahlzeit] = useState(standardMahlzeit)
   const [eigenschaft, setEigenschaft] = useState('')
   const [aktuellesRezept, setAktuellesRezept] = useState(null)
-  // Merkt sich die zuletzt FEHLGESCHLAGENE bild_url (statt eines simplen
-  // Boolean) - so setzt sich der Fallback beim naechsten Rezept automatisch
-  // zurueck, sobald sich bild_url aendert, ganz ohne einen eigenen Reset-
-  // Effekt fuer den Rezeptwechsel.
-  const [fehlgeschlageneBildUrl, setFehlgeschlageneBildUrl] = useState(null)
 
   const pool = gefiltertePoolFuerRezepte(rezepte, mahlzeit, diaeten, eigenschaft)
 
@@ -70,66 +91,6 @@ function RezepteAnsicht({ rezepte, zutatenNachId, diaeten, onDiaetenAendern, zie
     setAktuellesRezept(pool.length > 0 ? zufaelligesElement(pool) : null)
   }
 
-  // Baut aus einem Rezept alles, was die Karte zum Anzeigen braucht: die 4
-  // referenzierten Zutaten-Objekte (Namens-/Naehrwert-Join gegen die schon
-  // geladene zutatenNachId-Map) plus die LIVE berechneten Portionen/Summen.
-  //
-  // Bewusst KEIN State und KEIN eigener Effekt fuer die Portionen (anders
-  // als in der Einzel-Ansicht, wo proteinPortion etc. State sind und nur bei
-  // Wuerfeln/manueller Auswahl/Makro-Ziel-Aenderung explizit neu gesetzt
-  // werden - eine reine Kalorienziel-Aenderung loest dort KEIN sofortiges
-  // Neuberechnen aus). Hier reicht ein reiner Render-Wert: die 4 Zutaten
-  // stehen durchs Rezept fest, es findet keine ziel-bewusste AUSWAHL mehr
-  // statt (vergleichbar mit dem Pfad nach einer manuellen Wahl im
-  // Reroll-Suchfeld) - nur noch Portionsberechnung. So reagieren die Zahlen
-  // automatisch auf JEDE Aenderung von ziel/makroZiele in den Einstellungen.
-  function rezeptKarteBerechnen(rezept) {
-    if (!rezept) {
-      return null
-    }
-    const proteinZutat = zutatenNachId[rezept.protein_zutat_id]
-    const carbsZutat = zutatenNachId[rezept.carbs_zutat_id]
-    const fettZutat = zutatenNachId[rezept.fett_zutat_id]
-    const gemueseZutat = zutatenNachId[rezept.gemuese_obst_zutat_id]
-    const makroZieleFuerRezept = makroZiele[rezept.mahlzeit] ?? { protein: '', carbs: '', fett: '' }
-
-    const portionen = portionenMitMakroZielenBerechnen(
-      proteinZutat,
-      carbsZutat,
-      fettZutat,
-      gemueseZutat,
-      rezept.mahlzeit,
-      ziel,
-      makroZieleFuerRezept
-    )
-
-    const summeKalorien =
-      aufPortionSkalieren(proteinZutat.kalorien, portionen.proteinPortion) +
-      aufPortionSkalieren(carbsZutat.kalorien, portionen.carbsPortion) +
-      aufPortionSkalieren(fettZutat.kalorien, portionen.fettPortion) +
-      aufPortionSkalieren(gemueseZutat.kalorien, portionen.gemuesePortion)
-    const summeProtein =
-      aufPortionSkalieren(proteinZutat.protein_g, portionen.proteinPortion) +
-      aufPortionSkalieren(carbsZutat.protein_g, portionen.carbsPortion) +
-      aufPortionSkalieren(fettZutat.protein_g, portionen.fettPortion) +
-      aufPortionSkalieren(gemueseZutat.protein_g, portionen.gemuesePortion)
-    const summeCarbs =
-      aufPortionSkalieren(proteinZutat.carbs_g, portionen.proteinPortion) +
-      aufPortionSkalieren(carbsZutat.carbs_g, portionen.carbsPortion) +
-      aufPortionSkalieren(fettZutat.carbs_g, portionen.fettPortion) +
-      aufPortionSkalieren(gemueseZutat.carbs_g, portionen.gemuesePortion)
-    const summeFett =
-      aufPortionSkalieren(proteinZutat.fett_g, portionen.proteinPortion) +
-      aufPortionSkalieren(carbsZutat.fett_g, portionen.carbsPortion) +
-      aufPortionSkalieren(fettZutat.fett_g, portionen.fettPortion) +
-      aufPortionSkalieren(gemueseZutat.fett_g, portionen.gemuesePortion)
-
-    return { proteinZutat, carbsZutat, fettZutat, gemueseZutat, makroZieleFuerRezept, portionen, summeKalorien, summeProtein, summeCarbs, summeFett }
-  }
-
-  const karte = rezeptKarteBerechnen(aktuellesRezept)
-  const bildFehlgeschlagen = aktuellesRezept && fehlgeschlageneBildUrl === aktuellesRezept.bild_url
-
   return (
     <>
       <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />
@@ -138,88 +99,184 @@ function RezepteAnsicht({ rezepte, zutatenNachId, diaeten, onDiaetenAendern, zie
         <SuessDeftigFilter aktuell={eigenschaft} onAendern={eigenschaftAendern} />
       )}
 
-      <DiaetFilter ausgewaehlt={diaeten} onAendern={onDiaetenAendern} />
+      <RezeptKarte
+        rezept={aktuellesRezept}
+        zutatenNachId={zutatenNachId}
+        ziel={ziel}
+        makroZiele={makroZiele}
+        onWuerfeln={rezeptWuerfeln}
+        wuerfelnDeaktiviert={pool.length === 0}
+      />
+    </>
+  )
+}
 
-      {karte ? (
-        <>
-          <AnimatePresence mode="popLayout">
-            <motion.div
-              key={aktuellesRezept.id}
-              {...motionPropsFuer(reduzierteBewegung, {
-                initial: { opacity: 0, scale: 0.95 },
-                animate: { opacity: 1, scale: 1 },
-                exit: { opacity: 0, scale: 0.95 },
-                transition: SPRING_REVEAL,
-              })}
-              className="mx-4 mt-4 rounded-[14px] bg-card p-5 shadow-sm"
-            >
-              {aktuellesRezept.bild_url && !bildFehlgeschlagen ? (
-                <img
-                  src={aktuellesRezept.bild_url}
-                  alt={aktuellesRezept.titel}
-                  onError={() => setFehlgeschlageneBildUrl(aktuellesRezept.bild_url)}
-                  className="h-56 w-full rounded-2xl object-cover"
-                />
-              ) : (
-                <div className="flex h-56 w-full items-center justify-center rounded-2xl bg-secondary/10 text-text-muted">
-                  <IconPhotoOff size={40} stroke={1.5} />
-                </div>
-              )}
+// Feste Anzeige-Reihenfolge der Mahlzeit-Tabs (Fruehstueck -> Mittag ->
+// Abend -> Snack), eingeschraenkt auf die laut Einstellungen aktivierten
+// Mahlzeiten (tagesplanMahlzeiten, dieselbe Quelle wie der Tagesplan im
+// "Planen"-Tab) - dieselbe Ableitung wie MAHLZEIT_REIHENFOLGE in App.jsx,
+// hier lokal nachgebaut statt einen Export aus App.jsx zu ziehen, da
+// MAHLZEITEN (der eigentliche Ordnungs-Ursprung) ohnehin schon importiert wird.
+function aktiveMahlzeitenFuer(tagesplanMahlzeiten) {
+  return MAHLZEITEN.filter(({ slug }) => tagesplanMahlzeiten.includes(slug))
+}
 
-              <h2 className="mt-4 font-display text-2xl font-semibold text-text">{aktuellesRezept.titel}</h2>
-              <p className="mt-1 text-sm text-text-muted">{aktuellesRezept.beschreibung}</p>
-            </motion.div>
-          </AnimatePresence>
+// Wuerfelt fuer ALLE aktuell aktiven Mahlzeiten ein neues Rezept, unter
+// Beibehaltung des jeweiligen Suess/Deftig-Filters (vorherigerStand) -
+// Mahlzeiten OHNE bisherigen Eintrag (erstmaliges Laden, neu aktivierte
+// Mahlzeit) starten mit '' (Alles). Reine Funktion, die einen kompletten
+// neuen proMahlzeitState liefert - wird sowohl vom Auto-Wuerfel-Effekt als
+// auch vom "Ganzen Tag neu planen"-Button verwendet (setProMahlzeitState
+// akzeptiert eine Updater-Funktion mit genau dieser Signatur).
+function alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten) {
+  return (vorherigerStand) => {
+    const neuerStand = {}
+    for (const { slug } of aktiveMahlzeitenListe) {
+      const eigenschaftFuerMahlzeit = vorherigerStand[slug]?.eigenschaft ?? ''
+      const pool = gefiltertePoolFuerRezepte(rezepte, slug, diaeten, eigenschaftFuerMahlzeit)
+      neuerStand[slug] = { eigenschaft: eigenschaftFuerMahlzeit, rezept: pool.length > 0 ? zufaelligesElement(pool) : null }
+    }
+    return neuerStand
+  }
+}
 
-          <section className="mt-4 grid grid-cols-2 gap-4 px-4">
-            <SlotKarte
-              titel="Protein"
-              text={karte.proteinZutat.name}
-              portion={karte.portionen.proteinPortion}
-              zielWert={karte.makroZieleFuerRezept.protein}
-              zielErreichbar={karte.portionen.proteinZielErreichbar}
-            />
-            <SlotKarte
-              titel="Carbs"
-              text={karte.carbsZutat.name}
-              portion={karte.portionen.carbsPortion}
-              zielWert={karte.makroZieleFuerRezept.carbs}
-              zielErreichbar={karte.portionen.carbsZielErreichbar}
-            />
-            <SlotKarte
-              titel="Fett"
-              text={karte.fettZutat.name}
-              portion={karte.portionen.fettPortion}
-              zielWert={karte.makroZieleFuerRezept.fett}
-              zielErreichbar={karte.portionen.fettZielErreichbar}
-            />
-            <SlotKarte
-              titel={karte.gemueseZutat.kategorie === 'obst' ? 'Obst' : 'Gemüse'}
-              text={karte.gemueseZutat.name}
-              portion={karte.portionen.gemuesePortion}
-            />
-          </section>
+// Rezepte-Tagesplan: Tab-Leiste ueber den aktiven Mahlzeiten, darunter EXAKT
+// dieselbe RezeptKarte wie in der Einzel-Ansicht - nur mit dem Rezept der
+// gerade aktiven Tab-Mahlzeit. Jede Mahlzeit behaelt ihr eigenes gewuerfeltes
+// Rezept UND ihren eigenen Suess/Deftig-Filter unabhaengig im Hintergrund
+// (proMahlzeitState), damit ein reiner Tab-Wechsel (setAktiveMahlzeit) nie
+// etwas verwirft - der Auto-Wuerfel-Effekt unten haengt bewusst NICHT von
+// aktiveMahlzeit ab.
+function RezepteTagesplan({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, tagesplanMahlzeiten, onMahlzeitenAnpassen }) {
+  const aktiveMahlzeitenListe = aktiveMahlzeitenFuer(tagesplanMahlzeiten)
 
-          <section className="mx-4 mt-4 rounded-lg border border-secondary/20 bg-secondary/10 p-4 shadow-sm">
-            <h2 className="text-lg font-semibold text-text">Summe</h2>
-            <p className="font-display text-3xl font-semibold text-text">{karte.summeKalorien.toFixed(1)} kcal</p>
-            <p className="text-text-muted">
-              P {karte.summeProtein.toFixed(1)}g · C {karte.summeCarbs.toFixed(1)}g · F {karte.summeFett.toFixed(1)}g
-            </p>
-          </section>
-        </>
-      ) : (
-        <p className="mx-4 mt-4 text-text-muted">Für diese Filterkombination gibt es noch kein Rezept.</p>
+  const [aktiveMahlzeit, setAktiveMahlzeit] = useState(
+    () => aktiveMahlzeitenFuer(tagesplanMahlzeiten)[0]?.slug ?? 'mittag'
+  )
+  // { [mahlzeitTyp]: { eigenschaft, rezept } }
+  const [proMahlzeitState, setProMahlzeitState] = useState({})
+
+  // Wuerfelt ALLE aktiven Mahlzeiten neu, sobald sich die Diaet-Auswahl, die
+  // Menge der aktiven Mahlzeiten (Mahlzeiten anpassen) oder die geladenen
+  // Rezepte aendern - bewusst NICHT abhaengig von aktiveMahlzeit, ein reiner
+  // Tab-Wechsel darf hier nichts auslösen.
+  useEffect(() => {
+    setProMahlzeitState(alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [diaeten, tagesplanMahlzeiten, rezepte])
+
+  // Faengt den Fall ab, dass die gerade sichtbare Mahlzeit ueber
+  // "Mahlzeiten anpassen" deaktiviert wurde, waehrend man auf ihrem Tab war -
+  // dann auf die erste verbleibende aktive Mahlzeit ausweichen.
+  useEffect(() => {
+    if (aktiveMahlzeitenListe.length > 0 && !aktiveMahlzeitenListe.some(({ slug }) => slug === aktiveMahlzeit)) {
+      setAktiveMahlzeit(aktiveMahlzeitenListe[0].slug)
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tagesplanMahlzeiten])
+
+  function eigenschaftAendern(neueEigenschaft) {
+    setProMahlzeitState((aktuell) => {
+      if ((aktuell[aktiveMahlzeit]?.eigenschaft ?? '') === neueEigenschaft) {
+        return aktuell
+      }
+      const pool = gefiltertePoolFuerRezepte(rezepte, aktiveMahlzeit, diaeten, neueEigenschaft)
+      return {
+        ...aktuell,
+        [aktiveMahlzeit]: { eigenschaft: neueEigenschaft, rezept: pool.length > 0 ? zufaelligesElement(pool) : null },
+      }
+    })
+  }
+
+  // "Anderes Rezept wuerfeln": trifft NUR die gerade im Tab sichtbare
+  // Mahlzeit, alle anderen behalten ihr Rezept.
+  function aktuelleMahlzeitWuerfeln() {
+    setProMahlzeitState((aktuell) => {
+      const eigenschaftFuerMahlzeit = aktuell[aktiveMahlzeit]?.eigenschaft ?? ''
+      const pool = gefiltertePoolFuerRezepte(rezepte, aktiveMahlzeit, diaeten, eigenschaftFuerMahlzeit)
+      return {
+        ...aktuell,
+        [aktiveMahlzeit]: { eigenschaft: eigenschaftFuerMahlzeit, rezept: pool.length > 0 ? zufaelligesElement(pool) : null },
+      }
+    })
+  }
+
+  // "Ganzen Tag neu planen": wuerfelt alle aktiven Mahlzeiten im Hintergrund
+  // neu, auch die gerade nicht sichtbaren - analog zum bestehenden Button im
+  // "Planen"-Tab (tagPlanen in App.jsx).
+  function ganzenTagNeuPlanen() {
+    setProMahlzeitState(alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten))
+  }
+
+  const aktuellerEintrag = proMahlzeitState[aktiveMahlzeit]
+  const aktuellesRezept = aktuellerEintrag?.rezept ?? null
+  const aktuelleEigenschaft = aktuellerEintrag?.eigenschaft ?? ''
+  const aktuellerPool = gefiltertePoolFuerRezepte(rezepte, aktiveMahlzeit, diaeten, aktuelleEigenschaft)
+
+  // Kompakte Tages-Makrosumme ueber ALLE aktiven Mahlzeiten - reiner
+  // Render-Wert (kein State), reagiert dadurch automatisch auf jede
+  // Kalorien-/Makroziel-Aenderung, genau wie die Einzel-Summe in RezeptKarte.
+  const tagesSumme = aktiveMahlzeitenListe.reduce(
+    (summe, { slug }) => {
+      const karte = rezeptKarteBerechnen(proMahlzeitState[slug]?.rezept ?? null, zutatenNachId, ziel, makroZiele)
+      if (!karte) {
+        return summe
+      }
+      return {
+        kalorien: summe.kalorien + karte.summeKalorien,
+        protein: summe.protein + karte.summeProtein,
+        carbs: summe.carbs + karte.summeCarbs,
+        fett: summe.fett + karte.summeFett,
+      }
+    },
+    { kalorien: 0, protein: 0, carbs: 0, fett: 0 }
+  )
+
+  return (
+    <>
+      {/* "Mahlzeiten anpassen" und Tages-Summe TEILEN sich eine Zeile (statt
+          zwei), damit die kompakte Summe (Punkt 3) wirklich keinen
+          nennenswerten vertikalen Platz frisst - wichtig auf 390px, wo jede
+          Zeile zaehlt (siehe Scroll-Verifikation). */}
+      <div className="mx-4 mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
+        <p className="text-sm text-text-muted">
+          Tag gesamt: <span className="font-semibold text-text">{tagesSumme.kalorien.toFixed(0)} kcal</span> · P{' '}
+          {tagesSumme.protein.toFixed(0)}g · C {tagesSumme.carbs.toFixed(0)}g · F {tagesSumme.fett.toFixed(0)}g
+        </p>
+        <AnimatedButton
+          type="button"
+          onClick={onMahlzeitenAnpassen}
+          className="shrink-0 text-sm text-primary hover:underline"
+        >
+          Mahlzeiten anpassen
+        </AnimatedButton>
+      </div>
+
+      <div className="mt-2">
+        <MahlzeitFilter aktuell={aktiveMahlzeit} onAendern={setAktiveMahlzeit} mahlzeiten={aktiveMahlzeitenListe} />
+      </div>
+
+      {(aktiveMahlzeit === 'fruehstueck' || aktiveMahlzeit === 'snack') && (
+        <SuessDeftigFilter aktuell={aktuelleEigenschaft} onAendern={eigenschaftAendern} />
       )}
 
-      <AnimatedButton
-        type="button"
-        onClick={rezeptWuerfeln}
-        disabled={pool.length === 0}
-        className="m-4 rounded-lg bg-primary px-4 py-2 text-card disabled:opacity-50"
-      >
-        Anderes Rezept würfeln
-      </AnimatedButton>
+      <RezeptKarte
+        rezept={aktuellesRezept}
+        zutatenNachId={zutatenNachId}
+        ziel={ziel}
+        makroZiele={makroZiele}
+        onWuerfeln={aktuelleMahlzeitWuerfeln}
+        wuerfelnDeaktiviert={aktuellerPool.length === 0}
+        zusatzAktion={
+          <AnimatedButton
+            type="button"
+            onClick={ganzenTagNeuPlanen}
+            className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-card"
+          >
+            Ganzen Tag neu planen
+          </AnimatedButton>
+        }
+      />
     </>
   )
 }

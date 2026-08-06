@@ -1,17 +1,23 @@
 import { MAHLZEITEN } from '../mahlzeiten'
 import AnimatedButton from './AnimatedButton'
 
-// Zeigt vier Buttons, einer pro Mahlzeit. aktuell ist der gerade aktive
+// Zeigt einen Button pro Mahlzeit. aktuell ist der gerade aktive
 // Filter-Slug, onAendern wird mit dem geklickten Slug aufgerufen. flex-wrap
 // statt einer starren Einzelreihe, damit auf schmalen Viewports (v. a. im
 // Wizard, wo die Reihe zusaetzlich durch die Karten-Innenabstaende
 // eingeengt wird) die 4. Pille ("Snack") umbricht statt aus der Karte
 // herauszuragen - bei ausreichend Breite (z. B. Haupt-Ansicht) bleibt die
 // Reihe einzeilig, da genug Platz vorhanden ist.
-function MahlzeitFilter({ aktuell, onAendern }) {
+//
+// mahlzeiten ist optional (Default: alle 4) - die Rezepte-Tagesplan-Ansicht
+// (RezepteAnsicht.jsx, proTag-Zweig) nutzt diese Komponente auch als
+// Tab-Leiste NUR fuer die laut Einstellungen aktivierten Mahlzeiten
+// (tagesplanMahlzeiten), gleiche Pillen-Optik, aber eine gefilterte Liste
+// statt der vollen MAHLZEITEN-Liste.
+function MahlzeitFilter({ aktuell, onAendern, mahlzeiten = MAHLZEITEN }) {
   return (
     <div className="flex flex-wrap gap-2 px-4">
-      {MAHLZEITEN.map(({ slug, label }) => (
+      {mahlzeiten.map(({ slug, label }) => (
         <AnimatedButton
           key={slug}
           type="button"

@@ -1298,9 +1298,10 @@ function App() {
           rezepte={rezepte}
           zutatenNachId={zutatenNachId}
           diaeten={diaeten}
-          onDiaetenAendern={diaetenAendern}
           ziel={ziel}
           makroZiele={makroZiele}
+          tagesplanMahlzeiten={tagesplanMahlzeiten}
+          onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
         />
       ) : ziel.typ === 'proTag' ? (
         tagesplan ? (
