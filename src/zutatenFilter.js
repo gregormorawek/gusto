@@ -89,3 +89,17 @@ export function vierterSlotOptionenFuer(gemueseListe, obstListe, mahlzeitWert, d
   const rohPool = suessAktiv && obstListe.length > 0 ? obstListe : gemueseListe
   return nachDiaetenGefiltert(nachMahlzeitGefiltert(rohPool, mahlzeitWert), diaetenWert)
 }
+
+// Filtert einen (bereits nach Kategorie/Mahlzeit/Diaet/Suess-Deftig gefilterten)
+// Zutaten-Pool anhand eines Freitext-Suchbegriffs auf den Namen - fuer das
+// Reroll-Suchfeld nach 3 erfolglosen Wuerfel-Versuchen desselben Slots.
+// Gemeinsam verwendet von SlotKarte.jsx (Einzel-Ansicht/Rezepte-Tab) UND dem
+// Such-Overlay in TagesplanAnsicht.jsx, damit beide Stellen bei kuenftigen
+// Anpassungen (z. B. Umlaut-Normalisierung) nicht auseinanderlaufen.
+export function suchtextGefiltert(pool, suchtext) {
+  const suchtextBereinigt = suchtext.trim().toLowerCase()
+  if (!suchtextBereinigt) {
+    return []
+  }
+  return pool.filter((z) => z.name.toLowerCase().includes(suchtextBereinigt))
+}

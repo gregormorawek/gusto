@@ -3,6 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import AnimierteZahl from './AnimierteZahl'
 import AnimatedButton from './AnimatedButton'
 import { FADE_UEBERGANG, SLIDE_DISTANZ, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { suchtextGefiltert } from '../zutatenFilter'
 
 // SlotKarte ist eine wiederverwendbare Komponente fuer einen einzelnen "Slot".
 // Sie bekommt ihre Inhalte ueber Props (titel und text) und zeigt sie in einer Karte an.
@@ -41,10 +42,7 @@ function SlotKarte({
   const reduzierteBewegung = useReducedMotion()
   const [suchtext, setSuchtext] = useState('')
 
-  const suchtextBereinigt = suchtext.trim().toLowerCase()
-  const treffer = suchtextBereinigt
-    ? (suchPool ?? []).filter((z) => z.name.toLowerCase().includes(suchtextBereinigt))
-    : []
+  const treffer = suchtextGefiltert(suchPool ?? [], suchtext)
 
   function zutatWaehlen(zutat) {
     setSuchtext('')
@@ -64,7 +62,9 @@ function SlotKarte({
             transition: SPRING_REVEAL,
           })}
         >
-          <p className="text-lg font-semibold text-text">{text}</p>
+          {/* min-h reserviert immer Platz fuer 2 Zeilen (text-lg -> line-height 1.75rem * 2 = 3.5rem),
+              damit die SlotKarte-Hoehe nicht vom Zufall des gewuerfelten Zutatennamens abhaengt. */}
+          <p className="min-h-[3.5rem] text-lg font-semibold text-text">{text}</p>
           <p className="text-xs text-text-muted">
             <AnimierteZahl wert={portion ?? 0} /> g
           </p>
@@ -121,7 +121,7 @@ function SlotKarte({
               className="w-full rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
 
-            {suchtextBereinigt && (
+            {suchtext.trim() && (
               treffer.length > 0 ? (
                 <ul className="mt-1 max-h-40 overflow-y-auto rounded-md border border-text-muted/20 bg-card">
                   {treffer.map((z) => (
