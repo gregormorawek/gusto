@@ -1238,43 +1238,46 @@ function App() {
 
   return (
     <>
-      <header className="flex items-start justify-between p-4">
-        <div>
-          <h1 className="font-display text-3xl font-semibold text-primary">gusto</h1>
-          <p className="text-sm text-text-muted">deine nächste mahlzeit, gewürfelt</p>
+      {/* Der fruehere "gusto"-Logo+Slogan-Header ist auf den Hauptseiten
+          (Planen/Rezepte, nach Abschluss des Onboardings) bewusst entfernt -
+          spart vertikalen Platz app-weit. Bleibt NUR im OnboardingWizard
+          erhalten (dort unveraendert, siehe WizardTageskarte.jsx u. a.) - der
+          Wizard ist der einzige Ort, an dem der Marken-Einstieg noch gezeigt
+          wird. Das Einstellungen-Zahnrad teilt sich jetzt die Zeile mit der
+          Planen/Rezepte-Tab-Leiste (oben rechts) statt einer eigenen Zeile,
+          damit es weiterhin auf jeder Hauptseite erreichbar bleibt. */}
+      <div className="mb-4 flex items-center justify-between px-4 pt-4">
+        <div className="flex gap-2">
+          <AnimatedButton
+            type="button"
+            onClick={() => setAnsicht('haupt')}
+            className={
+              ansicht === 'haupt'
+                ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
+                : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
+            }
+          >
+            Planen
+          </AnimatedButton>
+          <AnimatedButton
+            type="button"
+            onClick={() => setAnsicht('rezepte')}
+            className={
+              ansicht === 'rezepte'
+                ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
+                : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
+            }
+          >
+            Rezepte
+          </AnimatedButton>
         </div>
         <AnimatedButton
           type="button"
           onClick={() => setEinstellungenOffen(true)}
           aria-label="Einstellungen öffnen"
-          className="mt-1 text-2xl text-text-muted hover:text-primary"
+          className="text-2xl text-text-muted hover:text-primary"
         >
           ⚙
-        </AnimatedButton>
-      </header>
-
-      <div className="mb-4 flex gap-2 px-4">
-        <AnimatedButton
-          type="button"
-          onClick={() => setAnsicht('haupt')}
-          className={
-            ansicht === 'haupt'
-              ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
-              : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
-          }
-        >
-          Planen
-        </AnimatedButton>
-        <AnimatedButton
-          type="button"
-          onClick={() => setAnsicht('rezepte')}
-          className={
-            ansicht === 'rezepte'
-              ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
-              : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
-          }
-        >
-          Rezepte
         </AnimatedButton>
       </div>
 
