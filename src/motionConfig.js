@@ -13,6 +13,15 @@ export const FADE_UEBERGANG = { duration: 0.25 }
 // Standard-Versatz (in px) fuer Slide-Einblendungen (Suchfeld, Panel, ...).
 export const SLIDE_DISTANZ = 10
 
+// Tween-Preset fuer automatische Groessen-/Hoehen-Aenderungen (framer-motions
+// layout-Prop, z. B. eine Card, die durch neu erscheinende Felder waechst).
+// Bewusst ein explizites, ruhiges easeInOut-Tween statt SPRING_REVEAL oder
+// framer-motions Standard-Spring fuer Layout-Aenderungen - Letzterer wirkt
+// bei Groessen-Aenderungen (anders als bei einem einzelnen erscheinenden
+// Element) leicht "snappy"/ruckartig. easeInOut (statt easeOut) startet
+// zusaetzlich sanfter, was sich besonders beim Schrumpfen ruhiger anfuehlt.
+export const LAYOUT_GROESSE = { duration: 0.35, ease: 'easeInOut' }
+
 // Liefert bei aktiver reduzierter Bewegung (prefers-reduced-motion) immer
 // ein kurzes, bewegungsloses Fade statt der uebergebenen normalen
 // Transition - zentrale Stelle statt der Ternary in jeder Komponente. Nur

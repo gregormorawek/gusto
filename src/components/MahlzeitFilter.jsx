@@ -1,35 +1,40 @@
-import { MAHLZEITEN } from '../mahlzeiten'
-import AnimatedButton from './AnimatedButton'
+import { MAHLZEITEN, MAHLZEIT_ICON } from '../mahlzeiten'
+import AuswahlChip from './AuswahlChip'
 
-// Zeigt einen Button pro Mahlzeit. aktuell ist der gerade aktive
-// Filter-Slug, onAendern wird mit dem geklickten Slug aufgerufen. flex-wrap
-// statt einer starren Einzelreihe, damit auf schmalen Viewports (v. a. im
-// Wizard, wo die Reihe zusaetzlich durch die Karten-Innenabstaende
-// eingeengt wird) die 4. Pille ("Snack") umbricht statt aus der Karte
-// herauszuragen - bei ausreichend Breite (z. B. Haupt-Ansicht) bleibt die
-// Reihe einzeilig, da genug Platz vorhanden ist.
+// Zeigt einen Keramik-Auswahl-Chip pro Mahlzeit. aktuell ist der gerade
+// aktive Filter-Slug, onAendern wird mit dem geklickten Slug aufgerufen.
+//
+// layout steuert NUR die Anordnung des Containers:
+// - 'reihe' (Default): flex-wrap, damit auf schmalen Viewports (v. a. im
+//   Wizard, wo die Reihe zusaetzlich durch die Karten-Innenabstaende
+//   eingeengt wird) die 4. Pille ("Snack") umbricht statt aus der Karte
+//   herauszuragen - bei ausreichend Breite (z. B. Haupt-Ansicht/Rezepte-Tab)
+//   bleibt die Reihe einzeilig, da genug Platz vorhanden ist.
+// - 'raster2x2': NUR vom Onboarding-Wizard (Schritt 2) gesetzt, damit die
+//   Mahlzeitauswahl dort als 2x2-Raster statt als Reihe erscheint. Der
+//   Tagesplan-Tab-Umschalter (RezepteAnsicht.jsx) bleibt bewusst beim
+//   Default 'reihe'.
 //
 // mahlzeiten ist optional (Default: alle 4) - die Rezepte-Tagesplan-Ansicht
 // (RezepteAnsicht.jsx, proTag-Zweig) nutzt diese Komponente auch als
 // Tab-Leiste NUR fuer die laut Einstellungen aktivierten Mahlzeiten
-// (tagesplanMahlzeiten), gleiche Pillen-Optik, aber eine gefilterte Liste
+// (tagesplanMahlzeiten), gleiche Chip-Optik, aber eine gefilterte Liste
 // statt der vollen MAHLZEITEN-Liste.
-function MahlzeitFilter({ aktuell, onAendern, mahlzeiten = MAHLZEITEN }) {
+function MahlzeitFilter({ aktuell, onAendern, mahlzeiten = MAHLZEITEN, layout = 'reihe' }) {
+  const containerKlasse = layout === 'raster2x2' ? 'grid grid-cols-2 gap-2 px-4' : 'flex flex-wrap gap-2 px-4'
+  const groesse = layout === 'raster2x2' ? 'gross' : 'kompakt'
+
   return (
-    <div className="flex flex-wrap gap-2 px-4">
+    <div className={containerKlasse}>
       {mahlzeiten.map(({ slug, label }) => (
-        <AnimatedButton
+        <AuswahlChip
           key={slug}
-          type="button"
+          Icon={MAHLZEIT_ICON[slug]}
+          label={label}
+          aktiv={slug === aktuell}
+          groesse={groesse}
           onClick={() => onAendern(slug)}
-          className={
-            slug === aktuell
-              ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
-              : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
-          }
-        >
-          {label}
-        </AnimatedButton>
+        />
       ))}
     </div>
   )

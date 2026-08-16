@@ -189,7 +189,11 @@ function OnboardingWizard({
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mahlzeiten</h2>
                     <p className="mt-1 text-xs text-text-muted">Welche Mahlzeiten sollen im Tagesplan vorkommen?</p>
                     <div className="mt-3">
-                      <TagesplanMahlzeitenFilter ausgewaehlt={tagesplanMahlzeiten} onAendern={onTagesplanMahlzeitenAendern} />
+                      <TagesplanMahlzeitenFilter
+                        ausgewaehlt={tagesplanMahlzeiten}
+                        onAendern={onTagesplanMahlzeitenAendern}
+                        layout="raster2x2"
+                      />
                     </div>
                   </>
                 ) : (
@@ -197,7 +201,7 @@ function OnboardingWizard({
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mahlzeit</h2>
                     <p className="mt-1 text-xs text-text-muted">Womit soll es losgehen? Das lässt sich später jederzeit ändern.</p>
                     <div className="mt-3">
-                      <MahlzeitFilter aktuell={mahlzeit} onAendern={onMahlzeitAendern} />
+                      <MahlzeitFilter aktuell={mahlzeit} onAendern={onMahlzeitAendern} layout="raster2x2" />
                     </div>
                   </>
                 )}

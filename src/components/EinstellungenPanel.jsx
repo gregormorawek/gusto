@@ -53,7 +53,7 @@ function EinstellungenPanel({
               exit: { opacity: 0, y: -16 },
               transition: SPRING_REVEAL,
             })}
-            className="mt-16 w-full max-w-sm rounded-lg bg-card p-4 shadow-lg"
+            className="mt-16 max-h-[calc(100dvh-8rem)] w-full max-w-sm overflow-y-auto rounded-lg bg-card p-4 shadow-lg"
             onClick={(e) => e.stopPropagation()}
           >
             <div className="flex items-center justify-between">

@@ -1,32 +1,10 @@
 import { AnimatePresence, motion } from 'framer-motion'
-import {
-  IconApple,
-  IconCheck,
-  IconCoffee,
-  IconFlame,
-  IconLeaf,
-  IconMoon,
-  IconSoup,
-  IconWheatOff,
-} from '@tabler/icons-react'
-import { MAHLZEITEN } from '../mahlzeiten'
+import { IconFlame } from '@tabler/icons-react'
+import { MAHLZEITEN, MAHLZEIT_ICON } from '../mahlzeiten'
+import { DIAET_ICON } from './DiaetFilter'
 import { kalorienZielGueltig } from '../kalorienZiel'
 import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 import AnimierteZahl from './AnimierteZahl'
-
-const MAHLZEIT_ICON = {
-  fruehstueck: IconCoffee,
-  mittag: IconSoup,
-  abend: IconMoon,
-  snack: IconApple,
-}
-
-const DIAET_ICON = {
-  vegan: IconLeaf,
-  vegetarisch: IconLeaf,
-  glutenfrei: IconWheatOff,
-  keine: IconCheck,
-}
 
 const DIAET_LABEL = {
   vegan: 'Vegan',
@@ -94,6 +72,15 @@ const OLIVE = { aktivBorder: 'border-secondary', aktivBg: 'bg-secondary/15', akt
 // waechst mit jedem Schritt inhaltlich mit. Erscheint erst, sobald
 // mindestens ein Teil echten Inhalt hat - kein leerer Platzhalter-Rahmen auf
 // Schritt 1, bevor ein Kalorienziel gewaehlt wurde.
+//
+// WICHTIG: jede Sektion zeigt NUR bereits VERLASSENE Schritte (schritt >
+// statt schritt >=) - die Auswahl des gerade aktiven Schritts ist ja schon
+// oben in den Chips sichtbar, eine zusaetzliche Live-Anzeige hier waere
+// redundant. Kalorienziel UND Makro-Gesamtziel werden beide in Schritt 1
+// eingegeben, daher teilen sie sich dieselbe Bedingung (schritt > 1). Die
+// Diaet-Sektion (schritt > 3) wird dadurch in der Praxis nie sichtbar, da
+// die Karte ab Schritt 4 (siehe OnboardingWizard, schritt <= 3) gar nicht
+// mehr gerendert wird - bewusst in Kauf genommen, siehe Ruecksprache.
 function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag, diaeten, reduzierteBewegung }) {
   const kalorienGueltig = ziel.typ !== 'kein' && kalorienZielGueltig(ziel)
   const kalorienMittelwert = kalorienGueltig
@@ -101,22 +88,23 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
     : 0
 
   const ausgewaehlteMahlzeiten = proTag ? tagesplanMahlzeiten : [mahlzeit]
-  const zeigeMahlzeiten = schritt >= 2
-  const zeigeDiaet = schritt >= 3 && diaeten.length > 0
+  const zeigeKalorien = schritt > 1 && kalorienGueltig
+  const zeigeMahlzeiten = schritt > 2
+  const zeigeDiaet = schritt > 3 && diaeten.length > 0
 
   // Makro-Gesamtziel wird bereits in Schritt 1 (bei proTag) eingegeben,
   // erscheint aber layoutmaessig als LETZTE Zeile der Karte (unterhalb des
   // Diaet-Badges) - die JSX-Reihenfolge unten sorgt dafuer automatisch,
   // auch wenn Mahlzeiten/Diaet noch gar nicht gerendert werden.
   const sichtbareMakros = proTag ? MAKRO_FELDER.filter(({ kategorie }) => makroWertGueltig(ziel.makro[kategorie])) : []
-  const zeigeMakros = sichtbareMakros.length > 0
+  const zeigeMakros = schritt > 1 && sichtbareMakros.length > 0
 
-  const hatInhalt = kalorienGueltig || zeigeMahlzeiten || zeigeDiaet || zeigeMakros
+  const hatInhalt = zeigeKalorien || zeigeMahlzeiten || zeigeDiaet || zeigeMakros
   if (!hatInhalt) {
     return null
   }
 
-  const zeigtEtwasVorMakros = kalorienGueltig || zeigeMahlzeiten || zeigeDiaet
+  const zeigtEtwasVorMakros = zeigeKalorien || zeigeMahlzeiten || zeigeDiaet
 
   return (
     <motion.div
@@ -128,7 +116,7 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
       className="rounded-[14px] bg-card p-5 shadow-sm"
     >
       <AnimatePresence>
-        {kalorienGueltig && (
+        {zeigeKalorien && (
           <motion.div
             key="kalorien"
             {...motionPropsFuer(reduzierteBewegung, {
@@ -158,7 +146,7 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
               exit: { opacity: 0, y: 12 },
               transition: { duration: 0.3, ease: 'easeOut' },
             })}
-            className={`flex gap-2 ${kalorienGueltig ? 'mt-4' : ''}`}
+            className={`flex gap-2 ${zeigeKalorien ? 'mt-4' : ''}`}
           >
             {MAHLZEITEN.map(({ slug, label }) => (
               <IconChip

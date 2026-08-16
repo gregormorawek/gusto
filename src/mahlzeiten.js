@@ -1,3 +1,5 @@
+import { IconApple, IconCoffee, IconMoon, IconSoup } from '@tabler/icons-react'
+
 // Die vier moeglichen Mahlzeit-Typen. slug ist der Wert, gegen den in der
 // DB-Spalte "mahlzeiten" (kommasepariert) verglichen wird, label ist die
 // Anzeige in UI-Elementen wie MahlzeitFilter oder TagesplanAnsicht.
@@ -7,6 +9,15 @@ export const MAHLZEITEN = [
   { slug: 'abend', label: 'Abend' },
   { slug: 'snack', label: 'Snack' },
 ]
+
+// Icon pro Mahlzeit - einzige Quelle fuer diese Zuordnung, verwendet von
+// MahlzeitFilter, TagesplanMahlzeitenFilter und WizardTageskarte.
+export const MAHLZEIT_ICON = {
+  fruehstueck: IconCoffee,
+  mittag: IconSoup,
+  abend: IconMoon,
+  snack: IconApple,
+}
 
 // Ermittelt anhand der Uhrzeit einen sinnvollen Standard-Filter, z. B.
 // morgens vorausgewaehlt "fruehstueck". Wird sowohl fuer die Einzel-Ansicht

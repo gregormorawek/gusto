@@ -1,8 +1,18 @@
+import { IconCheck, IconLeaf, IconWheatOff } from '@tabler/icons-react'
+import AuswahlChip from './AuswahlChip'
+
 // Die vier moeglichen Diaetform-Filter. slug ist der Wert, gegen den in der
 // DB-Spalte "diaeten" (kommasepariert) verglichen wird, label ist die
-// Anzeige neben der Checkbox. "keine" ist ein Spezialfall (kein DB-Tag,
-// siehe nachDiaetenGefiltert in App.jsx) und schliesst die anderen drei
+// Anzeige im Chip. "keine" ist ein Spezialfall (kein DB-Tag, siehe
+// nachDiaetenGefiltert in App.jsx) und schliesst die anderen drei
 // gegenseitig aus - die Ausschluss-Logik selbst lebt in App.jsx.
+export const DIAET_ICON = {
+  vegan: IconLeaf,
+  vegetarisch: IconLeaf,
+  glutenfrei: IconWheatOff,
+  keine: IconCheck,
+}
+
 const DIAETEN = [
   { slug: 'vegan', label: 'Vegan' },
   { slug: 'vegetarisch', label: 'Vegetarisch' },
@@ -10,33 +20,24 @@ const DIAETEN = [
   { slug: 'keine', label: 'Keine Einschränkung' },
 ]
 
-// Zeigt eine Checkbox pro Diaetform (Mehrfachauswahl). ausgewaehlt ist das
-// Array der aktuell aktiven Slugs, onAendern wird mit dem geklickten Slug
-// aufgerufen (das eigentliche Toggle passiert in App.jsx). Farb-/Border-
-// Uebergang beim Umschalten analog zu MahlzeitFilter/SuessDeftigFilter
-// (transition-colors duration-200, gefuellte Pille bei aktivem Zustand).
+// Zeigt einen Keramik-Auswahl-Chip pro Diaetform (Mehrfachauswahl, echte
+// Checkbox fuer A11y bleibt erhalten, aber visuell versteckt - siehe
+// AuswahlChip). ausgewaehlt ist das Array der aktuell aktiven Slugs,
+// onAendern wird mit dem geklickten Slug aufgerufen (das eigentliche Toggle
+// passiert in App.jsx).
 function DiaetFilter({ ausgewaehlt, onAendern }) {
   return (
     <div className="mt-3 flex flex-wrap gap-3 px-4">
       {DIAETEN.map(({ slug, label }) => {
         const aktiv = ausgewaehlt.includes(slug)
         return (
-          <label
+          <AuswahlChip
             key={slug}
-            className={
-              aktiv
-                ? 'flex items-center gap-1.5 rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
-                : 'flex items-center gap-1.5 rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
-            }
-          >
-            <input
-              type="checkbox"
-              checked={aktiv}
-              onChange={() => onAendern(slug)}
-              className="accent-primary"
-            />
-            {label}
-          </label>
+            Icon={DIAET_ICON[slug]}
+            label={label}
+            aktiv={aktiv}
+            input={{ type: 'checkbox', checked: aktiv, onChange: () => onAendern(slug) }}
+          />
         )
       })}
     </div>
