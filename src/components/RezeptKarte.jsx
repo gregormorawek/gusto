@@ -4,7 +4,16 @@ import { IconPhotoOff } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import SlotKarte from './SlotKarte'
 import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
-import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { motionPropsFuer } from '../motionConfig'
+
+// Reiner Crossfade fuer den Kartenwechsel (Tab-Wechsel UND Wuerfeln, seit
+// key={angezeigtesRezept.id} unten identisch ausgeloest) - bewusst OHNE
+// scale, anders als das app-weite SPRING_REVEAL-Preset aus motionConfig.js:
+// die Skalierung wirkte in diesem Kontext (grosse Karte mit Bild) unruhig
+// statt hochwertig. Nur lokal hier definiert statt in motionConfig.js, damit
+// SPRING_REVEAL fuer die uebrigen Verwendungsstellen (Wizard-Chips u. a.)
+// unangetastet bleibt - diese Variante ist bewusst RezeptKarte-exklusiv.
+const RECIPE_CARD_FADE = { duration: 0.25, ease: 'easeOut' }
 
 // Maximale Wartezeit auf das Vorladen des neuen Rezept-Bilds, bevor der
 // Kartenwechsel TROTZDEM ausgeloest wird - verhindert, dass eine sehr
@@ -126,10 +135,10 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
             <motion.div
               key={angezeigtesRezept.id}
               {...motionPropsFuer(reduzierteBewegung, {
-                initial: { opacity: 0, scale: 0.95 },
-                animate: { opacity: 1, scale: 1 },
-                exit: { opacity: 0, scale: 0.95 },
-                transition: SPRING_REVEAL,
+                initial: { opacity: 0 },
+                animate: { opacity: 1 },
+                exit: { opacity: 0 },
+                transition: RECIPE_CARD_FADE,
               })}
               className="mx-4 mt-2 rounded-[14px] bg-card p-3 shadow-sm"
             >
