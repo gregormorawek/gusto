@@ -3,7 +3,18 @@
   <head>
     <meta charset="UTF-8" />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <!-- interactive-widget=resizes-content: ohne diese Direktive laesst
+         Mobile Safari beim Einblenden der Tastatur nur den VISUELLEN
+         Viewport schrumpfen, der Layout-Viewport (und damit dvh-Einheiten
+         wie in OnboardingWizard.jsx/EinstellungenPanel.jsx) bleibt
+         unveraendert - Safari scrollt dann selbststaendig, um das fokussierte
+         Feld sichtbar zu halten, und schiesst dabei sichtbar ueber das Ziel
+         hinaus (Header verschwindet hinter der Statusleiste). Mit dieser
+         Direktive resized sich der Layout-Viewport tatsaechlich, dvh
+         reflowt korrekt, kein aggressives Auto-Scroll noetig. Unterstuetzt
+         ab Safari 16.4/Chrome 108, unbekannte Werte werden von aelteren
+         Browsern ignoriert (kein Risiko fuer Abwaertskompatibilitaet). -->
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>gusto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

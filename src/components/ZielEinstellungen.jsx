@@ -4,27 +4,51 @@ import { IconBan, IconCalendar, IconClock } from '@tabler/icons-react'
 import AuswahlChip from './AuswahlChip'
 import { HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, motionPropsFuer } from '../motionConfig'
 
-// Beobachtet die tatsaechlich gerenderte Hoehe von inhaltRef per
-// ResizeObserver und liefert sie als Zahl (px) zurueck - reagiert auf JEDE
-// Aenderung der Kind-Elemente (neues Feld montiert/entfernt sich sofort,
-// unabhaengig davon WANN framer-motion das tut), nicht nur auf explizit
-// getrackte Dependencies. Grund fuer diesen Umweg statt framer-motions
-// layout-Prop direkt auf dem Wrapper: layout animiert Groessen-Aenderungen,
-// die durch das Unmounten eines AnimatePresence-Geschwisters ausgeloest
-// werden, in diesem Setup NICHT zuverlaessig (springt statt zu
-// interpolieren - per Screenshot-Serie + Hoehen-Messung verifiziert). Die
-// aeussere Hoehen-Transition passiert stattdessen als simple CSS
-// transition: height auf dem Aufrufer, siehe unten.
+// Beobachtet die tatsaechlich gerenderte Hoehe von inhaltRef und liefert sie
+// als Zahl (px) zurueck - ueber ZWEI unabhaengige Mechanismen, die sich
+// ergaenzen (auf echtem iOS Safari wurde beobachtet, dass sich NUR auf den
+// ResizeObserver zu verlassen zu einer zu klein gemessenen Hoehe fuehren
+// kann, sodass das letzte Eingabefeld am Kartenrand abgeschnitten wird -
+// vermutlich ein Browser-spezifischer Timing-Unterschied dabei, WANN genau
+// der Observer nach dem Mounten eines neuen Feldes feuert):
+// 1. Ein useLayoutEffect OHNE Dependency-Array (feuert nach JEDEM Render
+//    dieser Komponente) misst synchron nach - deckt zuverlaessig das
+//    Wachsen ab, da ein neues Feld beim selben Render bereits seine volle
+//    (nur noch unsichtbare, opacity:0) Groesse hat.
+// 2. Der ResizeObserver bleibt zusaetzlich noetig fuer das Schrumpfen: ein
+//    austretendes Element bleibt waehrend seiner eigenen Fade-out-Animation
+//    im DOM (siehe fadeProps/AnimatePresence unten) und wird erst DANACH
+//    entfernt - ein Zeitpunkt, zu dem diese Komponente selbst NICHT neu
+//    rendert (kein Prop hat sich seitdem geaendert), Mechanismus 1 also
+//    nichts davon mitbekommt.
+// Grund fuer diesen Umweg statt framer-motions layout-Prop direkt auf dem
+// Wrapper: layout animiert Groessen-Aenderungen, die durch das Unmounten
+// eines AnimatePresence-Geschwisters ausgeloest werden, in diesem Setup
+// NICHT zuverlaessig (springt statt zu interpolieren - per Screenshot-Serie
+// + Hoehen-Messung verifiziert). Die aeussere Hoehen-Transition passiert
+// stattdessen als simple CSS transition: height auf dem Aufrufer, siehe
+// unten.
 function useBeobachteteHoehe() {
   const inhaltRef = useRef(null)
   const [hoehe, setHoehe] = useState(undefined)
+
+  // Bewusst OHNE Dependency-Array (soll nach jedem Render feuern) - kein
+  // Endlos-Loop-Risiko: setHoehe mit demselben Wert wie zuvor loest KEINEN
+  // erneuten Render aus (React vergleicht Primitives per Object.is), die
+  // gemessene Hoehe von inhaltRef ist zudem unabhaengig von der Hoehe, die
+  // der AUFRUFER (der Wrapper mit transition: height) gerade selbst hat.
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  useLayoutEffect(() => {
+    if (inhaltRef.current) {
+      setHoehe(inhaltRef.current.getBoundingClientRect().height)
+    }
+  })
 
   useLayoutEffect(() => {
     const element = inhaltRef.current
     if (!element) {
       return undefined
     }
-    setHoehe(element.getBoundingClientRect().height)
     const beobachter = new ResizeObserver(([eintrag]) => setHoehe(eintrag.contentRect.height))
     beobachter.observe(element)
     return () => beobachter.disconnect()
