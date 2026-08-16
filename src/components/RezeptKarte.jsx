@@ -1,10 +1,50 @@
-import { useState } from 'react'
+import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { IconPhotoOff } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import SlotKarte from './SlotKarte'
 import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
 import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+
+// Maximale Wartezeit auf das Vorladen des neuen Rezept-Bilds, bevor der
+// Kartenwechsel TROTZDEM ausgeloest wird - verhindert, dass eine sehr
+// langsame Verbindung die Wechsel-Animation unbegrenzt blockiert. In diesem
+// Fall (Bild beim Mount noch nicht fertig) uebernimmt RezeptBilds eigener
+// opacity-Fade-in das sanfte Nachladen statt eines harten Pop-ins.
+const BILD_PRELOAD_TIMEOUT_MS = 1500
+
+// Eigene, ueber ihre url gekeyte Unterkomponente (siehe Verwendung unten) -
+// das sorgt dafuer, dass React bei JEDEM Bildwechsel einen kompletten
+// Neu-Mount macht und geladen automatisch auf false zurueckgesetzt wird,
+// ohne einen manuellen Reset-Effekt. useLayoutEffect prueft direkt nach dem
+// Mount (VOR dem ersten Browser-Paint) per img.complete, ob das Bild dank
+// des Preloads in RezeptKarte bereits im Cache liegt - dann startet es
+// sofort bei voller Deckkraft, ganz ohne sichtbares Aufblitzen. Nur falls
+// das Preload-Timeout gegriffen hat (Bild beim Kartenwechsel noch nicht
+// fertig), faengt der Fade-in das nachtraegliche Erscheinen sanft ab.
+function RezeptBild({ url, alt, onError }) {
+  const [geladen, setGeladen] = useState(false)
+  const bildRef = useRef(null)
+
+  useLayoutEffect(() => {
+    if (bildRef.current?.complete) {
+      setGeladen(true)
+    }
+  }, [])
+
+  return (
+    <img
+      ref={bildRef}
+      src={url}
+      alt={alt}
+      onLoad={() => setGeladen(true)}
+      onError={onError}
+      className={`h-28 w-full rounded-2xl object-cover transition-opacity duration-200 motion-reduce:transition-none sm:h-56 ${
+        geladen ? 'opacity-100' : 'opacity-0'
+      }`}
+    />
+  )
+}
 
 // Zeigt EIN Rezept vollstaendig an: Bild (mit onError-Fallback), Titel,
 // Beschreibung, die 4 Zutaten-Slots (ueber die bestehende SlotKarte-Optik,
@@ -29,8 +69,54 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
   // ebenfalls einfach ein neues rezept-Prop ist).
   const [fehlgeschlageneBildUrl, setFehlgeschlageneBildUrl] = useState(null)
 
-  const karte = rezeptKarteBerechnen(rezept, zutatenNachId, ziel, makroZiele)
-  const bildFehlgeschlagen = rezept && fehlgeschlageneBildUrl === rezept.bild_url
+  // Das TATSAECHLICH angezeigte Rezept - bewusst vom rezept-Prop entkoppelt.
+  // Wechselt (und loest damit erst die AnimatePresence-Kartenwechsel-
+  // Animation unten aus) erst, NACHDEM das neue Bild im Hintergrund
+  // vorgeladen wurde, statt sofort bei jedem Prop-Wechsel. Ohne das poppte
+  // das Bild sichtbar NACHTRAEGLICH rein, waehrend Titel/Zutaten/Summe (die
+  // synchron aus dem Prop berechnet werden) schon fertig animiert waren.
+  const [angezeigtesRezept, setAngezeigtesRezept] = useState(rezept)
+
+  useEffect(() => {
+    if (rezept?.id === angezeigtesRezept?.id) {
+      return undefined
+    }
+    if (!rezept?.bild_url) {
+      // Kein Bild zum Vorladen (kein Rezept mehr oder ohne bild_url) - sofort wechseln.
+      setAngezeigtesRezept(rezept)
+      return undefined
+    }
+
+    let abgebrochen = false
+    const wechseln = () => {
+      if (!abgebrochen) {
+        setAngezeigtesRezept(rezept)
+      }
+    }
+    const bild = new Image()
+    bild.onload = wechseln
+    bild.onerror = () => {
+      // Fallback-Zustand gleich mitsetzen statt den echten <img> unten
+      // ebenfalls noch einmal (erneut erfolglos) laden zu lassen.
+      if (!abgebrochen) {
+        setFehlgeschlageneBildUrl(rezept.bild_url)
+      }
+      wechseln()
+    }
+    bild.src = rezept.bild_url
+    // Sicherheitsnetz: eine sehr langsame Verbindung soll die Wechsel-
+    // Animation nicht unbegrenzt blockieren - RezeptBilds eigener
+    // Fade-in faengt das dann sanft ab (siehe oben).
+    const timeoutId = setTimeout(wechseln, BILD_PRELOAD_TIMEOUT_MS)
+
+    return () => {
+      abgebrochen = true
+      clearTimeout(timeoutId)
+    }
+  }, [rezept, angezeigtesRezept])
+
+  const karte = rezeptKarteBerechnen(angezeigtesRezept, zutatenNachId, ziel, makroZiele)
+  const bildFehlgeschlagen = angezeigtesRezept && fehlgeschlageneBildUrl === angezeigtesRezept.bild_url
 
   return (
     <>
@@ -38,7 +124,7 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
         <>
           <AnimatePresence mode="popLayout">
             <motion.div
-              key={rezept.id}
+              key={angezeigtesRezept.id}
               {...motionPropsFuer(reduzierteBewegung, {
                 initial: { opacity: 0, scale: 0.95 },
                 animate: { opacity: 1, scale: 1 },
@@ -47,12 +133,12 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
               })}
               className="mx-4 mt-2 rounded-[14px] bg-card p-3 shadow-sm"
             >
-              {rezept.bild_url && !bildFehlgeschlagen ? (
-                <img
-                  src={rezept.bild_url}
-                  alt={rezept.titel}
-                  onError={() => setFehlgeschlageneBildUrl(rezept.bild_url)}
-                  className="h-28 w-full rounded-2xl object-cover sm:h-56"
+              {angezeigtesRezept.bild_url && !bildFehlgeschlagen ? (
+                <RezeptBild
+                  key={angezeigtesRezept.bild_url}
+                  url={angezeigtesRezept.bild_url}
+                  alt={angezeigtesRezept.titel}
+                  onError={() => setFehlgeschlageneBildUrl(angezeigtesRezept.bild_url)}
                 />
               ) : (
                 <div className="flex h-28 w-full items-center justify-center rounded-2xl bg-secondary/10 text-text-muted sm:h-56">
@@ -60,8 +146,8 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
                 </div>
               )}
 
-              <h2 className="mt-2 font-display text-xl font-semibold text-text">{rezept.titel}</h2>
-              <p className="mt-0.5 text-sm text-text-muted">{rezept.beschreibung}</p>
+              <h2 className="mt-2 font-display text-xl font-semibold text-text">{angezeigtesRezept.titel}</h2>
+              <p className="mt-0.5 text-sm text-text-muted">{angezeigtesRezept.beschreibung}</p>
             </motion.div>
           </AnimatePresence>
 
