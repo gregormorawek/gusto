@@ -5,12 +5,26 @@ import AuswahlChip from './AuswahlChip'
 import { HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, motionPropsFuer } from '../motionConfig'
 
 // Beobachtet die tatsaechlich gerenderte Hoehe von inhaltRef und liefert sie
-// als Zahl (px) zurueck - ueber DREI unabhaengige Mechanismen, die sich
-// ergaenzen (auf echtem iOS Safari wurde beobachtet, dass Eingabefelder am
-// Kartenrand abgeschnitten werden, obwohl weder ein Messungs-/Wrapper-
-// Mismatch noch Rundung noch box-sizing die Ursache sind - Padding/Border/
-// Margin/box-sizing von Mess- und Ziel-Element sind identisch 0px/border-box,
-// im Code wird nirgends gerundet):
+// als Zahl (px) zurueck.
+//
+// GEFUNDENE URSACHE des Clipping-Bugs (Eingabefelder am Kartenrand
+// abgeschnitten, reproduzierbar in JEDEM Chromium, nicht Safari-spezifisch):
+// klassisches CSS-Margin-Collapse. inhaltRef selbst hat kein eigenes
+// Padding/Border/overflow - das mt-3 des ERSTEN sichtbaren Kindes
+// (kalorien-eingabe) kollabierte dadurch nach AUSSEN, VOR inhaltRefs eigene
+// Border-Box. inhaltRef.scrollHeight/getBoundingClientRect() maass dadurch
+// systematisch genau um diesen mt-3-Wert (12px) ZU WENIG - der Wrapper
+// bekam eine zu kleine Ziel-Hoehe gesetzt, die letzte Zeile wurde
+// abgeschnitten. Behoben durch flow-root auf inhaltRef (siehe unten im
+// JSX) - etabliert einen neuen Block-Formatting-Context, der Margin-
+// Collapse verhindert, ohne (anders als overflow-hidden) selbst Inhalt
+// abzuschneiden. Per verschachtelter getBoundingClientRect()-Kette vom
+// Fett-Feld bis zum Wrapper konkret nachgewiesen: Wrapper-scrollHeight war
+// 188px, inhaltRef-scrollHeight faelschlich 176px - exakt 12px Differenz.
+//
+// Die folgenden DREI unabhaengigen Trigger-Mechanismen bleiben trotzdem
+// sinnvoll (sie bestimmen WANN neu gemessen wird, nicht WAS gemessen wird -
+// das flow-root-fix behebt die Korrektheit der Messung selbst):
 // 1. Ein useLayoutEffect OHNE Dependency-Array (feuert nach JEDEM Render
 //    dieser Komponente) misst synchron nach - deckt zuverlaessig das
 //    Wachsen ab, da ein neues Feld beim selben Render bereits seine volle
@@ -151,7 +165,16 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
         className="overflow-hidden transition-[height] motion-reduce:transition-none"
         style={{ height: hoehe, transitionDuration: `${HOEHEN_UEBERGANG_MS}ms`, transitionTimingFunction: HOEHEN_UEBERGANG_EASING }}
       >
-        <div ref={inhaltRef}>
+        {/* flow-root ist der eigentliche Bugfix hier: OHNE das kollabiert
+            das mt-3 des ersten Kindes (kalorien-eingabe) nach AUSSEN durch
+            diesen paddinglosen Div hindurch (klassisches CSS-Margin-
+            Collapse), wodurch inhaltRef.scrollHeight um genau diesen Wert
+            ZU KLEIN gemessen wurde - der Wrapper selbst (der Aufrufer mit
+            overflow-hidden) bekam dadurch eine zu kleine Ziel-Hoehe gesetzt
+            und schnitt die letzte Zeile ab. flow-root etabliert einen neuen
+            Block-Formatting-Context, der Margin-Collapse verhindert, OHNE
+            (anders als overflow-hidden) selbst Inhalt abzuschneiden. */}
+        <div ref={inhaltRef} className="flow-root">
           <AnimatePresence>
             {ziel.typ !== 'kein' && (
               <motion.div
