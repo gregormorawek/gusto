@@ -35,3 +35,22 @@ select,
 textarea {
   font-size: 16px !important;
 }
+
+/* Chrome/Safari zeigen bei <input type="number"> native Auf-/Ab-Spinner-
+   Pfeile, die INNERHALB der Content-Box Platz beanspruchen, den CSS-
+   Breitenberechnungen (width, clientWidth, Text-Messung) nicht mit
+   einrechnen - deshalb wurde der Platzhaltertext in schmalen Feldern wie
+   "Max: [z. B. 2200]" am letzten Zeichen abgeschnitten, obwohl der Text
+   selbst rechnerisch in die Feldbreite gepasst haette (per Screenshot-
+   Vergleich mit/ohne Spinner konkret nachgewiesen). Passen ausserdem
+   optisch ohnehin nicht zum eigenen Marken-Design. Firefox nutzt dafuer
+   -moz-appearance: textfield statt eines Pseudo-Elements. */
+input[type='number']::-webkit-inner-spin-button,
+input[type='number']::-webkit-outer-spin-button {
+  margin: 0;
+  -webkit-appearance: none;
+}
+
+input[type='number'] {
+  -moz-appearance: textfield;
+}
