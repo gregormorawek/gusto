@@ -5,12 +5,12 @@ import AuswahlChip from './AuswahlChip'
 import { HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, motionPropsFuer } from '../motionConfig'
 
 // Beobachtet die tatsaechlich gerenderte Hoehe von inhaltRef und liefert sie
-// als Zahl (px) zurueck - ueber ZWEI unabhaengige Mechanismen, die sich
-// ergaenzen (auf echtem iOS Safari wurde beobachtet, dass sich NUR auf den
-// ResizeObserver zu verlassen zu einer zu klein gemessenen Hoehe fuehren
-// kann, sodass das letzte Eingabefeld am Kartenrand abgeschnitten wird -
-// vermutlich ein Browser-spezifischer Timing-Unterschied dabei, WANN genau
-// der Observer nach dem Mounten eines neuen Feldes feuert):
+// als Zahl (px) zurueck - ueber DREI unabhaengige Mechanismen, die sich
+// ergaenzen (auf echtem iOS Safari wurde beobachtet, dass Eingabefelder am
+// Kartenrand abgeschnitten werden, obwohl weder ein Messungs-/Wrapper-
+// Mismatch noch Rundung noch box-sizing die Ursache sind - Padding/Border/
+// Margin/box-sizing von Mess- und Ziel-Element sind identisch 0px/border-box,
+// im Code wird nirgends gerundet):
 // 1. Ein useLayoutEffect OHNE Dependency-Array (feuert nach JEDEM Render
 //    dieser Komponente) misst synchron nach - deckt zuverlaessig das
 //    Wachsen ab, da ein neues Feld beim selben Render bereits seine volle
@@ -21,6 +21,16 @@ import { HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, motionPropsFuer } from '.
 //    entfernt - ein Zeitpunkt, zu dem diese Komponente selbst NICHT neu
 //    rendert (kein Prop hat sich seitdem geaendert), Mechanismus 1 also
 //    nichts davon mitbekommt.
+// 3. document.fonts.ready erzwingt EINE zusaetzliche Nachmessung, sobald die
+//    Webfonts (Fraunces/Inter, per <link> in index.html, ohne preload) fertig
+//    geladen sind. Per Test mit kuenstlich verzoegertem Font-Request
+//    reproduziert: der Fallback-Font vor dem Laden macht "Carbs" neben
+//    "Protein" passend (Inhalt insgesamt niedriger), nach dem Swap auf Inter
+//    bricht "Carbs" in eine eigene Zeile um - eine reale Hoehen-Aenderung von
+//    ca. 40px allein durch den Font-Swap. ResizeObserver faengt das in
+//    Chromium zuverlaessig ab, ist dafuer aber nicht in jedem Rendering-
+//    Engine/Timing garantiert - dieser dritte Mechanismus haengt nicht vom
+//    Observer-Timing ab, sondern direkt vom Font-Loading-Ereignis selbst.
 // Grund fuer diesen Umweg statt framer-motions layout-Prop direkt auf dem
 // Wrapper: layout animiert Groessen-Aenderungen, die durch das Unmounten
 // eines AnimatePresence-Geschwisters ausgeloest werden, in diesem Setup
@@ -52,6 +62,18 @@ function useBeobachteteHoehe() {
     const beobachter = new ResizeObserver(([eintrag]) => setHoehe(eintrag.contentRect.height))
     beobachter.observe(element)
     return () => beobachter.disconnect()
+  }, [])
+
+  useLayoutEffect(() => {
+    let abgemeldet = false
+    document.fonts.ready.then(() => {
+      if (!abgemeldet && inhaltRef.current) {
+        setHoehe(inhaltRef.current.getBoundingClientRect().height)
+      }
+    })
+    return () => {
+      abgemeldet = true
+    }
   }, [])
 
   return [inhaltRef, hoehe]
