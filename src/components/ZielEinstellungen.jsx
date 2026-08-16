@@ -1,7 +1,37 @@
+import { useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { IconBan, IconCalendar, IconClock } from '@tabler/icons-react'
 import AuswahlChip from './AuswahlChip'
-import { LAYOUT_GROESSE, motionPropsFuer } from '../motionConfig'
+import { HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, motionPropsFuer } from '../motionConfig'
+
+// Beobachtet die tatsaechlich gerenderte Hoehe von inhaltRef per
+// ResizeObserver und liefert sie als Zahl (px) zurueck - reagiert auf JEDE
+// Aenderung der Kind-Elemente (neues Feld montiert/entfernt sich sofort,
+// unabhaengig davon WANN framer-motion das tut), nicht nur auf explizit
+// getrackte Dependencies. Grund fuer diesen Umweg statt framer-motions
+// layout-Prop direkt auf dem Wrapper: layout animiert Groessen-Aenderungen,
+// die durch das Unmounten eines AnimatePresence-Geschwisters ausgeloest
+// werden, in diesem Setup NICHT zuverlaessig (springt statt zu
+// interpolieren - per Screenshot-Serie + Hoehen-Messung verifiziert). Die
+// aeussere Hoehen-Transition passiert stattdessen als simple CSS
+// transition: height auf dem Aufrufer, siehe unten.
+function useBeobachteteHoehe() {
+  const inhaltRef = useRef(null)
+  const [hoehe, setHoehe] = useState(undefined)
+
+  useLayoutEffect(() => {
+    const element = inhaltRef.current
+    if (!element) {
+      return undefined
+    }
+    setHoehe(element.getBoundingClientRect().height)
+    const beobachter = new ResizeObserver(([eintrag]) => setHoehe(eintrag.contentRect.height))
+    beobachter.observe(element)
+    return () => beobachter.disconnect()
+  }, [])
+
+  return [inhaltRef, hoehe]
+}
 
 // Die drei moeglichen Ziel-Typen. "kein" ist der Standard (kein Kalorienziel
 // aktiv), bei den anderen beiden gibt der User zusaetzlich eine Kalorienzahl
@@ -29,8 +59,8 @@ const MAKRO_FELDER = [
 // (Signatur analog zu onMakroAendern), onMakroAendern mit (kategorie, wert).
 // Fade-Props fuer die beiden waechst-/schrumpft-Bloecke (Min/Max-Kalorien,
 // Makro-Ziele): animate verzoegert den Fade-in um 100ms, damit die
-// Hoehen-Animation des wachsenden Bereichs (layout-Prop unten) sichtbar VOR
-// dem Inhalt startet ("Bewegung fuehrt, Inhalt folgt"). exit
+// Hoehen-Animation des wachsenden Bereichs (siehe useBeobachteteHoehe oben)
+// sichtbar VOR dem Inhalt startet ("Bewegung fuehrt, Inhalt folgt"). exit
 // hat bewusst KEINE Verzoegerung, aber eine ruhigere 200ms-Dauer (statt
 // hektischer 150ms) - AnimatePresence haelt das austretende Element ohnehin
 // bis zum Ende seiner Exit-Animation im normalen Fluss, die Card schrumpft
@@ -48,6 +78,7 @@ function fadeProps(reduzierteBewegung) {
 
 function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAendern }) {
   const reduzierteBewegung = useReducedMotion()
+  const [inhaltRef, hoehe] = useBeobachteteHoehe()
 
   return (
     <section className="mx-4 mt-4 rounded-lg border border-secondary/20 bg-card p-4 shadow-sm">
@@ -65,72 +96,77 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
         ))}
       </div>
 
-      {/* NUR dieser Wrapper traegt den layout-Prop, nicht die Section selbst
-          (siehe oben) - die Chip-Reihe ist ein Geschwister-Element DAVOR und
-          bleibt dadurch komplett unbeteiligt an der Groessen-Animation. Vorher
-          (layout auf der ganzen Section) wurde die Chip-Reihe als Kind der
-          Layout-Projection sichtbar mitgestaucht/gestreckt. */}
-      <motion.div layout={!reduzierteBewegung} transition={{ layout: LAYOUT_GROESSE }}>
-        <AnimatePresence>
-          {ziel.typ !== 'kein' && (
-            <motion.div
-              key="kalorien-eingabe"
-              {...fadeProps(reduzierteBewegung)}
-              className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2"
-            >
-              <label className="flex items-center gap-1.5 text-sm text-text-muted">
-                Min:
-                <input
-                  type="number"
-                  min="0"
-                  value={ziel.kalorien.min}
-                  onChange={(e) => onKalorienAendern('min', e.target.value)}
-                  placeholder={ziel.typ === 'proTag' ? 'z. B. 1800' : 'z. B. 500'}
-                  className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-text"
-                />
-                kcal
-              </label>
-              <label className="flex items-center gap-1.5 text-sm text-text-muted">
-                Max:
-                <input
-                  type="number"
-                  min="0"
-                  value={ziel.kalorien.max}
-                  onChange={(e) => onKalorienAendern('max', e.target.value)}
-                  placeholder={ziel.typ === 'proTag' ? 'z. B. 2200' : 'z. B. 700'}
-                  className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-text"
-                />
-                kcal
-              </label>
-              <span className="text-sm text-text-muted">{ziel.typ === 'proMahlzeit' ? 'pro Mahlzeit' : 'pro Tag'}</span>
-            </motion.div>
-          )}
-        </AnimatePresence>
+      {/* Hoehe dieses Wrappers folgt per CSS transition der per ResizeObserver
+          beobachteten Hoehe von inhaltRef (siehe useBeobachteteHoehe oben) -
+          NICHT framer-motions layout-Prop, das war hier unzuverlaessig. Die
+          Chip-Reihe ist ein Geschwister-Element DAVOR und bleibt dadurch
+          komplett unbeteiligt an der Groessen-Animation. */}
+      <div
+        className="overflow-hidden transition-[height] motion-reduce:transition-none"
+        style={{ height: hoehe, transitionDuration: `${HOEHEN_UEBERGANG_MS}ms`, transitionTimingFunction: HOEHEN_UEBERGANG_EASING }}
+      >
+        <div ref={inhaltRef}>
+          <AnimatePresence>
+            {ziel.typ !== 'kein' && (
+              <motion.div
+                key="kalorien-eingabe"
+                {...fadeProps(reduzierteBewegung)}
+                className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2"
+              >
+                <label className="flex items-center gap-1.5 text-sm text-text-muted">
+                  Min:
+                  <input
+                    type="number"
+                    min="0"
+                    value={ziel.kalorien.min}
+                    onChange={(e) => onKalorienAendern('min', e.target.value)}
+                    placeholder={ziel.typ === 'proTag' ? 'z. B. 1800' : 'z. B. 500'}
+                    className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-text"
+                  />
+                  kcal
+                </label>
+                <label className="flex items-center gap-1.5 text-sm text-text-muted">
+                  Max:
+                  <input
+                    type="number"
+                    min="0"
+                    value={ziel.kalorien.max}
+                    onChange={(e) => onKalorienAendern('max', e.target.value)}
+                    placeholder={ziel.typ === 'proTag' ? 'z. B. 2200' : 'z. B. 700'}
+                    className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-text"
+                  />
+                  kcal
+                </label>
+                <span className="text-sm text-text-muted">{ziel.typ === 'proMahlzeit' ? 'pro Mahlzeit' : 'pro Tag'}</span>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-        <AnimatePresence>
-          {ziel.typ === 'proTag' && (
-            <motion.div key="makro-eingabe" {...fadeProps(reduzierteBewegung)} className="mt-3">
-              <p className="text-xs text-text-muted">Makro-Gesamtziel für den Tag (optional):</p>
-              <div className="mt-1 flex flex-wrap gap-x-4 gap-y-2">
-                {MAKRO_FELDER.map(({ kategorie, label }) => (
-                  <label key={kategorie} className="flex items-center gap-1.5 text-xs text-text-muted">
-                    {label}:
-                    <input
-                      type="number"
-                      min="0"
-                      value={ziel.makro[kategorie]}
-                      onChange={(e) => onMakroAendern(kategorie, e.target.value)}
-                      placeholder="–"
-                      className="w-16 rounded-md border border-text-muted/30 px-1.5 py-1 text-text"
-                    />
-                    g
-                  </label>
-                ))}
-              </div>
-            </motion.div>
-          )}
-        </AnimatePresence>
-      </motion.div>
+          <AnimatePresence>
+            {ziel.typ === 'proTag' && (
+              <motion.div key="makro-eingabe" {...fadeProps(reduzierteBewegung)} className="mt-3">
+                <p className="text-xs text-text-muted">Makro-Gesamtziel für den Tag (optional):</p>
+                <div className="mt-1 flex flex-wrap gap-x-4 gap-y-2">
+                  {MAKRO_FELDER.map(({ kategorie, label }) => (
+                    <label key={kategorie} className="flex items-center gap-1.5 text-xs text-text-muted">
+                      {label}:
+                      <input
+                        type="number"
+                        min="0"
+                        value={ziel.makro[kategorie]}
+                        onChange={(e) => onMakroAendern(kategorie, e.target.value)}
+                        placeholder="–"
+                        className="w-16 rounded-md border border-text-muted/30 px-1.5 py-1 text-text"
+                      />
+                      g
+                    </label>
+                  ))}
+                </div>
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
     </section>
   )
 }

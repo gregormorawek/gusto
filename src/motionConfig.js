@@ -13,14 +13,18 @@ export const FADE_UEBERGANG = { duration: 0.25 }
 // Standard-Versatz (in px) fuer Slide-Einblendungen (Suchfeld, Panel, ...).
 export const SLIDE_DISTANZ = 10
 
-// Tween-Preset fuer automatische Groessen-/Hoehen-Aenderungen (framer-motions
-// layout-Prop, z. B. eine Card, die durch neu erscheinende Felder waechst).
-// Bewusst ein explizites, ruhiges easeInOut-Tween statt SPRING_REVEAL oder
-// framer-motions Standard-Spring fuer Layout-Aenderungen - Letzterer wirkt
-// bei Groessen-Aenderungen (anders als bei einem einzelnen erscheinenden
-// Element) leicht "snappy"/ruckartig. easeInOut (statt easeOut) startet
-// zusaetzlich sanfter, was sich besonders beim Schrumpfen ruhiger anfuehlt.
-export const LAYOUT_GROESSE = { duration: 0.35, ease: 'easeInOut' }
+// Dauer/Easing fuer automatische Hoehen-Aenderungen (z. B. eine Card, die
+// durch neu erscheinende Felder waechst/schrumpft). Als reine Zahlenwerte
+// (nicht als framer-motion-Transition-Objekt), da sich herausgestellt hat,
+// dass framer-motions layout-Prop Groessen-Aenderungen, die durch das
+// Unmounten eines AnimatePresence-Geschwisters ausgeloest werden, NICHT
+// zuverlaessig animiert (springt statt zu interpolieren, siehe
+// ZielEinstellungen.jsx - dort per ResizeObserver + CSS transition: height
+// geloest, robuster als framer-motions automatische Layout-Projection fuer
+// diesen speziellen Fall). ms/Tailwind-Easing-Name statt Sekunden/framer-
+// Easing-Alias, da dieser Wert als CSS-Transition verwendet wird.
+export const HOEHEN_UEBERGANG_MS = 350
+export const HOEHEN_UEBERGANG_EASING = 'ease-in-out'
 
 // Liefert bei aktiver reduzierter Bewegung (prefers-reduced-motion) immer
 // ein kurzes, bewegungsloses Fade statt der uebergebenen normalen
