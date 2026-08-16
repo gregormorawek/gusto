@@ -29,15 +29,19 @@ function makroWertGueltig(wert) {
 }
 
 // Ein einzelner Icon-Chip (Mahlzeit ODER Diaetform) - der Chip selbst ist
-// IMMER sichtbar (gestrichelt/blass), nur die getoente "aktiv"-Ebene
-// darueber wird per AnimatePresence ein-/ausgeblendet, wenn sich der
-// aktiv-Status aendert. So entsteht das gewuenschte "scale+fade mit
+// IMMER sichtbar (durchgezogener, dezenter Rand/blass), nur die getoente
+// "aktiv"-Ebene darueber wird per AnimatePresence ein-/ausgeblendet, wenn
+// sich der aktiv-Status aendert. So entsteht das gewuenschte "scale+fade mit
 // Ueberschwingen bei Auswahl, scale-down+fade-out bei Abwahl" OHNE dass der
 // Chip selbst ver- oder auftaucht. farbKlasse bestimmt Terrakotta (Mahlzeit)
-// vs. Oliv (Diaetform).
+// vs. Oliv (Diaetform). Rand-Farbe/-Deckkraft (text-muted/30) bewusst
+// identisch zum Keramik-Auswahl-Zustand in AuswahlChip.jsx, damit der
+// dezente Rand app-weit einheitlich wirkt - vorher gestrichelt, was seit dem
+// "durchgezogen statt gestrichelt"-Umbau der Auswahl-Chips (siehe
+// AuswahlChip.jsx) optisch nicht mehr zusammenpasste.
 function IconChip({ Icon, label, aktiv, farbKlasse, reduzierteBewegung }) {
   return (
-    <div className="relative flex flex-col items-center gap-1 rounded-2xl border border-dashed border-text-muted/50 px-3 py-2">
+    <div className="relative flex flex-col items-center gap-1 rounded-2xl border border-text-muted/30 px-3 py-2">
       <AnimatePresence>
         {aktiv && (
           <motion.span
