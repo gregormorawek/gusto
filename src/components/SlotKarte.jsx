@@ -81,7 +81,7 @@ function SlotKarte({
               value={zielWert}
               onChange={(e) => onZielAendern(e.target.value)}
               placeholder="–"
-              className="w-16 rounded-md border border-text-muted/30 px-2 py-1 text-xs text-text"
+              className="w-16 rounded-md border border-text-muted/30 px-2 py-1 text-text"
             />
             g
           </span>
@@ -118,7 +118,7 @@ function SlotKarte({
               value={suchtext}
               onChange={(e) => setSuchtext(e.target.value)}
               placeholder={`${titel} suchen…`}
-              className="w-full rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="w-full rounded-md border border-text-muted/30 px-2 py-1 text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
 
             {suchtext.trim() && (

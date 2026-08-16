@@ -66,7 +66,7 @@ function TagesplanSucheOverlay({ slot, onWaehlen, onSchliessen }) {
               value={suchtext}
               onChange={(e) => setSuchtext(e.target.value)}
               placeholder={`${slot.titel} suchen…`}
-              className="mt-3 w-full rounded-md border border-text-muted/30 px-2 py-1.5 text-sm text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
+              className="mt-3 w-full rounded-md border border-text-muted/30 px-2 py-1.5 text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
 
             {suchtext.trim() && (

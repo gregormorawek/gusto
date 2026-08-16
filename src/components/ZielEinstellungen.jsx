@@ -86,7 +86,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                   value={ziel.kalorien.min}
                   onChange={(e) => onKalorienAendern('min', e.target.value)}
                   placeholder={ziel.typ === 'proTag' ? 'z. B. 1800' : 'z. B. 500'}
-                  className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text"
+                  className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-text"
                 />
                 kcal
               </label>
@@ -98,7 +98,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                   value={ziel.kalorien.max}
                   onChange={(e) => onKalorienAendern('max', e.target.value)}
                   placeholder={ziel.typ === 'proTag' ? 'z. B. 2200' : 'z. B. 700'}
-                  className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-sm text-text"
+                  className="w-24 rounded-md border border-text-muted/30 px-2 py-1 text-text"
                 />
                 kcal
               </label>
@@ -121,7 +121,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                       value={ziel.makro[kategorie]}
                       onChange={(e) => onMakroAendern(kategorie, e.target.value)}
                       placeholder="–"
-                      className="w-16 rounded-md border border-text-muted/30 px-1.5 py-1 text-xs text-text"
+                      className="w-16 rounded-md border border-text-muted/30 px-1.5 py-1 text-text"
                     />
                     g
                   </label>

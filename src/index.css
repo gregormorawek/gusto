@@ -20,3 +20,18 @@ body {
   color: var(--color-text);
   font-family: var(--font-sans);
 }
+
+/* iOS Safari zoomt beim Fokussieren automatisch in jedes Formularfeld mit
+   einer font-size unter 16px (Safari-Standardverhalten, kein Bug im Code).
+   !important ist hier bewusst, da einzelne Tailwind-Utility-Klassen wie
+   text-sm/text-xs (0,1,0-Spezifitaet) sonst diesen Tag-Selektor (0,0,1)
+   ueberstimmen wuerden - so bleibt der Fix garantiert wirksam, AUCH fuer
+   Felder, die erst kuenftig hinzukommen und dieses Verhalten sonst leicht
+   uebersehen wuerden. Visuelle Verkleinerung bei Bedarf ueber transform:
+   scale() am jeweiligen Element - Safari prueft nur die tatsaechliche
+   font-size, nicht die Darstellungsgroesse nach einem Transform. */
+input,
+select,
+textarea {
+  font-size: 16px !important;
+}
