@@ -131,34 +131,49 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
     <>
       {karte ? (
         <>
-          <AnimatePresence mode="popLayout">
-            <motion.div
-              key={angezeigtesRezept.id}
-              {...motionPropsFuer(reduzierteBewegung, {
-                initial: { opacity: 0 },
-                animate: { opacity: 1 },
-                exit: { opacity: 0 },
-                transition: RECIPE_CARD_FADE,
-              })}
-              className="mx-4 mt-2 rounded-[14px] bg-card p-3 shadow-sm"
-            >
-              {angezeigtesRezept.bild_url && !bildFehlgeschlagen ? (
-                <RezeptBild
-                  key={angezeigtesRezept.bild_url}
-                  url={angezeigtesRezept.bild_url}
-                  alt={angezeigtesRezept.titel}
-                  onError={() => setFehlgeschlageneBildUrl(angezeigtesRezept.bild_url)}
-                />
-              ) : (
-                <div className="flex h-28 w-full items-center justify-center rounded-2xl bg-secondary/10 text-text-muted sm:h-56">
-                  <IconPhotoOff size={32} stroke={1.5} />
-                </div>
-              )}
+          {/* grid statt block: waehrend der Crossfade-Ueberlappung liegen
+              altes UND neues motion.div per col-start-1/row-start-1 in
+              GENAU derselben Grid-Zelle uebereinander (bewaehrter "CSS-
+              Grid-Stack"-Trick) - anders als bei position: absolute braucht
+              das keine manuell gemessene/gesetzte Hoehe, die Zeile sized
+              sich automatisch auf die groessere der beiden Karten. Bewusst
+              OHNE mode="popLayout": das haette dem austretenden Element
+              selbst per JS berechnete inline top/left/width/height-Werte
+              verpasst (Snapshot des BoundingClientRect) - genau das war die
+              Ursache des beobachteten seitlichen Versatzes/"Wanderns", da
+              dieser Snapshot nicht immer exakt mit der Grid-Zelle
+              uebereinstimmte. Ohne popLayout ueberlaesst Framer Motion die
+              Positionierung komplett unserem eigenen CSS. */}
+          <div className="mx-4 mt-2 grid">
+            <AnimatePresence>
+              <motion.div
+                key={angezeigtesRezept.id}
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0 },
+                  animate: { opacity: 1 },
+                  exit: { opacity: 0 },
+                  transition: RECIPE_CARD_FADE,
+                })}
+                className="col-start-1 row-start-1 rounded-[14px] bg-card p-3 shadow-sm"
+              >
+                {angezeigtesRezept.bild_url && !bildFehlgeschlagen ? (
+                  <RezeptBild
+                    key={angezeigtesRezept.bild_url}
+                    url={angezeigtesRezept.bild_url}
+                    alt={angezeigtesRezept.titel}
+                    onError={() => setFehlgeschlageneBildUrl(angezeigtesRezept.bild_url)}
+                  />
+                ) : (
+                  <div className="flex h-28 w-full items-center justify-center rounded-2xl bg-secondary/10 text-text-muted sm:h-56">
+                    <IconPhotoOff size={32} stroke={1.5} />
+                  </div>
+                )}
 
-              <h2 className="mt-2 font-display text-xl font-semibold text-text">{angezeigtesRezept.titel}</h2>
-              <p className="mt-0.5 text-sm text-text-muted">{angezeigtesRezept.beschreibung}</p>
-            </motion.div>
-          </AnimatePresence>
+                <h2 className="mt-2 font-display text-xl font-semibold text-text">{angezeigtesRezept.titel}</h2>
+                <p className="mt-0.5 text-sm text-text-muted">{angezeigtesRezept.beschreibung}</p>
+              </motion.div>
+            </AnimatePresence>
+          </div>
 
           <section className="mt-2 grid grid-cols-2 gap-2 px-4">
             <SlotKarte
