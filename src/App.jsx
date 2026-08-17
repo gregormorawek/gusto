@@ -448,6 +448,43 @@ function leererRerollZaehler() {
 // automatisch erscheint.
 const REROLL_SCHWELLE_FUER_SUCHE = 3
 
+// Kurzer Platzhalter fuer das schmale Zeitfenster zwischen "Pro Tag aktiv"
+// und "erster Tagesplan fertig generiert" (siehe Auto-Generieren-Effekt in
+// App() weiter unten) - der Effekt feuert erst NACH dem ersten Render, ohne
+// dieses Skeleton wuerde dazwischen kurz ein leerer Screen aufblitzen. Bildet
+// grob die Form von TagesplanAnsicht nach (Tages-Summen-Zeile, darunter pro
+// Mahlzeit ein Label + Makro-Pills + 4 Zutaten-Zeilen), rein dekorativ und
+// ohne echte Daten. animate-pulse + motion-reduce:animate-none: dieselbe
+// Konvention wie die uebrigen motion-reduce-Stellen der App (z. B.
+// RezeptKarte.jsx) - unter reduzierter Bewegung bleibt es ein ruhiges,
+// unbewegtes Platzhalter-Grau statt zu pulsieren.
+function TagesplanSkeleton() {
+  return (
+    <div className="mx-4 mt-2 animate-pulse motion-reduce:animate-none" aria-hidden="true">
+      <div className="h-4 w-40 rounded bg-text-muted/15" />
+      {[0, 1, 2, 3].map((mahlzeitIndex) => (
+        <div key={mahlzeitIndex} className="mt-4">
+          <div className="h-3 w-16 rounded bg-secondary/25" />
+          <div className="mt-1 flex gap-1">
+            <div className="h-4 w-14 rounded-full bg-primary/15" />
+            <div className="h-4 w-14 rounded-full bg-secondary/15" />
+            <div className="h-4 w-14 rounded-full bg-secondary/15" />
+          </div>
+          <div className="mt-1">
+            {[0, 1, 2, 3].map((zeileIndex) => (
+              <div key={zeileIndex} className="flex items-center gap-2 border-b border-text-muted/10 py-1">
+                <div className="h-6 w-6 shrink-0 rounded-full bg-text-muted/15" />
+                <div className="h-4 flex-1 rounded bg-text-muted/10" />
+                <div className="h-3 w-8 shrink-0 rounded bg-text-muted/10" />
+              </div>
+            ))}
+          </div>
+        </div>
+      ))}
+    </div>
+  )
+}
+
 function App() {
   // Diese Listen kamen frueher aus hartcodierten Arrays,
   // jetzt fuellen wir sie per useEffect aus der Datenbank.
@@ -1113,10 +1150,52 @@ function App() {
     setTagesplanRerollZaehler(neuerPlan.map(() => leererRerollZaehler()))
   }
 
-  // Wird vom "Ganzen Tag planen"- bzw. "Ganzen Tag neu planen"-Button aufgerufen.
+  // Wird vom Auto-Generieren-Effekt unten (erster Tagesplan) sowie vom
+  // "Ganzen Tag neu planen"-Button aufgerufen.
   function tagPlanen() {
     tagesplanNeuSetzen(tagesplanErzeugen(diaeten, tagesplanMahlzeiten, suessDeftig))
   }
+
+  // Generiert den Tagesplan automatisch, sobald der Planen-Tab MIT aktivem
+  // "Pro Tag"-Ziel sichtbar ist und noch KEIN Plan existiert - ersetzt die
+  // vorherige Zwischenseite mit einem "Ganzen Tag planen"-Button (unnoetiger
+  // Doppel-Klick: der User hat sein Ziel bereits explizit auf "Pro Tag"
+  // gesetzt, ein Tagesplan ist die einzig sinnvolle naechste Ansicht).
+  //
+  // Die !tagesplan-Bedingung ist der entscheidende Schutz: ein reiner Tab-
+  // Wechsel weg von "Planen" und zurueck aendert weder ziel.typ noch
+  // tagesplan, der Effekt haengt aber trotzdem an [ansicht, ...] - ohne
+  // diese Bedingung wuerde JEDER Tab-Wechsel zurueck zu "Planen" den
+  // bestehenden, vom User ggf. schon individuell angepassten Plan (einzelne
+  // Slots nachgewuerfelt) verwerfen und komplett neu wuerfeln. Mit der
+  // Bedingung passiert das nur EINMALIG: beim allerersten Erreichen dieses
+  // Zustands (Erstaufruf mit bereits gespeichertem "Pro Tag"-Ziel ODER
+  // Wechsel von einem anderen Zieltyp zu "Pro Tag", siehe zielTypAendern -
+  // dort wird tagesplan beim Verlassen von "Pro Tag" bewusst auf null
+  // zurueckgesetzt, sodass ein spaeteres Zurueckwechseln zu "Pro Tag" hier
+  // wieder als "neu" erkannt wird).
+  //
+  // BEWUSST NICHT diaeten/tagesplanMahlzeiten/suessDeftig/tagPlanen in der
+  // Dependency-Liste (siehe bereits bestehendes, analoges Muster beim
+  // initialen Laden weiter oben) - eine Reaktion auf DEREN Aenderungen
+  // uebernehmen bereits diaetenAendern/suessDeftigAendern/
+  // tagesplanMahlzeitenAendern selbst (jeweils mit einem "if (tagesplan)"-
+  // Regenerieren an bestehenden Slots), dieser Effekt ist ausschliesslich
+  // fuers ERSTMALIGE Erzeugen zustaendig.
+  //
+  // !laedt ist PFLICHT, nicht nur Kosmetik: bei einem Erstaufruf mit schon
+  // gespeichertem "Pro Tag"-Ziel (siehe zielLaden) sind ansicht/ziel.typ/
+  // tagesplan schon beim ALLERERSTEN Render exakt in der Ausloese-
+  // Konstellation - VOR dem ersten erfolgreichen Laden der Zutaten-Pools
+  // aus Supabase. Ohne diese Bedingung wuerde tagesplanErzeugen() auf noch
+  // leeren Pools laufen und beim Ziehen einer zufaelligen Zutat aus einem
+  // leeren Array abstuerzen (per Test verifiziert).
+  useEffect(() => {
+    if (!laedt && ansicht === 'haupt' && ziel.typ === 'proTag' && !tagesplan) {
+      tagPlanen()
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [laedt, ansicht, ziel.typ, tagesplan])
 
   // Wuerfelt im Tagesplan EINEN Slot (kategorie: protein/carbs/fett/gemuese)
   // einer einzelnen Mahlzeit (index in MAHLZEIT_REIHENFOLGE) neu und
@@ -1383,27 +1462,17 @@ function App() {
             obstOptionen={obstOptionen}
             diaeten={diaeten}
             suessDeftig={suessDeftig}
-            onZurueck={() => setTagesplan(null)}
             onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
             onNeuPlanen={tagPlanen}
           />
         ) : (
-          <div className="mx-4 mt-6 text-center">
-            <AnimatedButton
-              type="button"
-              onClick={tagPlanen}
-              className="w-full rounded-xl bg-primary px-6 py-4 text-lg font-semibold text-card shadow-sm"
-            >
-              Ganzen Tag planen
-            </AnimatedButton>
-            <AnimatedButton
-              type="button"
-              onClick={() => setEinstellungenOffen(true)}
-              className="mt-3 text-sm text-primary hover:underline"
-            >
-              Mahlzeiten anpassen
-            </AnimatedButton>
-          </div>
+          // Kurzes Fenster zwischen "Pro Tag aktiv" und "Plan fertig
+          // generiert" (siehe Auto-Generieren-Effekt oben) - tagesplanErzeugen
+          // selbst ist zwar synchron/lokal (keine Netzwerk-Anfrage, die
+          // Zutaten-Pools sind zu diesem Zeitpunkt schon geladen), der Effekt
+          // feuert aber erst NACH dem ersten Render, wodurch ohne dieses
+          // Skeleton kurz ein leerer Screen aufblitzen wuerde.
+          <TagesplanSkeleton />
         )
       ) : (
         <>

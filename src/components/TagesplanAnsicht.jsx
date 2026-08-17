@@ -52,7 +52,6 @@ function TagesplanAnsicht({
   obstOptionen,
   diaeten,
   suessDeftig,
-  onZurueck,
   onMahlzeitenAnpassen,
   onNeuPlanen,
 }) {
@@ -133,10 +132,13 @@ function TagesplanAnsicht({
 
   return (
     <>
-      <div className="mx-4 mt-2 flex items-center gap-4">
-        <AnimatedButton type="button" onClick={onZurueck} className="text-sm text-primary hover:underline">
-          ← Zurück
-        </AnimatedButton>
+      {/* Kein "← Zurück" mehr: der Tagesplan wird bei aktivem "Pro Tag"-Ziel
+          automatisch generiert (siehe Auto-Generieren-Effekt in App.jsx) und
+          ist dadurch die EINZIGE Ansicht im Planen-Tab fuer diesen Zieltyp -
+          es gibt keine vorgelagerte Zwischenseite mehr, zu der man
+          "zurueck" koennte (analog zum Rezepte-Tagesplan in
+          RezepteAnsicht.jsx, der ebenfalls kein Zurueck kennt). */}
+      <div className="mx-4 mt-2">
         <AnimatedButton type="button" onClick={onMahlzeitenAnpassen} className="text-sm text-primary hover:underline">
           Mahlzeiten anpassen
         </AnimatedButton>
