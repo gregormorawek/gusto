@@ -703,7 +703,9 @@ function App() {
           .eq('aktiv', true),
         supabase
           .from('rezepte')
-          .select('id, titel, beschreibung, bild_url, mahlzeit, eigenschaft, diaeten, protein_zutat_id, carbs_zutat_id, fett_zutat_id, gemuese_obst_zutat_id'),
+          .select(
+            'id, titel, beschreibung, bild_url, mahlzeit, eigenschaft, diaeten, protein_zutat_id, carbs_zutat_id, fett_zutat_id, gemuese_obst_zutat_id, anleitung'
+          ),
       ])
 
       if (zutatenErgebnis.error) {

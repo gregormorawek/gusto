@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { IconPhotoOff } from '@tabler/icons-react'
+import { IconChevronDown, IconPhotoOff } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import SlotKarte from './SlotKarte'
 import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
@@ -85,6 +85,15 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
   // das Bild sichtbar NACHTRAEGLICH rein, waehrend Titel/Zutaten/Summe (die
   // synchron aus dem Prop berechnet werden) schon fertig animiert waren.
   const [angezeigtesRezept, setAngezeigtesRezept] = useState(rezept)
+
+  // Zubereitung startet PRO REZEPT eingeklappt (siehe zubereitungOffen unten)
+  // - beim Rezeptwechsel (Wuerfeln oder Tab-Wechsel) wieder einklappen, sonst
+  // wuerde die neue Karte ueberraschend schon offen mit einer anderen
+  // Schritt-Anzahl erscheinen, obwohl der User dafuer nichts angeklickt hat.
+  const [zubereitungOffen, setZubereitungOffen] = useState(false)
+  useEffect(() => {
+    setZubereitungOffen(false)
+  }, [angezeigtesRezept?.id])
 
   useEffect(() => {
     if (rezept?.id === angezeigtesRezept?.id) {
@@ -211,6 +220,64 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
               P {karte.summeProtein.toFixed(1)}g · K {karte.summeCarbs.toFixed(1)}g · F {karte.summeFett.toFixed(1)}g
             </p>
           </section>
+
+          {/* Zubereitung: standardmaessig eingeklappt, damit die ohnehin
+              schon dichte Karte auf 390px OHNE Scrollen bleibt (Bild/Titel/
+              Beschreibung/Makro-Grid/Summe fuellen die Hoehe bereits aus) -
+              nur der schmale Toggle-Button kostet permanent Platz, die
+              Schritte selbst erst nach explizitem Antippen. height: 'auto'
+              per Framer Motion reicht hier (anders als in ZielEinstellungen)
+              voellig aus - keine ResizeObserver-Messung noetig, da hier kein
+              Margin-Collapse-Bug vorliegt und die Liste kein Geschwister-
+              Element ist, dessen Austritts-Animation die Hoehe verfaelscht. */}
+          {angezeigtesRezept.anleitung?.length > 0 && (
+            <section className="mx-4 mt-2">
+              <AnimatedButton
+                type="button"
+                onClick={() => setZubereitungOffen((offen) => !offen)}
+                aria-expanded={zubereitungOffen}
+                className="flex w-full items-center justify-between rounded-lg border border-text-muted/20 bg-card px-3 py-2 text-sm font-medium text-text shadow-sm"
+              >
+                <span>{zubereitungOffen ? 'Zubereitung ausblenden' : 'Zubereitung anzeigen'}</span>
+                <IconChevronDown
+                  size={18}
+                  stroke={1.75}
+                  className={`shrink-0 text-text-muted transition-transform duration-200 motion-reduce:transition-none ${
+                    zubereitungOffen ? 'rotate-180' : ''
+                  }`}
+                  aria-hidden="true"
+                />
+              </AnimatedButton>
+
+              <AnimatePresence initial={false}>
+                {zubereitungOffen && (
+                  <motion.div
+                    {...motionPropsFuer(reduzierteBewegung, {
+                      initial: { height: 0, opacity: 0 },
+                      animate: { height: 'auto', opacity: 1 },
+                      exit: { height: 0, opacity: 0 },
+                      transition: { duration: 0.25, ease: 'easeOut' },
+                    })}
+                    className="overflow-hidden"
+                  >
+                    <ol className="mt-2 space-y-1.5 rounded-lg bg-secondary/10 p-3 text-sm text-text">
+                      {/* anleitung ist ein Array aus { text, aktion } (jsonb in
+                          Supabase) - aktion wird hier noch NICHT ausgewertet
+                          (kein Icon pro Schritt), ist aber bereits Teil des
+                          Datenformats fuer den geplanten eigenen Kochmodus mit
+                          animierten Schritt-Icons. */}
+                      {angezeigtesRezept.anleitung.map((schritt, index) => (
+                        <li key={index} className="flex gap-2">
+                          <span className="font-display font-semibold text-secondary">{index + 1}.</span>
+                          <span>{schritt.text}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </motion.div>
+                )}
+              </AnimatePresence>
+            </section>
+          )}
         </>
       ) : (
         <p className="mx-4 mt-2 text-text-muted">Für diese Filterkombination gibt es noch kein Rezept.</p>
