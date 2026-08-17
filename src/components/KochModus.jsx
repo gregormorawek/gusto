@@ -52,11 +52,22 @@ const SCHLIESS_DISTANZ_PX = 120
 const SCHLIESS_GESCHWINDIGKEIT_PX_S = 500
 
 // Maximale Backdrop-Intensitaet bei voll geoeffnetem Sheet (y=0) - espresso-
-// farben statt neutral-schwarz: bg-text ist bereits der dunkle Warmton
-// (#3E2E22) aus dem Marken-Farbschema, hier nur mit reduzierter Deckkraft
-// als Abdunklung verwendet. KEIN neuer Farbwert (siehe CLAUDE.md).
+// farben statt neutral-schwarz: --color-text ist bereits der dunkle Warmton
+// (#3E2E22) aus dem Marken-Farbschema, hier per color-mix() mit reduzierter
+// Deckkraft als Abdunklung verwendet. KEIN neuer Farbwert (siehe CLAUDE.md).
+//
+// BEWUSST color-mix(in srgb, var(--color-text) X%, transparent) als
+// background-color statt (wie urspruenglich) die CSS-Eigenschaft "opacity"
+// auf dem ganzen Backdrop-Element: opacity wirkt auf das GESAMTE Element
+// INKLUSIVE seines eigenen backdrop-filter-Ergebnisses und "verduennt" den
+// dadurch berechneten Blur in Chromium fast bis zur Unsichtbarkeit (per
+// isoliertem Test bestaetigt - derselbe Blur-Wert ist mit opacity kaum
+// erkennbar, mit einer alpha-transparenten background-color dagegen klar
+// sichtbar). color-mix() liefert dieselbe visuelle Abdunklung OHNE die
+// opacity-Eigenschaft anzufassen, backdrop-filter bleibt dadurch bei voller
+// Blur-Staerke sichtbar.
 const BACKDROP_BLUR_MAX_PX = 14
-const BACKDROP_DIM_MAX_OPACITY = 0.45
+const BACKDROP_DIM_MAX_PERCENT = 45
 
 // Federparameter fuers Schliessen per Drag - bewusst mit der tatsaechlichen
 // Loslass-Geschwindigkeit (velocity) angestossen, damit sich das Zuziehen wie
@@ -201,18 +212,30 @@ function KochModusSheet({ eintrag, onZurueck, erledigteSchritte, onSchrittUmscha
   // Tween-Animation kommt.
   const y = useMotionValue(sheetHoehe)
   const blurPx = useTransform(y, [0, sheetHoehe], [BACKDROP_BLUR_MAX_PX, 0])
-  const dimOpacity = useTransform(y, [0, sheetHoehe], [BACKDROP_DIM_MAX_OPACITY, 0])
+  const dimPercent = useTransform(y, [0, sheetHoehe], [BACKDROP_DIM_MAX_PERCENT, 0])
   const backdropFilterWert = useMotionTemplate`blur(${blurPx}px)`
+  const backdropHintergrundWert = useMotionTemplate`color-mix(in srgb, var(--color-text) ${dimPercent}%, transparent)`
+
+  // EINZIGER Schliess-Pfad fuer alle drei Ausloeser (Drag-Wegziehen, "←
+  // Zurück"-Button, Tap auf den Hintergrund-Streifen) - alle rufen diese
+  // Funktion auf, damit sich das Sheet IMMER sichtbar zuzieht statt bei
+  // Button/Tap nur zu verblassen. startGeschwindigkeit ist bei einer echten
+  // Drag-Geste die tatsaechliche Loslass-Geschwindigkeit (natuerliche
+  // Fortsetzung der Wischgeste), bei Button/Tap 0 (kein Schwung vorhanden).
+  // Erst zuende animieren, DANACH erst onZurueck - sonst wuerde React das
+  // Sheet mitten in der eigenen Zuzieh-Animation unmounten.
+  function schliessen(startGeschwindigkeit = 0) {
+    if (reduzierteBewegung) {
+      onZurueck()
+      return
+    }
+    animate(y, sheetHoehe, { ...DRAG_SCHLIESSEN_SPRING, velocity: startGeschwindigkeit, onComplete: onZurueck })
+  }
 
   function handleDragEnd(_event, info) {
-    const schliessen = info.offset.y > SCHLIESS_DISTANZ_PX || info.velocity.y > SCHLIESS_GESCHWINDIGKEIT_PX_S
-    if (schliessen) {
-      // Erst zuende animieren (mit der tatsaechlichen Loslass-Geschwindigkeit
-      // als Startimpuls), DANACH erst onZurueck - sonst wuerde React das
-      // Sheet mitten in der eigenen Zuzieh-Animation unmounten und dabei auf
-      // die starre SHEET_SLIDE_UEBERGANG-Exit-Animation umspringen, was sich
-      // wie ein Ruckler anfuehlen wuerde.
-      animate(y, sheetHoehe, { ...DRAG_SCHLIESSEN_SPRING, velocity: info.velocity.y, onComplete: onZurueck })
+    const sollSchliessen = info.offset.y > SCHLIESS_DISTANZ_PX || info.velocity.y > SCHLIESS_GESCHWINDIGKEIT_PX_S
+    if (sollSchliessen) {
+      schliessen(info.velocity.y)
     } else {
       animate(y, 0, SPRING_REVEAL)
     }
@@ -262,29 +285,52 @@ function KochModusSheet({ eintrag, onZurueck, erledigteSchritte, onSchrittUmscha
     <>
       {/* Backdrop: geblurrte + espressofarben abgedunkelte darunterliegende
           RezeptKarte, Intensitaet direkt von y abgeleitet (siehe blurPx/
-          dimOpacity oben) - laeuft dadurch live mit, ob der Nutzer gerade
-          zieht oder die Tween-Animation laeuft. Unter reduzierter Bewegung
-          bewusst STATISCHE Werte (kein Blur-UEBERGANG, siehe Aufgabenstellung)
-          statt der y-gekoppelten Transforms, da unter reduzierter Bewegung
-          ohnehin nicht gezogen werden kann (drag ist unten deaktiviert) - y
-          wuerde sonst konstant bei 0 stehen und permanent volle Intensitaet
-          liefern, was fuer EXIT (Schliessen) falsch waere. */}
-      <motion.div
-        className="fixed inset-0 z-40 bg-text"
+          dimPercent oben) - laeuft dadurch live mit, ob der Nutzer gerade
+          zieht oder die Tween-Animation laeuft. ZUSAETZLICH ein echter
+          <button>, kein reines Deko-Div: ein Tap auf den sichtbaren
+          Hintergrund-Streifen oberhalb des Sheets schliesst es ueber
+          denselben schliessen()-Pfad wie Drag/"← Zurück" (siehe Aufgabe).
+          Der Button ist zwar "fixed inset-0" (volle Viewport-Groesse), aber
+          nur der obere Streifen ist tatsaechlich TREFFBAR - der Rest liegt
+          unter dem Sheet (z-50), das seinerseits eigene Klick-Ziele hat.
+          Unter reduzierter Bewegung bewusst STATISCHE Werte (kein Blur-
+          UEBERGANG, siehe Aufgabenstellung) statt der y-gekoppelten
+          Transforms, da unter reduzierter Bewegung ohnehin nicht gezogen
+          werden kann (drag ist unten deaktiviert) - y wuerde sonst konstant
+          bei 0 stehen und permanent volle Intensitaet liefern, was fuer
+          EXIT (Schliessen) falsch waere. exit setzt Blur/Hintergrund
+          zusaetzlich explizit auf 0 zurueck, damit beim (dort instantanen)
+          Schliessen kein Rest-Blur haengen bleibt, auch wenn opacity 0
+          das ohnehin schon unsichtbar macht. */}
+      <motion.button
+        type="button"
+        aria-label="Kochmodus schließen"
+        onClick={() => schliessen()}
+        className="fixed inset-0 z-40 cursor-default"
         style={
           reduzierteBewegung
             ? undefined
-            : { opacity: dimOpacity, backdropFilter: backdropFilterWert, WebkitBackdropFilter: backdropFilterWert }
+            : { backgroundColor: backdropHintergrundWert, backdropFilter: backdropFilterWert, WebkitBackdropFilter: backdropFilterWert }
         }
-        initial={reduzierteBewegung ? { opacity: 0 } : undefined}
-        animate={
+        initial={
           reduzierteBewegung
-            ? { opacity: BACKDROP_DIM_MAX_OPACITY, backdropFilter: `blur(${BACKDROP_BLUR_MAX_PX}px)` }
+            ? { backgroundColor: 'color-mix(in srgb, var(--color-text) 0%, transparent)', backdropFilter: 'blur(0px)' }
             : undefined
         }
-        exit={reduzierteBewegung ? { opacity: 0 } : undefined}
+        animate={
+          reduzierteBewegung
+            ? {
+                backgroundColor: `color-mix(in srgb, var(--color-text) ${BACKDROP_DIM_MAX_PERCENT}%, transparent)`,
+                backdropFilter: `blur(${BACKDROP_BLUR_MAX_PX}px)`,
+              }
+            : undefined
+        }
+        exit={
+          reduzierteBewegung
+            ? { backgroundColor: 'color-mix(in srgb, var(--color-text) 0%, transparent)', backdropFilter: 'blur(0px)' }
+            : undefined
+        }
         transition={reduzierteBewegung ? { duration: 0.15 } : undefined}
-        aria-hidden="true"
       />
 
       <motion.div
@@ -306,7 +352,7 @@ function KochModusSheet({ eintrag, onZurueck, erledigteSchritte, onSchrittUmscha
         <div onPointerDown={handlePointerDownKopfbereich} className="shrink-0 touch-none pb-1 pt-2">
           <div className="mx-auto h-1 w-10 rounded-full bg-text-muted" />
           <div className="mt-2 flex items-center justify-between px-4">
-            <AnimatedButton type="button" onClick={onZurueck} className="text-sm text-primary hover:underline">
+            <AnimatedButton type="button" onClick={() => schliessen()} className="text-sm text-primary hover:underline">
               ← Zurück
             </AnimatedButton>
             <p className="text-sm font-medium text-text-muted">
