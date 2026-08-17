@@ -17,7 +17,7 @@ const DIAET_LABEL = {
 // proTag gesetzt) - Reihenfolge wie in ZielEinstellungen.
 const MAKRO_FELDER = [
   { kategorie: 'protein', label: 'P' },
-  { kategorie: 'carbs', label: 'C' },
+  { kategorie: 'carbs', label: 'K' },
   { kategorie: 'fett', label: 'F' },
 ]
 

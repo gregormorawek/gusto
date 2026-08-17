@@ -150,7 +150,7 @@ function TagesplanAnsicht({
       <div className="mx-4 mt-1 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-sm text-text-muted">
           Tag gesamt: <span className="font-semibold text-text">{gesamtKalorien.toFixed(0)} kcal</span> · P{' '}
-          {gesamtProtein.toFixed(0)}g · C {gesamtCarbs.toFixed(0)}g · F {gesamtFett.toFixed(0)}g
+          {gesamtProtein.toFixed(0)}g · K {gesamtCarbs.toFixed(0)}g · F {gesamtFett.toFixed(0)}g
         </p>
         <AnimatedButton type="button" onClick={onNeuPlanen} className="shrink-0 text-sm text-primary hover:underline">
           Ganzen Tag neu planen
@@ -165,13 +165,13 @@ function TagesplanAnsicht({
           <h2 className="text-xs font-semibold uppercase tracking-wide text-secondary">{labelFuer(eintrag.mahlzeitTyp)}</h2>
           {/* Dieselben Werte wie bisher (Fliesstext-Zeile) - jetzt als kleine
               Badge-Pills statt eines Satzes: kcal terrakotta-getoent (die
-              "Headline"-Zahl), P/C/F gemeinsam oliv-getoent (die
+              "Headline"-Zahl), P/K/F gemeinsam oliv-getoent (die
               Aufschluesselung darunter) - beides aus den bestehenden
               primary/secondary-Tokens bei ~15% Deckkraft. */}
           <div className="mb-1 flex flex-wrap gap-1">
             <MakroPill ton="primary">{eintrag.summeKalorien.toFixed(0)} kcal</MakroPill>
             <MakroPill ton="secondary">P {eintrag.summeProtein.toFixed(1)}g</MakroPill>
-            <MakroPill ton="secondary">C {eintrag.summeCarbs.toFixed(1)}g</MakroPill>
+            <MakroPill ton="secondary">K {eintrag.summeCarbs.toFixed(1)}g</MakroPill>
             <MakroPill ton="secondary">F {eintrag.summeFett.toFixed(1)}g</MakroPill>
           </div>
 

@@ -1410,7 +1410,7 @@ function App() {
             <h2 className="text-lg font-semibold text-text">Summe</h2>
             <p className="font-display text-3xl font-semibold text-text">{summeKalorien.toFixed(1)} kcal</p>
             <p className="text-text-muted">
-              P {summeProtein.toFixed(1)}g · C {summeCarbs.toFixed(1)}g · F {summeFett.toFixed(1)}g
+              P {summeProtein.toFixed(1)}g · K {summeCarbs.toFixed(1)}g · F {summeFett.toFixed(1)}g
             </p>
           </section>
 

@@ -241,7 +241,7 @@ function RezepteTagesplan({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, t
       <div className="mx-4 mt-2 flex flex-wrap items-baseline justify-between gap-x-3 gap-y-1">
         <p className="text-sm text-text-muted">
           Tag gesamt: <span className="font-semibold text-text">{tagesSumme.kalorien.toFixed(0)} kcal</span> · P{' '}
-          {tagesSumme.protein.toFixed(0)}g · C {tagesSumme.carbs.toFixed(0)}g · F {tagesSumme.fett.toFixed(0)}g
+          {tagesSumme.protein.toFixed(0)}g · K {tagesSumme.carbs.toFixed(0)}g · F {tagesSumme.fett.toFixed(0)}g
         </p>
         <AnimatedButton
           type="button"

@@ -208,7 +208,7 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
             <h2 className="text-sm font-semibold text-text">Summe</h2>
             <p className="font-display text-2xl font-semibold text-text">{karte.summeKalorien.toFixed(1)} kcal</p>
             <p className="text-sm text-text-muted">
-              P {karte.summeProtein.toFixed(1)}g · C {karte.summeCarbs.toFixed(1)}g · F {karte.summeFett.toFixed(1)}g
+              P {karte.summeProtein.toFixed(1)}g · K {karte.summeCarbs.toFixed(1)}g · F {karte.summeFett.toFixed(1)}g
             </p>
           </section>
         </>
