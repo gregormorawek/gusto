@@ -1,4 +1,5 @@
 import { useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import {
   IconBowl,
   IconCheck,
@@ -13,6 +14,7 @@ import {
 } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import AnimierteZahl from './AnimierteZahl'
+import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 
 // aktion -> Icon, feste Zuordnung fuer die 8 erlaubten Werte (siehe
 // CLAUDE.md, "Neue kuratierte Rezepte"). Rein statisch fuer jetzt - ein
@@ -29,23 +31,13 @@ const AKTION_ICON = {
   servieren: IconToolsKitchen2,
 }
 
-// Grossflaechige Detail-Ansicht fuer EIN Rezept: groesseres Bild, Titel,
-// Beschreibung, eine kompakte Zutaten-Referenz (NICHT die vollen SlotKarte-
-// Kacheln aus RezeptKarte - hier reicht Name+Menge zum schnellen
-// Nachschauen waehrend des Kochens) und die vollstaendige, abhakbare
-// Kochanleitung. Bewusst KEINE eigene Route (die App verwendet nirgends
-// react-router) - RezeptKarte.jsx haelt den offen/geschlossen-Zustand
-// lokal und rendert diese Komponente einfach anstelle der Karte, genau wie
-// TagesplanAnsicht.jsx die Tagesplan-Detailansicht anstelle des "Ganzen Tag
-// planen"-Buttons rendert.
-//
-// erledigteSchritte ist bewusst reiner In-Memory-State (Set von Indizes) in
-// dieser Komponente selbst - kein localStorage. Verlaesst man die Seite
-// (onZurueck) und kommt zurueck, ist die Komponente neu gemountet und der
-// Haken-Status damit wieder leer. Das ist so gewollt (siehe CLAUDE.md) - ob
-// der Fortschritt spaeter dauerhaft gespeichert wird, soll ueber einen
-// eigenen Einstellungen-Toggle entschieden werden, nicht hier fix verdrahtet.
-function KochModus({ rezept, karte, onZurueck }) {
+// Der eigentliche Seiteninhalt - ausgelagert aus KochModus (siehe unten),
+// damit der Fixed-Overlay-Wrapper NUR fuer die Ein-/Ausblende-Animation und
+// den Scroll-Container zustaendig ist, waehrend dieser Teil rein den Inhalt
+// beschreibt. eintrag ist { rezept, karte } (siehe App.jsx), nie null - der
+// Aufrufer rendert KochModusInhalt nur, wenn eintrag tatsaechlich gesetzt ist.
+function KochModusInhalt({ eintrag, onZurueck }) {
+  const { rezept, karte } = eintrag
   const [erledigteSchritte, setErledigteSchritte] = useState(() => new Set())
 
   function schrittUmschalten(index) {
@@ -72,20 +64,32 @@ function KochModus({ rezept, karte, onZurueck }) {
   ]
 
   return (
-    <div className="pb-4">
-      <AnimatedButton type="button" onClick={onZurueck} className="mx-4 mt-2 text-sm text-primary hover:underline">
-        ← Zurück
-      </AnimatedButton>
+    <div className="pb-6">
+      {/* Eigener, minimaler Kopfbereich NUR fuer den Kochmodus - ersetzt die
+          sonst hier sichtbare App-Navigation (Planen/Rezepte-Tabs, Tag-
+          gesamt-Header, Mahlzeiten-Filter, Zahnrad), die dank des Fixed-
+          Overlays in KochModus (siehe unten) komplett verdeckt ist. Rechts
+          ein simpler Fortschritts-Text statt einer Progressbar - reicht fuer
+          "wie weit bin ich", ohne einen weiteren visuellen Balken einzufuehren. */}
+      <div className="flex items-center justify-between px-4 pt-4">
+        <AnimatedButton type="button" onClick={onZurueck} className="text-sm text-primary hover:underline">
+          ← Zurück
+        </AnimatedButton>
+        <p className="text-sm font-medium text-text-muted">
+          {erledigteSchritte.size}/{rezept.anleitung.length} Schritte
+        </p>
+      </div>
 
-      <div className="mx-4 mt-2">
+      {/* Randloses Bild ueber die volle Breite (kein mx-4, kein rounded) -
+          bewusster Kontrast zur kompakten RezeptKarte, in der das Bild noch
+          in eine gepolsterte Karte eingebettet ist. Hoeher als dort (h-56
+          statt h-48, sm:h-80 statt sm:h-72), da hier mehr vertikaler Raum
+          zur Verfuegung steht. */}
+      <div className="mt-3">
         {rezept.bild_url ? (
-          <img
-            src={rezept.bild_url}
-            alt={rezept.titel}
-            className="h-48 w-full rounded-2xl object-cover sm:h-72"
-          />
+          <img src={rezept.bild_url} alt={rezept.titel} className="h-56 w-full object-cover sm:h-80" />
         ) : (
-          <div className="flex h-48 w-full items-center justify-center rounded-2xl bg-secondary/10 text-text-muted sm:h-72">
+          <div className="flex h-56 w-full items-center justify-center bg-secondary/10 text-text-muted sm:h-80">
             <IconPhotoOff size={40} stroke={1.5} />
           </div>
         )}
@@ -150,6 +154,51 @@ function KochModus({ rezept, karte, onZurueck }) {
         })}
       </ol>
     </div>
+  )
+}
+
+// Echter Vollbild-Takeover statt eines Abschnitts INNERHALB der Rezepte-
+// Ansicht: ein "fixed inset-0"-Overlay ueber der gesamten App, das die
+// bisherige Navigation (Planen/Rezepte-Tabs, Tag-gesamt-Header, Mahlzeiten-
+// Filter, Zahnrad) optisch komplett verdeckt (deren Inhalt bleibt darunter
+// zwar gemountet, ist aber unsichtbar - genau wie EinstellungenPanel.jsx es
+// bereits fuer sein Overlay macht, nur ohne dessen Backdrop-Klick-zum-
+// Schliessen, da der Kochmodus eine eigene Seite ist, kein Dialog).
+//
+// eintrag kommt von App.jsx (State auf Top-Level, siehe dortiger Kommentar)
+// - { rezept, karte } | null. karte ist ein REINER Momentaufnahme-Snapshot
+// vom Oeffnen-Zeitpunkt (rezeptKarteBerechnen-Ergebnis), kein State mehr:
+// da das Zahnrad (und damit jede Moeglichkeit, ziel/makroZiele waehrend des
+// Kochmodus zu aendern) verdeckt ist, kann er waehrend der Session ohnehin
+// nicht veralten.
+//
+// Slide-up (Bottom-Sheet-artig) statt des frueheren reinen Fade+Scale:
+// SPRING_REVEAL (bestehendes Preset, siehe motionConfig.js - dort explizit
+// auch fuer "Panel-Oeffnen" vorgesehen) auf y (100% -> 0) KOMBINIERT mit
+// opacity, nicht nur y allein - motionPropsFuer() strippt bei reduzierter
+// Bewegung ausschliesslich Props, die einen opacity-Key enthalten (siehe
+// nurOpacity() dort), ein reiner y-Wert ohne opacity wuerde also NICHT
+// automatisch deaktiviert. Mit opacity im selben Objekt wird daraus bei
+// reduzierter Bewegung korrekt ein reines, bewegungsloses Fade.
+function KochModus({ eintrag, onZurueck }) {
+  const reduzierteBewegung = useReducedMotion()
+
+  return (
+    <AnimatePresence>
+      {eintrag && (
+        <motion.div
+          {...motionPropsFuer(reduzierteBewegung, {
+            initial: { opacity: 0, y: '100%' },
+            animate: { opacity: 1, y: 0 },
+            exit: { opacity: 0, y: '100%' },
+            transition: SPRING_REVEAL,
+          })}
+          className="fixed inset-0 z-50 overflow-y-auto bg-bg"
+        >
+          <KochModusInhalt eintrag={eintrag} onZurueck={onZurueck} />
+        </motion.div>
+      )}
+    </AnimatePresence>
   )
 }
 

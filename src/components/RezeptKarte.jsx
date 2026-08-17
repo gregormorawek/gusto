@@ -3,9 +3,34 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { IconChefHat, IconPhotoOff } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import SlotKarte from './SlotKarte'
-import KochModus from './KochModus'
 import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
-import { FADE_UEBERGANG, motionPropsFuer } from '../motionConfig'
+import { motionPropsFuer } from '../motionConfig'
+
+// Zwei kleine, gegenlaeufig getimte Dampf-Schwaden ueber dem Kochmuetzen-
+// Icon im "Jetzt kochen"-Button - rein dekorativ, dezent geloopt (der Button
+// ist ja dauerhaft sichtbar, keine einmalige Reveal-Animation). Nur lokal
+// hier definiert (nicht in motionConfig.js) - bislang die einzige
+// Verwendungsstelle fuer eine ENDLOS-Loop-Animation, alle bisherigen Presets
+// dort sind einmalige Ein-/Ausblende-Effekte. Wird vom Aufrufer NUR bei
+// aktiver Bewegung gerendert (siehe reduzierteBewegung-Check unten an der
+// Verwendungsstelle) - komplett weggelassen statt nur pausiert, damit unter
+// reduzierter Bewegung wirklich keine Restanimation im DOM haengen bleibt.
+function DampfSchwaden() {
+  return (
+    <>
+      <motion.span
+        className="absolute -top-1 left-1 h-1 w-1 rounded-full bg-card/70 blur-[1px]"
+        animate={{ y: [0, -8, -14], opacity: [0, 0.8, 0] }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut', delay: 0 }}
+      />
+      <motion.span
+        className="absolute -top-1 right-1 h-1 w-1 rounded-full bg-card/70 blur-[1px]"
+        animate={{ y: [0, -8, -14], opacity: [0, 0.8, 0] }}
+        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut', delay: 0.5 }}
+      />
+    </>
+  )
+}
 
 // Reiner Crossfade fuer den Kartenwechsel (Tab-Wechsel UND Wuerfeln, seit
 // key={angezeigtesRezept.id} unten identisch ausgeloest) - bewusst OHNE
@@ -70,7 +95,16 @@ function RezeptBild({ url, alt, onError }) {
 // damit beide Buttons EINE Zeile teilen statt zwei (wichtig fuer die
 // 390px-ohne-Scrollen-Vorgabe) - die Einzel-Ansicht laesst die Prop weg und
 // bleibt dadurch unveraendert bei einem einzelnen, vollbreiten Button.
-function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuerfelnDeaktiviert, zusatzAktion }) {
+function RezeptKarte({
+  rezept,
+  zutatenNachId,
+  ziel,
+  makroZiele,
+  onWuerfeln,
+  wuerfelnDeaktiviert,
+  zusatzAktion,
+  onKochModusOeffnen,
+}) {
   const reduzierteBewegung = useReducedMotion()
   // Merkt sich die zuletzt FEHLGESCHLAGENE bild_url (statt eines simplen
   // Boolean) - so setzt sich der Fallback beim naechsten Rezept automatisch
@@ -86,15 +120,6 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
   // das Bild sichtbar NACHTRAEGLICH rein, waehrend Titel/Zutaten/Summe (die
   // synchron aus dem Prop berechnet werden) schon fertig animiert waren.
   const [angezeigtesRezept, setAngezeigtesRezept] = useState(rezept)
-
-  // Kochmodus schliesst sich PRO REZEPT (siehe kochModusOffen unten) - beim
-  // Rezeptwechsel (Wuerfeln oder Tab-Wechsel) automatisch zurueck zur Karte,
-  // sonst wuerde die neue Karte ueberraschend schon im Kochmodus des VORHER
-  // angezeigten Rezepts landen.
-  const [kochModusOffen, setKochModusOffen] = useState(false)
-  useEffect(() => {
-    setKochModusOffen(false)
-  }, [angezeigtesRezept?.id])
 
   useEffect(() => {
     if (rezept?.id === angezeigtesRezept?.id) {
@@ -137,156 +162,134 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
   const karte = rezeptKarteBerechnen(angezeigtesRezept, zutatenNachId, ziel, makroZiele)
   const bildFehlgeschlagen = angezeigtesRezept && fehlgeschlageneBildUrl === angezeigtesRezept.bild_url
 
-  // Kochmodus ersetzt die GESAMTE Karte (inkl. Wuerfeln-Button-Zeile) durch
-  // KochModus.jsx, nicht nur einen Teilbereich - deshalb ein Fade auf dieser
-  // aeusseren Ebene (mode="wait": erst die alte Ansicht komplett ausblenden,
-  // dann die neue einblenden, statt beide kurz uebereinander zu zeigen - bei
-  // so unterschiedlichen Layouts/Hoehen waere ein ueberlappender Crossfade
-  // hier unruhig statt der bewusst dezente Ein-/Ausblende-Effekt). Folgt
-  // damit demselben Lokal-State-Prinzip wie TagesplanAnsicht.jsx ("Ganzen
-  // Tag planen" ersetzt den Button durch die Detailansicht) - kein Routing.
   return (
-    <AnimatePresence mode="wait">
-      {karte && kochModusOffen ? (
-        <motion.div
-          key="kochmodus"
-          {...motionPropsFuer(reduzierteBewegung, {
-            initial: { opacity: 0 },
-            animate: { opacity: 1 },
-            exit: { opacity: 0 },
-            transition: FADE_UEBERGANG,
-          })}
-        >
-          <KochModus rezept={angezeigtesRezept} karte={karte} onZurueck={() => setKochModusOffen(false)} />
-        </motion.div>
-      ) : (
-        <motion.div
-          key="karte"
-          {...motionPropsFuer(reduzierteBewegung, {
-            initial: { opacity: 0 },
-            animate: { opacity: 1 },
-            exit: { opacity: 0 },
-            transition: FADE_UEBERGANG,
-          })}
-        >
-          {karte ? (
-            <>
-              {/* grid statt block: waehrend der Crossfade-Ueberlappung liegen
-                  altes UND neues motion.div per col-start-1/row-start-1 in
-                  GENAU derselben Grid-Zelle uebereinander (bewaehrter "CSS-
-                  Grid-Stack"-Trick) - anders als bei position: absolute braucht
-                  das keine manuell gemessene/gesetzte Hoehe, die Zeile sized
-                  sich automatisch auf die groessere der beiden Karten. Bewusst
-                  OHNE mode="popLayout": das haette dem austretenden Element
-                  selbst per JS berechnete inline top/left/width/height-Werte
-                  verpasst (Snapshot des BoundingClientRect) - genau das war die
-                  Ursache des beobachteten seitlichen Versatzes/"Wanderns", da
-                  dieser Snapshot nicht immer exakt mit der Grid-Zelle
-                  uebereinstimmte. Ohne popLayout ueberlaesst Framer Motion die
-                  Positionierung komplett unserem eigenen CSS. */}
-              <div className="mx-4 mt-2 grid">
-                <AnimatePresence>
-                  <motion.div
-                    key={angezeigtesRezept.id}
-                    {...motionPropsFuer(reduzierteBewegung, {
-                      initial: { opacity: 0 },
-                      animate: { opacity: 1 },
-                      exit: { opacity: 0 },
-                      transition: RECIPE_CARD_FADE,
-                    })}
-                    className="col-start-1 row-start-1 rounded-[14px] bg-card p-3 shadow-sm"
-                  >
-                    {angezeigtesRezept.bild_url && !bildFehlgeschlagen ? (
-                      <RezeptBild
-                        key={angezeigtesRezept.bild_url}
-                        url={angezeigtesRezept.bild_url}
-                        alt={angezeigtesRezept.titel}
-                        onError={() => setFehlgeschlageneBildUrl(angezeigtesRezept.bild_url)}
-                      />
-                    ) : (
-                      <div className="flex h-28 w-full items-center justify-center rounded-2xl bg-secondary/10 text-text-muted sm:h-56">
-                        <IconPhotoOff size={32} stroke={1.5} />
-                      </div>
-                    )}
+    <>
+      {karte ? (
+        <>
+          {/* grid statt block: waehrend der Crossfade-Ueberlappung liegen
+              altes UND neues motion.div per col-start-1/row-start-1 in
+              GENAU derselben Grid-Zelle uebereinander (bewaehrter "CSS-
+              Grid-Stack"-Trick) - anders als bei position: absolute braucht
+              das keine manuell gemessene/gesetzte Hoehe, die Zeile sized
+              sich automatisch auf die groessere der beiden Karten. Bewusst
+              OHNE mode="popLayout": das haette dem austretenden Element
+              selbst per JS berechnete inline top/left/width/height-Werte
+              verpasst (Snapshot des BoundingClientRect) - genau das war die
+              Ursache des beobachteten seitlichen Versatzes/"Wanderns", da
+              dieser Snapshot nicht immer exakt mit der Grid-Zelle
+              uebereinstimmte. Ohne popLayout ueberlaesst Framer Motion die
+              Positionierung komplett unserem eigenen CSS. */}
+          <div className="mx-4 mt-2 grid">
+            <AnimatePresence>
+              <motion.div
+                key={angezeigtesRezept.id}
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0 },
+                  animate: { opacity: 1 },
+                  exit: { opacity: 0 },
+                  transition: RECIPE_CARD_FADE,
+                })}
+                className="col-start-1 row-start-1 rounded-[14px] bg-card p-3 shadow-sm"
+              >
+                {angezeigtesRezept.bild_url && !bildFehlgeschlagen ? (
+                  <RezeptBild
+                    key={angezeigtesRezept.bild_url}
+                    url={angezeigtesRezept.bild_url}
+                    alt={angezeigtesRezept.titel}
+                    onError={() => setFehlgeschlageneBildUrl(angezeigtesRezept.bild_url)}
+                  />
+                ) : (
+                  <div className="flex h-28 w-full items-center justify-center rounded-2xl bg-secondary/10 text-text-muted sm:h-56">
+                    <IconPhotoOff size={32} stroke={1.5} />
+                  </div>
+                )}
 
-                    <h2 className="mt-2 font-display text-xl font-semibold text-text">{angezeigtesRezept.titel}</h2>
-                    <p className="mt-0.5 text-sm text-text-muted">{angezeigtesRezept.beschreibung}</p>
-                  </motion.div>
-                </AnimatePresence>
-              </div>
-
-              <section className="mt-2 grid grid-cols-2 gap-2 px-4">
-                <SlotKarte
-                  titel="Protein"
-                  text={karte.proteinZutat.name}
-                  portion={karte.portionen.proteinPortion}
-                  zielWert={karte.makroZieleFuerRezept.protein}
-                  zielErreichbar={karte.portionen.proteinZielErreichbar}
-                />
-                <SlotKarte
-                  titel="Kohlenhydrate"
-                  text={karte.carbsZutat.name}
-                  portion={karte.portionen.carbsPortion}
-                  zielWert={karte.makroZieleFuerRezept.carbs}
-                  zielErreichbar={karte.portionen.carbsZielErreichbar}
-                />
-                <SlotKarte
-                  titel="Fett"
-                  text={karte.fettZutat.name}
-                  portion={karte.portionen.fettPortion}
-                  zielWert={karte.makroZieleFuerRezept.fett}
-                  zielErreichbar={karte.portionen.fettZielErreichbar}
-                />
-                <SlotKarte
-                  titel={karte.gemueseZutat.kategorie === 'obst' ? 'Obst' : 'Gemüse'}
-                  text={karte.gemueseZutat.name}
-                  portion={karte.portionen.gemuesePortion}
-                />
-              </section>
-
-              <section className="mx-4 mt-2 rounded-lg border border-secondary/20 bg-secondary/10 p-2 shadow-sm">
-                <h2 className="text-sm font-semibold text-text">Summe</h2>
-                <p className="font-display text-2xl font-semibold text-text">{karte.summeKalorien.toFixed(1)} kcal</p>
-                <p className="text-sm text-text-muted">
-                  P {karte.summeProtein.toFixed(1)}g · K {karte.summeCarbs.toFixed(1)}g · F {karte.summeFett.toFixed(1)}g
-                </p>
-              </section>
-
-              {/* Ersetzt den frueheren Ausklapp-Abschnitt: statt der Anleitung
-                  direkt in der Karte fuehrt der Button jetzt auf die eigene,
-                  grosszuegigere KochModus-Seite (siehe oben) - die Karte
-                  selbst bleibt dadurch unveraendert kompakt. */}
-              {angezeigtesRezept.anleitung?.length > 0 && (
-                <div className="mx-4 mt-2">
-                  <AnimatedButton
-                    type="button"
-                    onClick={() => setKochModusOffen(true)}
-                    className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary/10 px-3 py-2 text-sm font-medium text-secondary shadow-sm"
-                  >
-                    <IconChefHat size={18} stroke={1.75} aria-hidden="true" />
-                    Kochanleitung ansehen
-                  </AnimatedButton>
-                </div>
-              )}
-            </>
-          ) : (
-            <p className="mx-4 mt-2 text-text-muted">Für diese Filterkombination gibt es noch kein Rezept.</p>
-          )}
-
-          <div className="mx-4 mb-2 mt-1 flex gap-2">
-            <AnimatedButton
-              type="button"
-              onClick={onWuerfeln}
-              disabled={wuerfelnDeaktiviert}
-              className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-card disabled:opacity-50"
-            >
-              Anderes Rezept würfeln
-            </AnimatedButton>
-            {zusatzAktion}
+                <h2 className="mt-2 font-display text-xl font-semibold text-text">{angezeigtesRezept.titel}</h2>
+                <p className="mt-0.5 text-sm text-text-muted">{angezeigtesRezept.beschreibung}</p>
+              </motion.div>
+            </AnimatePresence>
           </div>
-        </motion.div>
+
+          <section className="mt-2 grid grid-cols-2 gap-2 px-4">
+            <SlotKarte
+              titel="Protein"
+              text={karte.proteinZutat.name}
+              portion={karte.portionen.proteinPortion}
+              zielWert={karte.makroZieleFuerRezept.protein}
+              zielErreichbar={karte.portionen.proteinZielErreichbar}
+            />
+            <SlotKarte
+              titel="Kohlenhydrate"
+              text={karte.carbsZutat.name}
+              portion={karte.portionen.carbsPortion}
+              zielWert={karte.makroZieleFuerRezept.carbs}
+              zielErreichbar={karte.portionen.carbsZielErreichbar}
+            />
+            <SlotKarte
+              titel="Fett"
+              text={karte.fettZutat.name}
+              portion={karte.portionen.fettPortion}
+              zielWert={karte.makroZieleFuerRezept.fett}
+              zielErreichbar={karte.portionen.fettZielErreichbar}
+            />
+            <SlotKarte
+              titel={karte.gemueseZutat.kategorie === 'obst' ? 'Obst' : 'Gemüse'}
+              text={karte.gemueseZutat.name}
+              portion={karte.portionen.gemuesePortion}
+            />
+          </section>
+
+          <section className="mx-4 mt-2 rounded-lg border border-secondary/20 bg-secondary/10 p-2 shadow-sm">
+            <h2 className="text-sm font-semibold text-text">Summe</h2>
+            <p className="font-display text-2xl font-semibold text-text">{karte.summeKalorien.toFixed(1)} kcal</p>
+            <p className="text-sm text-text-muted">
+              P {karte.summeProtein.toFixed(1)}g · K {karte.summeCarbs.toFixed(1)}g · F {karte.summeFett.toFixed(1)}g
+            </p>
+          </section>
+
+          {/* Prominenter CTA direkt unter der Summe, VOR den Wuerfeln-/Planen-
+              Buttons darunter - klar erkennbarer naechster Schritt statt der
+              vorherigen dezenten Ausblend-Optik. Volle Olive-Flaeche
+              (bg-secondary, nicht nur -/10-Tönung) mit derselben Gewichtung
+              (px-3 py-2 text-sm) wie "Anderes Rezept würfeln" darunter, damit
+              beide Buttons gleichrangig wirken. Ruft onKochModusOeffnen mit
+              dem GERADE angezeigten Rezept + der bereits berechneten karte
+              auf - App.jsx haelt den Kochmodus-State auf Top-Level (siehe
+              dortiger Kommentar), damit die Vollbild-Seite die gesamte
+              App-Navigation ueberdecken kann, was von hier aus (verschachtelt
+              unter Planen/Rezepte-Tabs) nicht moeglich waere. */}
+          {angezeigtesRezept.anleitung?.length > 0 && (
+            <div className="mx-4 mt-2">
+              <AnimatedButton
+                type="button"
+                onClick={() => onKochModusOeffnen(angezeigtesRezept, karte)}
+                className="flex w-full items-center justify-center gap-2 rounded-lg bg-secondary px-3 py-2 text-sm font-medium text-card shadow-sm"
+              >
+                <span className="relative flex h-7 w-7 shrink-0 items-center justify-center">
+                  {!reduzierteBewegung && <DampfSchwaden />}
+                  <IconChefHat size={26} stroke={1.75} aria-hidden="true" />
+                </span>
+                Jetzt kochen
+              </AnimatedButton>
+            </div>
+          )}
+        </>
+      ) : (
+        <p className="mx-4 mt-2 text-text-muted">Für diese Filterkombination gibt es noch kein Rezept.</p>
       )}
-    </AnimatePresence>
+
+      <div className="mx-4 mb-2 mt-1 flex gap-2">
+        <AnimatedButton
+          type="button"
+          onClick={onWuerfeln}
+          disabled={wuerfelnDeaktiviert}
+          className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-card disabled:opacity-50"
+        >
+          Anderes Rezept würfeln
+        </AnimatedButton>
+        {zusatzAktion}
+      </div>
+    </>
   )
 }
 

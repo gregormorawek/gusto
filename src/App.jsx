@@ -7,6 +7,7 @@ import TagesplanAnsicht from './components/TagesplanAnsicht'
 import RezepteAnsicht from './components/RezepteAnsicht'
 import OnboardingWizard from './components/OnboardingWizard'
 import EinstellungenPanel from './components/EinstellungenPanel'
+import KochModus from './components/KochModus'
 import AnimatedButton from './components/AnimatedButton'
 import { MAHLZEITEN, standardMahlzeit } from './mahlzeiten'
 import { supabase } from './supabase'
@@ -549,6 +550,17 @@ function App() {
   // Ob das Einstellungen-Panel (Kalorienziel + Ernaehrungsform, ausserhalb
   // des Onboardings ueber das Zahnrad-Icon erreichbar) gerade offen ist.
   const [einstellungenOffen, setEinstellungenOffen] = useState(false)
+
+  // Kochmodus-Vollbild-Seite (siehe KochModus.jsx) - bewusst HIER auf
+  // Top-Level statt lokal in RezeptKarte.jsx, damit sie als "fixed inset-0"-
+  // Overlay wirklich DIE GESAMTE App-Navigation ueberdeckt (Planen/Rezepte-
+  // Tabs, Tag-gesamt-Header, Mahlzeiten-Filter, Zahnrad) - von tief
+  // verschachtelt in RezepteAnsicht/RezeptKarte aus waere das zwar technisch
+  // per z-index auch moeglich, aber der State gehoert dann konzeptionell an
+  // dieselbe Stelle wie einstellungenOffen (ebenfalls ein App-weites Overlay).
+  // null | { rezept, karte } - karte ist ein reiner Momentaufnahme-Snapshot
+  // vom Oeffnen-Zeitpunkt (siehe KochModus.jsx-Kommentar dort).
+  const [kochModusEintrag, setKochModusEintrag] = useState(null)
 
   // Wird vom Wizard aufgerufen, wenn der User auf Schritt 4 (Abschluss-
   // Screen) eine der beiden Tap-Karten waehlt. gewaehlteAnsicht ist 'haupt'
@@ -1298,6 +1310,8 @@ function App() {
         onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
       />
 
+      <KochModus eintrag={kochModusEintrag} onZurueck={() => setKochModusEintrag(null)} />
+
       {ansicht === 'rezepte' ? (
         <RezepteAnsicht
           rezepte={rezepte}
@@ -1307,6 +1321,7 @@ function App() {
           makroZiele={makroZiele}
           tagesplanMahlzeiten={tagesplanMahlzeiten}
           onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
+          onKochModusOeffnen={(rezept, karte) => setKochModusEintrag({ rezept, karte })}
         />
       ) : ziel.typ === 'proTag' ? (
         tagesplan ? (

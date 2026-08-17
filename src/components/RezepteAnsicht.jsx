@@ -19,7 +19,16 @@ import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
 // Die Diaet-Auswahl bleibt ueber das Zahnrad-Icon (EinstellungenPanel)
 // erreichbar - diaeten selbst bleibt als Wert weiterhin Pflicht-Prop (fuer
 // die Pool-Filterung), nur der Aendern-Callback wird hier nicht mehr gebraucht.
-function RezepteAnsicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, tagesplanMahlzeiten, onMahlzeitenAnpassen }) {
+function RezepteAnsicht({
+  rezepte,
+  zutatenNachId,
+  diaeten,
+  ziel,
+  makroZiele,
+  tagesplanMahlzeiten,
+  onMahlzeitenAnpassen,
+  onKochModusOeffnen,
+}) {
   if (ziel.typ === 'proTag') {
     return (
       <RezepteTagesplan
@@ -30,11 +39,21 @@ function RezepteAnsicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, tag
         makroZiele={makroZiele}
         tagesplanMahlzeiten={tagesplanMahlzeiten}
         onMahlzeitenAnpassen={onMahlzeitenAnpassen}
+        onKochModusOeffnen={onKochModusOeffnen}
       />
     )
   }
 
-  return <RezepteEinzelansicht rezepte={rezepte} zutatenNachId={zutatenNachId} diaeten={diaeten} ziel={ziel} makroZiele={makroZiele} />
+  return (
+    <RezepteEinzelansicht
+      rezepte={rezepte}
+      zutatenNachId={zutatenNachId}
+      diaeten={diaeten}
+      ziel={ziel}
+      makroZiele={makroZiele}
+      onKochModusOeffnen={onKochModusOeffnen}
+    />
+  )
 }
 
 // mahlzeit und eigenschaft sind BEWUSST eigener, lokaler State (nicht der
@@ -47,7 +66,7 @@ function RezepteAnsicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, tag
 // sind ebenfalls geteilter State - dieselben Kalorien-/Makro-Ziele wie in
 // den Einstellungen, damit die Portionszahlen in RezeptKarte live darauf
 // reagieren.
-function RezepteEinzelansicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiele }) {
+function RezepteEinzelansicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, onKochModusOeffnen }) {
   const [mahlzeit, setMahlzeit] = useState(standardMahlzeit)
   const [eigenschaft, setEigenschaft] = useState('')
   const [aktuellesRezept, setAktuellesRezept] = useState(null)
@@ -106,6 +125,7 @@ function RezepteEinzelansicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiel
         makroZiele={makroZiele}
         onWuerfeln={rezeptWuerfeln}
         wuerfelnDeaktiviert={pool.length === 0}
+        onKochModusOeffnen={onKochModusOeffnen}
       />
     </>
   )
@@ -147,7 +167,16 @@ function alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten) 
 // (proMahlzeitState), damit ein reiner Tab-Wechsel (setAktiveMahlzeit) nie
 // etwas verwirft - der Auto-Wuerfel-Effekt unten haengt bewusst NICHT von
 // aktiveMahlzeit ab.
-function RezepteTagesplan({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, tagesplanMahlzeiten, onMahlzeitenAnpassen }) {
+function RezepteTagesplan({
+  rezepte,
+  zutatenNachId,
+  diaeten,
+  ziel,
+  makroZiele,
+  tagesplanMahlzeiten,
+  onMahlzeitenAnpassen,
+  onKochModusOeffnen,
+}) {
   const aktiveMahlzeitenListe = aktiveMahlzeitenFuer(tagesplanMahlzeiten)
 
   const [aktiveMahlzeit, setAktiveMahlzeit] = useState(
@@ -267,6 +296,7 @@ function RezepteTagesplan({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, t
         makroZiele={makroZiele}
         onWuerfeln={aktuelleMahlzeitWuerfeln}
         wuerfelnDeaktiviert={aktuellerPool.length === 0}
+        onKochModusOeffnen={onKochModusOeffnen}
         zusatzAktion={
           <AnimatedButton
             type="button"
