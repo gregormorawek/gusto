@@ -107,7 +107,7 @@ const ZIEL_OPTIONEN = [
 // aufgeteilt - siehe makroZielFuerMahlzeitAusTagesziel in App.jsx.
 const MAKRO_FELDER = [
   { kategorie: 'protein', label: 'Protein' },
-  { kategorie: 'carbs', label: 'Carbs' },
+  { kategorie: 'carbs', label: 'Kohlenhydrate' },
   { kategorie: 'fett', label: 'Fett' },
 ]
 

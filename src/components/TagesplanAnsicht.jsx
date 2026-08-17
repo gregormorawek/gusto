@@ -116,7 +116,7 @@ function TagesplanAnsicht({
     }
     const titelNachKategorie = {
       protein: 'Protein',
-      carbs: 'Carbs',
+      carbs: 'Kohlenhydrate',
       fett: 'Fett',
       gemuese: eintrag.gemuese.kategorie === 'obst' ? 'Obst' : 'Gemüse',
     }
@@ -185,7 +185,7 @@ function TagesplanAnsicht({
               zielErreichbar={eintrag.proteinZielErreichbar}
             />
             <TagesplanZutatZeile
-              titel="Carbs"
+              titel="Kohlenhydrate"
               text={eintrag.carbs.name}
               portion={eintrag.carbsPortion}
               onWuerfeln={() => onSlotWuerfeln(index, 'carbs')}

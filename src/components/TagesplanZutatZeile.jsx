@@ -6,11 +6,11 @@ import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 
 // Kategorie -> Icon, ausschliesslich anhand des titel-Strings (identisch zu
 // den Werten, die TagesplanAnsicht.jsx als titel an diese Zeile uebergibt -
-// "Protein"/"Carbs"/"Fett"/"Gemüse"/"Obst", exakt wie bei SlotKarte). Kein
+// "Protein"/"Kohlenhydrate"/"Fett"/"Gemüse"/"Obst", exakt wie bei SlotKarte). Kein
 // zusaetzlicher kategorie-Prop noetig, dieselbe Quelle wie die Ueberschrift.
 const KATEGORIE_ICON = {
   Protein: IconMeat,
-  Carbs: IconBread,
+  Kohlenhydrate: IconBread,
   Fett: IconDroplet,
   Gemüse: IconCarrot,
   Obst: IconApple,
@@ -20,14 +20,14 @@ const KATEGORIE_ICON = {
 // erlaubten Marken-Tokens (--color-primary/Terrakotta, --color-secondary/
 // Olive) plus --color-text-muted abgeleitet - siehe CLAUDE.md, "keine neuen
 // Farben ohne Ruecksprache". Damit trotzdem 4 unterscheidbare warme Toene
-// entstehen: Protein = volles Terrakotta, Carbs = der bereits bestehende
+// entstehen: Protein = volles Terrakotta, Kohlenhydrate = der bereits bestehende
 // warme Braun-Ton text-muted ("Tan"), Fett = abgeschwaechtes Terrakotta
-// (heller/waermerer "Sand"-Ton, klar unterscheidbar von Carbs), Gemuese/Obst
+// (heller/waermerer "Sand"-Ton, klar unterscheidbar von Kohlenhydrate), Gemuese/Obst
 // = volles Olive. icon bestimmt die Icon-Farbe AUF dem Chip - bei den beiden
 // hellen Chips (Fett) reicht Weiss nicht als Kontrast, dort dunkles Icon.
 const KATEGORIE_CHIP = {
   Protein: { bg: 'bg-primary', icon: 'text-card' },
-  Carbs: { bg: 'bg-text-muted', icon: 'text-card' },
+  Kohlenhydrate: { bg: 'bg-text-muted', icon: 'text-card' },
   Fett: { bg: 'bg-primary/40', icon: 'text-text' },
   Gemüse: { bg: 'bg-secondary', icon: 'text-card' },
   Obst: { bg: 'bg-secondary', icon: 'text-card' },

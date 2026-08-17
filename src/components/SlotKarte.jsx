@@ -27,6 +27,14 @@ import { suchtextGefiltert } from '../zutatenFilter'
 // verschwindet der "neu wuerfeln"-Button komplett - fuer die Rezepte-Ansicht
 // (Schritt 3), wo die 4 Zutaten fest durch das Rezept vorgegeben sind und es
 // bewusst KEINEN Einzel-Slot-Reroll gibt.
+// Kurzform-Ausnahme NUR fuers Placeholder des schmalen Such-Inputs unten
+// (2-spaltiges Grid in App.jsx, Kartenbreite ~150px): "Kohlenhydrate
+// suchen…" wird dort vom Input abgeschnitten, waehrend der Karten-Titel
+// (h3) und das "Kohlenhydrate-Ziel:"-Label bei derselben Breite noch
+// problemlos passen (siehe visueller Test) - deshalb bleibt titel selbst
+// unveraendert, nur dieser eine Anzeigetext weicht ab.
+const SUCHE_PLATZHALTER_KURZFORM = { Kohlenhydrate: 'KH' }
+
 function SlotKarte({
   titel,
   text,
@@ -117,7 +125,7 @@ function SlotKarte({
               type="text"
               value={suchtext}
               onChange={(e) => setSuchtext(e.target.value)}
-              placeholder={`${titel} suchen…`}
+              placeholder={`${SUCHE_PLATZHALTER_KURZFORM[titel] ?? titel} suchen…`}
               className="w-full rounded-md border border-text-muted/30 px-2 py-1 text-text focus:border-primary focus:outline-none focus:ring-1 focus:ring-primary"
             />
 

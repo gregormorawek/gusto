@@ -1372,7 +1372,7 @@ function App() {
               onZutatWaehlen={(zutat) => zutatManuellWaehlen('protein', zutat)}
             />
             <SlotKarte
-              titel="Carbs"
+              titel="Kohlenhydrate"
               text={carbs.name}
               portion={carbsPortion}
               onWuerfeln={carbsWuerfeln}

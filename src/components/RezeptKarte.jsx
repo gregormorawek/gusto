@@ -184,7 +184,7 @@ function RezeptKarte({ rezept, zutatenNachId, ziel, makroZiele, onWuerfeln, wuer
               zielErreichbar={karte.portionen.proteinZielErreichbar}
             />
             <SlotKarte
-              titel="Carbs"
+              titel="Kohlenhydrate"
               text={karte.carbsZutat.name}
               portion={karte.portionen.carbsPortion}
               zielWert={karte.makroZieleFuerRezept.carbs}
