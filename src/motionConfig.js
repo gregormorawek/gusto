@@ -7,6 +7,22 @@
 // Ueberschwingen, aber nicht wabbelig.
 export const SPRING_REVEAL = { type: 'spring', stiffness: 300, damping: 20 }
 
+// Fuer einen vollflaechigen Bottom-Sheet-Takeover (KochModus.jsx) ist das
+// leichte Nachwippen von SPRING_REVEAL unpassend - wirkt bei einer grossen,
+// die ganze Seite einnehmenden Flaeche verspielt statt hochwertig/nativ.
+// BEWUSST ein reiner Tween mit Cubic-Bezier-Ease-out statt eines Springs:
+// ein Spring kann ueber stiffness/damping zwar RECHNERISCH kritisch gedaempft
+// (Ueberschwingfrei) konfiguriert werden, reagiert dabei aber empfindlich auf
+// die genauen Werte UND auf die Distanz, ueber die animiert wird (bei einer
+// vollen Bildschirmhoehe wie hier ist "kein Overshoot" mit einem Spring nicht
+// so zuverlaessig garantiert wie mit einem Tween, der der Kurve exakt folgt,
+// unabhaengig von der Distanz). Der Bezier-Verlauf [0.32, 0.72, 0, 1]
+// entspricht dem in nativen iOS-Sheets ueblichen Ease-out (schnellerer Start,
+// sehr sanftes, UEBERSCHWINGFREIES Abbremsen) - selbe gefuehlte
+// Gesamtdauer wie SPRING_REVEAL vorher (~350ms bis zur Ruhelage), nur ohne
+// dessen Nachwippen.
+export const SHEET_SLIDE_UEBERGANG = { type: 'tween', duration: 0.35, ease: [0.32, 0.72, 0, 1] }
+
 // Reines Fade ohne Bewegung, fuer Backdrop/Farb-Uebergaenge o.ae.
 export const FADE_UEBERGANG = { duration: 0.25 }
 

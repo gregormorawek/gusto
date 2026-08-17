@@ -14,7 +14,7 @@ import {
 } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import AnimierteZahl from './AnimierteZahl'
-import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { SHEET_SLIDE_UEBERGANG, motionPropsFuer } from '../motionConfig'
 
 // aktion -> Icon, feste Zuordnung fuer die 8 erlaubten Werte (siehe
 // CLAUDE.md, "Neue kuratierte Rezepte"). Rein statisch fuer jetzt - ein
@@ -173,13 +173,15 @@ function KochModusInhalt({ eintrag, onZurueck }) {
 // nicht veralten.
 //
 // Slide-up (Bottom-Sheet-artig) statt des frueheren reinen Fade+Scale:
-// SPRING_REVEAL (bestehendes Preset, siehe motionConfig.js - dort explizit
-// auch fuer "Panel-Oeffnen" vorgesehen) auf y (100% -> 0) KOMBINIERT mit
-// opacity, nicht nur y allein - motionPropsFuer() strippt bei reduzierter
-// Bewegung ausschliesslich Props, die einen opacity-Key enthalten (siehe
-// nurOpacity() dort), ein reiner y-Wert ohne opacity wuerde also NICHT
-// automatisch deaktiviert. Mit opacity im selben Objekt wird daraus bei
-// reduzierter Bewegung korrekt ein reines, bewegungsloses Fade.
+// SHEET_SLIDE_UEBERGANG (eigenes Preset NUR fuer diesen Takeover, siehe
+// motionConfig.js - bewusst NICHT SPRING_REVEAL, dessen leichtes
+// Nachwippen bei einer vollflaechigen Seite verspielt statt hochwertig
+// wirkte) auf y (100% -> 0) KOMBINIERT mit opacity, nicht nur y allein -
+// motionPropsFuer() strippt bei reduzierter Bewegung ausschliesslich Props,
+// die einen opacity-Key enthalten (siehe nurOpacity() dort), ein reiner
+// y-Wert ohne opacity wuerde also NICHT automatisch deaktiviert. Mit
+// opacity im selben Objekt wird daraus bei reduzierter Bewegung korrekt
+// ein reines, bewegungsloses Fade.
 function KochModus({ eintrag, onZurueck }) {
   const reduzierteBewegung = useReducedMotion()
 
@@ -191,7 +193,7 @@ function KochModus({ eintrag, onZurueck }) {
             initial: { opacity: 0, y: '100%' },
             animate: { opacity: 1, y: 0 },
             exit: { opacity: 0, y: '100%' },
-            transition: SPRING_REVEAL,
+            transition: SHEET_SLIDE_UEBERGANG,
           })}
           className="fixed inset-0 z-50 overflow-y-auto bg-bg"
         >
