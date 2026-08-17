@@ -551,16 +551,57 @@ function App() {
   // des Onboardings ueber das Zahnrad-Icon erreichbar) gerade offen ist.
   const [einstellungenOffen, setEinstellungenOffen] = useState(false)
 
-  // Kochmodus-Vollbild-Seite (siehe KochModus.jsx) - bewusst HIER auf
-  // Top-Level statt lokal in RezeptKarte.jsx, damit sie als "fixed inset-0"-
-  // Overlay wirklich DIE GESAMTE App-Navigation ueberdeckt (Planen/Rezepte-
-  // Tabs, Tag-gesamt-Header, Mahlzeiten-Filter, Zahnrad) - von tief
-  // verschachtelt in RezepteAnsicht/RezeptKarte aus waere das zwar technisch
-  // per z-index auch moeglich, aber der State gehoert dann konzeptionell an
-  // dieselbe Stelle wie einstellungenOffen (ebenfalls ein App-weites Overlay).
+  // Kochmodus-Sheet (siehe KochModus.jsx) - bewusst HIER auf Top-Level statt
+  // lokal in RezeptKarte.jsx, damit es als "fixed inset-0"-Backdrop wirklich
+  // DIE GESAMTE App-Navigation optisch verdeckt (Planen/Rezepte-Tabs,
+  // Tag-gesamt-Header, Mahlzeiten-Filter, Zahnrad) - von tief verschachtelt
+  // in RezepteAnsicht/RezeptKarte aus waere das zwar technisch per z-index
+  // auch moeglich, aber der State gehoert dann konzeptionell an dieselbe
+  // Stelle wie einstellungenOffen (ebenfalls ein App-weites Overlay).
   // null | { rezept, karte } - karte ist ein reiner Momentaufnahme-Snapshot
   // vom Oeffnen-Zeitpunkt (siehe KochModus.jsx-Kommentar dort).
   const [kochModusEintrag, setKochModusEintrag] = useState(null)
+
+  // Abhak-Status der Kochanleitung - siehe KochModus.jsx-Kommentar: lebt
+  // BEWUSST hier statt lokal im Sheet, damit ein Schliessen+Wiederoeffnen
+  // desselben Rezepts (das Sheet selbst wird dabei komplett unmounted) den
+  // Fortschritt NICHT verwirft. erledigteSchritteRezeptId merkt sich, zu
+  // welchem Rezept das aktuelle Set gehoert - weicht die beim naechsten
+  // Oeffnen uebergebene rezept.id davon ab (neu gewuerfelt ODER Filter-
+  // Wechsel hat ein anderes Rezept ausgewaehlt), wird VOR dem Anzeigen
+  // zurueckgesetzt (siehe kochModusOeffnen unten). Ein zusaetzlicher Reset
+  // beim Verlassen des Rezepte-Tabs (siehe Effekt unten) sorgt dafuer, dass
+  // auch ein zufaellig identisches Rezept beim naechsten Besuch wieder bei
+  // 0 startet, statt alten Fortschritt "wiederzufinden".
+  const [erledigteSchritte, setErledigteSchritte] = useState(() => new Set())
+  const [erledigteSchritteRezeptId, setErledigteSchritteRezeptId] = useState(null)
+
+  useEffect(() => {
+    if (ansicht !== 'rezepte') {
+      setErledigteSchritte(new Set())
+      setErledigteSchritteRezeptId(null)
+    }
+  }, [ansicht])
+
+  function kochModusOeffnen(rezept, karte) {
+    if (rezept.id !== erledigteSchritteRezeptId) {
+      setErledigteSchritte(new Set())
+      setErledigteSchritteRezeptId(rezept.id)
+    }
+    setKochModusEintrag({ rezept, karte })
+  }
+
+  function kochSchrittUmschalten(index) {
+    setErledigteSchritte((aktuell) => {
+      const naechste = new Set(aktuell)
+      if (naechste.has(index)) {
+        naechste.delete(index)
+      } else {
+        naechste.add(index)
+      }
+      return naechste
+    })
+  }
 
   // Wird vom Wizard aufgerufen, wenn der User auf Schritt 4 (Abschluss-
   // Screen) eine der beiden Tap-Karten waehlt. gewaehlteAnsicht ist 'haupt'
@@ -1310,7 +1351,12 @@ function App() {
         onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
       />
 
-      <KochModus eintrag={kochModusEintrag} onZurueck={() => setKochModusEintrag(null)} />
+      <KochModus
+        eintrag={kochModusEintrag}
+        onZurueck={() => setKochModusEintrag(null)}
+        erledigteSchritte={erledigteSchritte}
+        onSchrittUmschalten={kochSchrittUmschalten}
+      />
 
       {ansicht === 'rezepte' ? (
         <RezepteAnsicht
@@ -1321,7 +1367,7 @@ function App() {
           makroZiele={makroZiele}
           tagesplanMahlzeiten={tagesplanMahlzeiten}
           onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
-          onKochModusOeffnen={(rezept, karte) => setKochModusEintrag({ rezept, karte })}
+          onKochModusOeffnen={kochModusOeffnen}
         />
       ) : ziel.typ === 'proTag' ? (
         tagesplan ? (
