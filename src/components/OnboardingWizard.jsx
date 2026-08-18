@@ -155,55 +155,83 @@ function OnboardingWizard({
           <span className="block h-9 w-9" />
         )}
 
-        {schritt <= 3 && (
-          <div className="mt-6 flex gap-1.5">
-            {[1, 2, 3].map((s) => (
-              <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-muted/20">
-                <span
-                  className="block h-full rounded-full bg-primary transition-[width] duration-[400ms] ease-out motion-reduce:transition-none"
-                  style={{ width: s <= schritt ? '100%' : '0%' }}
-                />
-              </span>
-            ))}
-          </div>
-        )}
+        {/* IMMER gerendert (statt {schritt <= 3 && (...)}) - GEFUNDENE
+            URSACHE (eine von zwei) des Ruckelns bei 3<->"Alles bereit"
+            (Schritt 4): ohne Platzhalter verschwand dieser Block beim
+            Erreichen von Schritt 4 SOFORT und unanimiert aus dem Header,
+            wodurch der Header augenblicklich ca. 30px kuerzer wurde - das
+            verschob den darunterliegenden, per justify-start verankerten
+            Frage-Bereich (und damit z. B. die Wuerfeln/Rezepte-Karten)
+            sofort mit nach oben, obwohl deren EIGENER Crossfade noch lief.
+            Per getBoundingClientRect()-Serie hart nachgewiesen: headerBottom
+            sprang exakt beim Klick von 178px auf 148px (30px, synchron mit
+            gridTop 202px->172px). Fix: der Block bleibt strukturell IMMER
+            vorhanden (reserviert seine Hoehe durchgehend, wie der Zurueck-
+            Button-Platzhalter oben) - nur seine Sichtbarkeit blendet per
+            opacity aus/ein, exakt synchron mit dem Titel-Crossfade darunter. */}
+        <div
+          className="mt-6 flex gap-1.5 transition-opacity motion-reduce:transition-none"
+          style={{ opacity: schritt <= 3 ? 1 : 0, transitionDuration: `${TITEL_TRANSITION.duration * 1000}ms` }}
+        >
+          {[1, 2, 3].map((s) => (
+            <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-muted/20">
+              <span
+                className="block h-full rounded-full bg-primary transition-[width] duration-[400ms] ease-out motion-reduce:transition-none"
+                style={{ width: s <= schritt ? '100%' : '0%' }}
+              />
+            </span>
+          ))}
+        </div>
 
-        {/* Titel-Block separat per AnimatePresence gekapselt (siehe
-            TITEL_TRANSITION oben) - der Fortschrittsbalken darueber bleibt
-            bewusst AUSSERHALB, damit er beim Schritt-Wechsel nicht mit
-            aus-/einblendet, sondern durchgehend sichtbar bleibt und nur
-            seine Fuellung per width-transition waechst. mode="wait" statt
-            eines echten Crossfades, da altes und neues sich sonst an
-            derselben Stelle ueberlappen wuerden (kein Ueberlagerungs-Layout
-            wie bei RezeptKarte.jsx, wo beide Bilder per Grid-Overlay
-            uebereinander liegen koennen). */}
-        <AnimatePresence mode="wait" initial={false}>
-          <motion.div
-            key={schritt}
-            {...motionPropsFuer(reduzierteBewegung, {
-              initial: { opacity: 0, y: 8 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: -8 },
-              transition: TITEL_TRANSITION,
-            })}
-          >
-            {schritt <= 3 ? (
-              <>
-                <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-text-muted">
-                  Schritt {schritt} von 3
-                </p>
-                <h1 className="mt-1 font-display text-4xl font-semibold text-text sm:text-5xl">
-                  {SCHRITT_TITEL[schritt]}
-                </h1>
-              </>
-            ) : (
-              <>
-                <h1 className="mt-8 font-display text-4xl font-semibold text-text sm:text-5xl">Alles bereit!</h1>
-                <p className="mt-2 text-text-muted">Wie möchtest du starten?</p>
-              </>
-            )}
-          </motion.div>
-        </AnimatePresence>
+        {/* Titel-Block per Grid-Stack ueberlappend gecrossfadet (identisches
+            Muster wie der Frage-Bereich/RezeptKarte.jsx) - GEFUNDENE URSACHE
+            (die zweite von zwei) desselben 3<->4-Ruckelns: das vorherige
+            mode="wait" zeigt altes und neues NIE gleichzeitig, sondern
+            raeumt das alte ERST vollstaendig weg (inkl. dessen Layout-Hoehe),
+            bevor das neue ueberhaupt montiert wird - dazwischen liegt eine
+            kurze Luecke, in der der Titel-Block GAR KEINEN Inhalt (und damit
+            keine Hoehe) hat, bevor er auf die neue Zielgroesse springt. Per
+            getBoundingClientRect()-Serie hart nachgewiesen: headerBottom
+            sprang ~140ms nach dem ersten (Fortschrittsbalken-)Sprung ein
+            ZWEITES Mal, von 148px auf 172px (gridTop 172px->196px) - exakt
+            zeitlich passend zum mode="wait"-Wechsel. Mit dem Grid-Stack
+            liegen altes+neues Titel-Motion.div stattdessen (wie beim Frage-
+            Bereich) uebereinander in derselben Zelle, der Header sized sich
+            waehrend der Ueberlappung auf die groessere der beiden Hoehen -
+            kein Nullpunkt-Sprung mehr dazwischen, nur noch der eine bereits
+            etablierte finale Snap beim Entfernen des alten Titels (siehe
+            Kommentar zum Frage-Bereich oben zu genau diesem, akzeptierten
+            Restverhalten). */}
+        <div className="grid">
+          <AnimatePresence initial={false}>
+            <motion.div
+              key={schritt}
+              className="col-start-1 row-start-1"
+              {...motionPropsFuer(reduzierteBewegung, {
+                initial: { opacity: 0, y: 8 },
+                animate: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: -8 },
+                transition: TITEL_TRANSITION,
+              })}
+            >
+              {schritt <= 3 ? (
+                <>
+                  <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-text-muted">
+                    Schritt {schritt} von 3
+                  </p>
+                  <h1 className="mt-1 font-display text-4xl font-semibold text-text sm:text-5xl">
+                    {SCHRITT_TITEL[schritt]}
+                  </h1>
+                </>
+              ) : (
+                <>
+                  <h1 className="mt-8 font-display text-4xl font-semibold text-text sm:text-5xl">Alles bereit!</h1>
+                  <p className="mt-2 text-text-muted">Wie möchtest du starten?</p>
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
       </header>
 
       {/* grid statt block: waehrend der Crossfade-Ueberlappung liegen altes
@@ -459,6 +487,21 @@ function OnboardingWizard({
         // Header, damit der darunter befindliche Inhalt beim Ueberlappen
         // nicht sichtbar durchscheint.
         <div className="sticky bottom-0 z-10 bg-bg px-6 pb-8 pt-4">
+          {/* ERSTER Versuch fuer dieses Problem war ein Grid-Stack mit
+              key={schritt} um WizardTageskarte (analog zum Frage-Bereich/
+              RezeptKarte.jsx) - per eigener Verifikation SOFORT wieder
+              verworfen: key={schritt} erzwingt bei JEDEM Schritt-Wechsel
+              einen kompletten Neu-Mount der Karte, wodurch auch AnimierteZahl
+              (siehe dortiger Kommentar - haelt ihren zuletzt gezeigten Wert
+              bewusst in einem Ref fest, damit ein Wertwechsel smooth vom
+              ALTEN zum NEUEN Wert hochzaehlt statt jedes Mal neu bei 0
+              anzusetzen) bei jedem Schritt-Wechsel neu montiert wurde - die
+              Kalorien-/Makro-Zahlen zaehlten dadurch REGRESSIV jedes Mal neu
+              von 0 hoch statt vom vorherigen Wert weiterzuzaehlen. Fix
+              stattdessen in WizardTageskarte.jsx selbst (layout-Prop auf der
+              Karten-Huelle) - siehe dortiger Kommentar zur Herleitung. Diese
+              Stelle bleibt bewusst eine EINZIGE, durchgehend gemountete
+              WizardTageskarte-Instanz (kein key, kein Grid-Stack hier). */}
           <WizardTageskarte
             schritt={schritt}
             ziel={ziel}

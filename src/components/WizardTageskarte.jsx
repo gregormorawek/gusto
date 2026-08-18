@@ -3,7 +3,8 @@ import { IconFlame } from '@tabler/icons-react'
 import { MAHLZEITEN, MAHLZEIT_ICON } from '../mahlzeiten'
 import { DIAET_ICON } from './DiaetFilter'
 import { kalorienZielGueltig } from '../kalorienZiel'
-import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { useBeobachteteHoehe } from '../useBeobachteteHoehe'
 import AnimierteZahl from './AnimierteZahl'
 
 const DIAET_LABEL = {
@@ -86,44 +87,52 @@ const OLIVE = { aktivBorder: 'border-secondary', aktivBg: 'bg-secondary/15', akt
 // die Karte ab Schritt 4 (siehe OnboardingWizard, schritt <= 3) gar nicht
 // mehr gerendert wird - bewusst in Kauf genommen, siehe Ruecksprache.
 function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag, diaeten, reduzierteBewegung }) {
-  // FUENFTER Bug an genau dieser Karte, GEGENTEILIGER Fix zu den vorigen
-  // vier (die alle den Hoehen-Uebergangs-Hook useBeobachteteHoehe hier
-  // reparieren wollten - siehe Git-Historie dieser Datei fuer die
-  // Einzelheiten aller vier): der Hook wurde HIER wieder ENTFERNT, statt
-  // erneut repariert. Konkret gefunden per getComputedStyle()-Vergleich im
-  // Ruhezustand (also KEIN Timing-/Animations-Problem): Tailwinds globales
-  // Preflight setzt box-sizing:border-box auf ALLE Elemente. Der Hook maass
-  // die Hoehe am INNEREN, paddinglosen Content-Wrapper (ref) und setzte sie
-  // per style.height auf das AEUSSERE Element, das zugleich das Padding
-  // trug (siehe vorigem Fix "VIERTER Bug" oben in der Historie) - bei
-  // border-box zieht der Browser Padding VON der gesetzten Hoehe AB statt
-  // es dazuzuaddieren. Ergebnis: style.height=84px (reine Innenmasse ohne
-  // Padding) minus 40px Padding = nur noch 44px tatsaechlich sichtbare
-  // Content-Flaeche in einer 84px hohen Box - obwohl der Inhalt selbst
-  // (scrollHeight) 124px braucht. Die letzte Zeile (Makros bzw. Makros +
-  // Mahlzeiten-Chips) wurde dadurch DAUERHAFT abgeschnitten, nicht nur
-  // waehrend einer Animation. Ein content-box-Fix waere moeglich gewesen,
-  // aber vier aufeinanderfolgende, an genau dieser Stelle immer wieder wild
-  // gewordene Bugs rund um diesen Hook (siehe Kommentare in der Git-
-  // Historie: Margin-Collapse, Rueckwaerts-Navigation-Freeze, Mount-Popup,
-  // jetzt border-box-Clipping) sind Grund genug, ihn hier komplett
-  // wegzulassen - die Karte bestimmt ihre Hoehe jetzt rein natuerlich
-  // (height:auto, kein overflow-hidden mit fixierter Pixelhoehe). Das
-  // Ein-/Ausblenden der Karte selbst uebernimmt weiterhin ihr eigener
-  // opacity/y-Fade unten, das Ein-/Ausblenden einzelner Sektionen deren
-  // jeweils eigener AnimatePresence-Fade - beide brauchen keinen
-  // umschliessenden Hoehen-Uebergang, um weich zu wirken. Der grosse
-  // Card-Level-Sprung, den der Hook urspruenglich verhindern sollte (siehe
-  // Git-Historie), ist ausserdem seit dem Umbau des Frage-Bereichs auf
-  // Top-Ausrichtung statt Zentrierung (siehe OnboardingWizard.jsx,
-  // "PROBLEM 1"-Bugfix) strukturell entschaerft: der Frage-Bereich haengt
-  // nicht mehr von der Footer-Hoehe ab, ein wachsender/schrumpfender Footer
-  // verschiebt ihn dadurch nicht mehr nachtraeglich.
+  // SECHSTER Bug an genau dieser Karte, wieder das GEGENTEIL des vorigen
+  // Fixes (siehe Git-Historie fuer alle sechs): der FUENFTE Fix entfernte
+  // useBeobachteteHoehe komplett (height:auto), weil der Hook border-box-
+  // bedingt die letzte Zeile abschnitt. Das behob das Clipping, riss aber
+  // den Hoehen-UEBERGANG zwischen Kartenzustaenden komplett weg - eine
+  // austretende Sektion (z. B. Mahlzeiten bei 3->2) animiert intern nur
+  // opacity/y (Transform), NICHT ihre Layout-Groesse, behaelt also ihre
+  // volle Hoehe bis zum ALLERLETZTEN Frame ihrer eigenen Exit-Animation und
+  // wird DANN erst aus dem DOM entfernt - height:auto der Karte kollabiert
+  // zu diesem spaeten Zeitpunkt SCHLAGARTIG statt weich zu schrumpfen.
+  // ERSTER Versuch dagegen: framer-motions layout-Prop auf der Karten-
+  // Huelle - verworfen, BEVOR er ueberhaupt eingebaut wurde: siehe
+  // Kommentar zu HOEHEN_UEBERGANG_MS in motionConfig.js, dort bereits aus
+  // einer frueheren Session dokumentiert, dass layout Groessen-Aenderungen
+  // durch das Unmounten eines AnimatePresence-Geschwisters NICHT
+  // zuverlaessig animiert (springt statt zu interpolieren). ZWEITER
+  // Versuch: WizardTageskarte komplett per key={schritt} in einen Grid-
+  // Stack einbetten (analog zum Frage-Bereich) - funktionierte fuers reine
+  // Hoehen-/Positions-Problem, riss aber eine ANDERE, unabhaengige
+  // Komponente kaputt: der erzwungene Neu-Mount bei jedem Schritt-Wechsel
+  // liess AnimierteZahl (haelt ihren letzten Wert bewusst in einem Ref
+  // fest, um smooth vom alten zum neuen Wert zu zaehlen statt neu bei 0
+  // anzusetzen) bei JEDEM Schritt-Wechsel neu von 0 hochzaehlen - eine
+  // neue Regression in einer bis dahin einwandfreien Komponente. Siehe
+  // Kommentar in OnboardingWizard.jsx an der (dort wieder rueckgaengig
+  // gemachten) Einbau-Stelle fuer die Einzelheiten.
   //
-  // useBeobachteteHoehe.js selbst bleibt unveraendert bestehen -
-  // ZielEinstellungen.jsx braucht ihn weiterhin fuer seinen eigentlichen
-  // Zweck (siehe dortiger Kommentar), nur diese fehlerhafte Uebertragung
-  // hierher wird rueckgaengig gemacht.
+  // DRITTER, jetzt verwendeter Versuch: useBeobachteteHoehe erneut
+  // verwenden, aber OHNE den Fehler des VIERTEN Bugs zu wiederholen -
+  // padding bleibt auf der AEUSSEREN, NICHT hoehen-animierten motion.div
+  // (wie urspruenglich, vor dem VIERTEN Bug), NICHT auf dem inneren
+  // overflow-hidden/height-Element. Der border-box-Bug (FUENFTER Bug oben)
+  // entstand ausschliesslich dadurch, dass Padding UND die per style.height
+  // gesetzte Pixelhoehe auf DEMSELBEN Element lagen - mit Padding auf einem
+  // separaten, paddinglosen inneren Element hat border-box keinen Effekt
+  // (0 Padding macht content-box und border-box fuer dieses Element
+  // identisch). Kein wachstumBeimMount mehr noetig (das war nur fuers
+  // erste, SOFORTIGE Erscheinen der Karte gedacht) - der Sticky-Footer-Fix
+  // (siehe OnboardingWizard.jsx) macht ein instantanes Erst-Erscheinen der
+  // Karte inzwischen unproblematisch, da die Fussbereich-Position davon
+  // nicht mehr abhaengt. Erst-Erscheinen bleibt dadurch bewusst ein
+  // sofortiges Sichtbarwerden in korrekter Groesse (kein Wachstum aus 0),
+  // NUR spaetere Aenderungen (Sektionen kommen/gehen) transitionieren die
+  // Hoehe weich.
+  const [inhaltRef, hoehe] = useBeobachteteHoehe()
+
   const kalorienGueltig = ziel.typ !== 'kein' && kalorienZielGueltig(ziel)
   const kalorienMittelwert = kalorienGueltig
     ? Math.round((Number(ziel.kalorien.min) + Number(ziel.kalorien.max)) / 2)
@@ -157,105 +166,117 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
       })}
       className="rounded-[14px] bg-card p-5 shadow-sm"
     >
-      {/* Kein umschliessender Hoehen-Uebergang mehr (siehe Kommentar oben,
-          "FUENFTER Bug") - Hoehe ist rein natuerlich (height:auto). Jede
-          Sektion animiert nur noch sich selbst per eigenem AnimatePresence-
-          Fade beim Kommen/Gehen. */}
-      <AnimatePresence>
-        {zeigeKalorien && (
-          <motion.div
-            key="kalorien"
-            {...motionPropsFuer(reduzierteBewegung, {
-              initial: { opacity: 0, y: 12 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: 12 },
-              transition: { duration: 0.3, ease: 'easeOut' },
-            })}
-            className="flex items-center gap-2"
-          >
-            <IconFlame size={28} stroke={1.75} className="shrink-0 text-primary" />
-            <p className="font-display text-4xl font-semibold text-text">
-              <AnimierteZahl wert={kalorienMittelwert} />
-              <span className="ml-1 text-base font-medium text-text-muted">kcal</span>
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Hoehe folgt per CSS transition der per ResizeObserver beobachteten
+          Hoehe von inhaltRef (siehe useBeobachteteHoehe-Aufruf oben) - NICHT
+          framer-motions layout-Prop (siehe Kommentar oben zur Herleitung,
+          "SECHSTER Bug"). Padding bleibt bewusst auf der AEUSSEREN motion.div
+          (p-5 oben), NICHT auf diesem Element - border-box (Tailwind-
+          Preflight) wuerde sonst Padding von der gesetzten Pixelhoehe
+          abziehen und die letzte Zeile abschneiden (siehe "FUENFTER Bug"
+          oben). flow-root auf inhaltRef verhindert Margin-Collapse der
+          ersten Sektion (analog zu ZielEinstellungen.jsx). */}
+      <div
+        className="overflow-hidden transition-[height] motion-reduce:transition-none"
+        style={{ height: hoehe, transitionDuration: `${HOEHEN_UEBERGANG_MS}ms`, transitionTimingFunction: HOEHEN_UEBERGANG_EASING }}
+      >
+        <div ref={inhaltRef} className="flow-root">
+          <AnimatePresence>
+            {zeigeKalorien && (
+              <motion.div
+                key="kalorien"
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0, y: 12 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 12 },
+                  transition: { duration: 0.3, ease: 'easeOut' },
+                })}
+                className="flex items-center gap-2"
+              >
+                <IconFlame size={28} stroke={1.75} className="shrink-0 text-primary" />
+                <p className="font-display text-4xl font-semibold text-text">
+                  <AnimierteZahl wert={kalorienMittelwert} />
+                  <span className="ml-1 text-base font-medium text-text-muted">kcal</span>
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <AnimatePresence>
-        {zeigeMahlzeiten && (
-          <motion.div
-            key="mahlzeiten"
-            {...motionPropsFuer(reduzierteBewegung, {
-              initial: { opacity: 0, y: 12 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: 12 },
-              transition: { duration: 0.3, ease: 'easeOut' },
-            })}
-            className={`flex gap-2 ${zeigeKalorien ? 'mt-4' : ''}`}
-          >
-            {MAHLZEITEN.map(({ slug, label }) => (
-              <IconChip
-                key={slug}
-                Icon={MAHLZEIT_ICON[slug]}
-                label={label}
-                aktiv={ausgewaehlteMahlzeiten.includes(slug)}
-                farbKlasse={TERRAKOTTA}
-                reduzierteBewegung={reduzierteBewegung}
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence>
+            {zeigeMahlzeiten && (
+              <motion.div
+                key="mahlzeiten"
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0, y: 12 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 12 },
+                  transition: { duration: 0.3, ease: 'easeOut' },
+                })}
+                className={`flex gap-2 ${zeigeKalorien ? 'mt-4' : ''}`}
+              >
+                {MAHLZEITEN.map(({ slug, label }) => (
+                  <IconChip
+                    key={slug}
+                    Icon={MAHLZEIT_ICON[slug]}
+                    label={label}
+                    aktiv={ausgewaehlteMahlzeiten.includes(slug)}
+                    farbKlasse={TERRAKOTTA}
+                    reduzierteBewegung={reduzierteBewegung}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <AnimatePresence>
-        {zeigeDiaet && (
-          <motion.div
-            key="diaet"
-            {...motionPropsFuer(reduzierteBewegung, {
-              initial: { opacity: 0, y: 16 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: 16 },
-              transition: SPRING_REVEAL,
-            })}
-            className={`flex flex-wrap gap-2 ${zeigeMahlzeiten ? 'mt-4' : ''}`}
-          >
-            {Object.keys(DIAET_ICON).map((slug) => (
-              <IconChip
-                key={slug}
-                Icon={DIAET_ICON[slug]}
-                label={DIAET_LABEL[slug]}
-                aktiv={diaeten.includes(slug)}
-                farbKlasse={OLIVE}
-                reduzierteBewegung={reduzierteBewegung}
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence>
+            {zeigeDiaet && (
+              <motion.div
+                key="diaet"
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0, y: 16 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 16 },
+                  transition: SPRING_REVEAL,
+                })}
+                className={`flex flex-wrap gap-2 ${zeigeMahlzeiten ? 'mt-4' : ''}`}
+              >
+                {Object.keys(DIAET_ICON).map((slug) => (
+                  <IconChip
+                    key={slug}
+                    Icon={DIAET_ICON[slug]}
+                    label={DIAET_LABEL[slug]}
+                    aktiv={diaeten.includes(slug)}
+                    farbKlasse={OLIVE}
+                    reduzierteBewegung={reduzierteBewegung}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <AnimatePresence>
-        {zeigeMakros && (
-          <motion.div
-            key="makros"
-            {...motionPropsFuer(reduzierteBewegung, {
-              initial: { opacity: 0, y: 12 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: 12 },
-              transition: { duration: 0.3, ease: 'easeOut' },
-            })}
-            className={`flex gap-4 ${zeigtEtwasVorMakros ? 'mt-4' : ''}`}
-          >
-            {sichtbareMakros.map(({ kategorie, label }) => (
-              <p key={kategorie} className="text-sm font-medium text-text-muted">
-                <span className="text-text-muted/70">{label}</span>{' '}
-                <AnimierteZahl wert={Math.round(Number(ziel.makro[kategorie]))} className="font-display text-lg font-semibold text-text" />
-                <span className="text-xs">g</span>
-              </p>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence>
+            {zeigeMakros && (
+              <motion.div
+                key="makros"
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0, y: 12 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 12 },
+                  transition: { duration: 0.3, ease: 'easeOut' },
+                })}
+                className={`flex gap-4 ${zeigtEtwasVorMakros ? 'mt-4' : ''}`}
+              >
+                {sichtbareMakros.map(({ kategorie, label }) => (
+                  <p key={kategorie} className="text-sm font-medium text-text-muted">
+                    <span className="text-text-muted/70">{label}</span>{' '}
+                    <AnimierteZahl wert={Math.round(Number(ziel.makro[kategorie]))} className="font-display text-lg font-semibold text-text" />
+                    <span className="text-xs">g</span>
+                  </p>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
     </motion.div>
   )
 }
