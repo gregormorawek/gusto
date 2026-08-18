@@ -199,10 +199,40 @@ function OnboardingWizard({
             Bereich) uebereinander in derselben Zelle, der Header sized sich
             waehrend der Ueberlappung auf die groessere der beiden Hoehen -
             kein Nullpunkt-Sprung mehr dazwischen, nur noch der eine bereits
-            etablierte finale Snap beim Entfernen des alten Titels (siehe
-            Kommentar zum Frage-Bereich oben zu genau diesem, akzeptierten
-            Restverhalten). */}
-        <div className="grid">
+            etablierte finale Snap beim Entfernen des alten Titels.
+
+            min-h-[104px] - GEFUNDENE URSACHE des LETZTEN verbleibenden
+            Sprungs, der beim Wechsel "Alles bereit"->Schritt 3 auffiel (bei
+            SCHMALEM Viewport reproduziert, 375x812 - bei zu grossem Viewport
+            im Test zuvor nicht sichtbar/messbar gewesen). Per Layout-
+            Instability-API (PerformanceObserver "layout-shift", praeziser
+            als manuelles getBoundingClientRect()-Polling) hart nachgewiesen:
+            der Frage-Bereich-Container zeigt bei diesem Uebergang GENAU
+            EINEN Shift (top 202px->178px, Hoehe bleibt konstant 428px) -
+            kein "erst zu tief, dann Sprung"-Doppelmuster, sondern ein reiner,
+            unanimierter Sprung der VERTIKALEN POSITION. Ursache: Schritt-4-
+            Titel ("Alles bereit!" + Subtext, mt-8/mt-2) ist per Messung
+            104px hoch, Schritt-<=3-Titel ("Schritt X von 3" + Ueberschrift,
+            mt-5/mt-1) nur 80px - der Grid-Stack oben verhindert zwar die
+            FRUEHERE Doppel-Sprung-Variante (Luecke waehrend mode="wait"),
+            aber sobald der alte (kuerzere ODER laengere) Titel entfernt
+            wird, sized sich DIESER Grid-Stack selbst auf seine neue
+            Zielhoehe - der resultierende 24px-Hoehenunterschied im Header
+            verschiebt daher IMMER den gesamten darunterliegenden Frage-
+            Bereich samt Footer, in BEIDE Richtungen (3->4 UND 4->3
+            gleichermassen) - bei 3->4 faellt das nur weniger auf, weil
+            GLEICHZEITIG auch der Footer verschwindet (eine zweite, groessere
+            Hoehenaenderung ueberlagert/maskiert die kleinere). min-h-[104px]
+            reserviert immer die Hoehe der GROESSEREN Variante - der
+            Titel-Block (und damit der gesamte Header) hat dadurch ab jetzt
+            fuer JEDEN Schritt (1-4) exakt dieselbe Hoehe, das Grid-Stack-
+            Sizing-Problem kann strukturell nicht mehr auftreten, weil beide
+            Zustaende bereits IDENTISCH hoch sind. Bewusst hartcodierter
+            Pixelwert statt einer erneuten Hoehen-Messung (useBeobachteteHoehe
+            o.ae.) - hier ist die Zielhoehe bekannt und stabil (zwei fest
+            formulierte Text-Varianten, kein dynamischer User-Inhalt), ein
+            Mess-Hook waere unnoetige Komplexitaet fuer einen Konstantwert. */}
+        <div className="grid min-h-[104px]">
           <AnimatePresence initial={false}>
             <motion.div
               key={schritt}
