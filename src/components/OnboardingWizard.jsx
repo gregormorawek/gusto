@@ -8,13 +8,24 @@ import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
 import WizardTageskarte from './WizardTageskarte'
 import AnimatedButton from './AnimatedButton'
 import { kalorienZielGueltig } from '../kalorienZiel'
-import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { EXPO_OUT, HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { useBeobachteteHoehe } from '../useBeobachteteHoehe'
 
 const SCHRITT_TITEL = {
   1: 'Kalorienziel',
   2: 'Mahlzeit',
   3: 'Ernährungsform',
 }
+
+// Eingangsanimation fuer den Titel-Block (Schritt-Zaehler + grosse
+// Ueberschrift) beim Schritt-Wechsel - dezentes Fade + minimaler Y-Versatz,
+// bewusst OHNE Ueberschwingen (EXPO_OUT statt eines Springs), angelehnt an
+// die Logo-Einblendung in Startbildschirm.jsx. Getrennt von schrittVarianten
+// oben, da NUR der Titel-Block re-animiert (der Fortschrittsbalken bleibt
+// unangetastet stehen und waechst weiterhin rein per width-transition, siehe
+// Rendering unten) - waeren beide im selben AnimatePresence, wuerde der
+// Balken bei jedem Schritt-Wechsel unnoetig mit aus-/einblenden.
+const TITEL_TRANSITION = { duration: 0.28, ease: EXPO_OUT }
 
 // Slide+Fade-Varianten fuer den Frage-Bereich beim Schritt-Wechsel. richtung
 // (+1 = Weiter, -1 = Zurueck, siehe schrittWechseln) bestimmt, von welcher
@@ -83,6 +94,18 @@ function OnboardingWizard({
   const [richtung, setRichtung] = useState(1)
   const reduzierteBewegung = useReducedMotion()
 
+  // Hoehen-Uebergang fuer den Frage-Bereich (siehe useBeobachteteHoehe.js,
+  // gleiches Muster wie WizardTageskarte.jsx/ZielEinstellungen.jsx) - der
+  // CSS-Grid-Stack-Trick unten (col-start-1/row-start-1, siehe dortiger
+  // Kommentar) verhindert zwar den Sprung WAEHREND der Ueberlappung von
+  // altem und neuem Schritt-Inhalt, aber das FINALE Schrumpfen der Grid-
+  // Zeile auf die Hoehe des neuen (oft kuerzeren) Inhalts bleibt ohne
+  // dieses zusaetzliche Hoehen-Tracking hart/unanimiert, sobald der aeltere
+  // (groessere) Inhalt fertig ausgefadet ist und entfernt wird - per
+  // getBoundingClientRect()-Messung am "Weiter"-Button konkret nachgewiesen
+  // (glatter Anstieg, dann sprunghafter Rueckfall).
+  const [inhaltRef, inhaltHoehe] = useBeobachteteHoehe()
+
   const zielGueltig = kalorienZielGueltig(ziel)
   const diaetGueltig = diaeten.length > 0
   const proTag = ziel.typ === 'proTag'
@@ -130,147 +153,194 @@ function OnboardingWizard({
           <span className="block h-9 w-9" />
         )}
 
-        {schritt <= 3 ? (
-          <>
-            <div className="mt-6 flex gap-1.5">
-              {[1, 2, 3].map((s) => (
-                <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-muted/20">
-                  <span
-                    className="block h-full rounded-full bg-primary transition-[width] duration-[400ms] ease-out motion-reduce:transition-none"
-                    style={{ width: s <= schritt ? '100%' : '0%' }}
-                  />
-                </span>
-              ))}
-            </div>
-
-            <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-text-muted">
-              Schritt {schritt} von 3
-            </p>
-            <h1 className="mt-1 font-display text-4xl font-semibold text-text sm:text-5xl">
-              {SCHRITT_TITEL[schritt]}
-            </h1>
-          </>
-        ) : (
-          <>
-            <h1 className="mt-8 font-display text-4xl font-semibold text-text sm:text-5xl">Alles bereit!</h1>
-            <p className="mt-2 text-text-muted">Wie möchtest du starten?</p>
-          </>
+        {schritt <= 3 && (
+          <div className="mt-6 flex gap-1.5">
+            {[1, 2, 3].map((s) => (
+              <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-muted/20">
+                <span
+                  className="block h-full rounded-full bg-primary transition-[width] duration-[400ms] ease-out motion-reduce:transition-none"
+                  style={{ width: s <= schritt ? '100%' : '0%' }}
+                />
+              </span>
+            ))}
+          </div>
         )}
-      </header>
 
-      <div className="relative flex flex-1 flex-col justify-center overflow-hidden px-6 py-6">
-        <AnimatePresence mode="wait" custom={richtung} initial={false}>
+        {/* Titel-Block separat per AnimatePresence gekapselt (siehe
+            TITEL_TRANSITION oben) - der Fortschrittsbalken darueber bleibt
+            bewusst AUSSERHALB, damit er beim Schritt-Wechsel nicht mit
+            aus-/einblendet, sondern durchgehend sichtbar bleibt und nur
+            seine Fuellung per width-transition waechst. mode="wait" statt
+            eines echten Crossfades, da altes und neues sich sonst an
+            derselben Stelle ueberlappen wuerden (kein Ueberlagerungs-Layout
+            wie bei RezeptKarte.jsx, wo beide Bilder per Grid-Overlay
+            uebereinander liegen koennen). */}
+        <AnimatePresence mode="wait" initial={false}>
           <motion.div
             key={schritt}
-            {...(schritt === 4
-              ? motionPropsFuer(reduzierteBewegung, {
-                  initial: { opacity: 0, scale: 0.95 },
-                  animate: { opacity: 1, scale: 1 },
-                  exit: { opacity: 0, scale: 0.95 },
-                  transition: SPRING_REVEAL,
-                })
-              : {
-                  custom: richtung,
-                  variants: schrittVarianten(reduzierteBewegung),
-                  initial: 'eintritt',
-                  animate: 'mitte',
-                  exit: 'austritt',
-                  transition: reduzierteBewegung ? { duration: 0.15 } : { duration: 0.32, ease: 'easeOut' },
-                })}
+            {...motionPropsFuer(reduzierteBewegung, {
+              initial: { opacity: 0, y: 8 },
+              animate: { opacity: 1, y: 0 },
+              exit: { opacity: 0, y: -8 },
+              transition: TITEL_TRANSITION,
+            })}
           >
-            {schritt === 1 && (
+            {schritt <= 3 ? (
               <>
-                <ZielEinstellungen
-                  ziel={ziel}
-                  onTypAendern={onTypAendern}
-                  onKalorienAendern={onKalorienAendern}
-                  onMakroAendern={onMakroAendern}
-                />
-                {!zielGueltig && ziel.typ && ziel.typ !== 'kein' && (
-                  <p className="mx-4 mt-2 text-xs text-primary">
-                    Bitte gültige Min-/Max-Werte eingeben (beide größer als 0, Min kleiner als Max).
-                  </p>
-                )}
-              </>
-            )}
-
-            {schritt === 2 && (
-              <section className="mx-4 rounded-2xl border border-secondary/20 bg-card p-6 shadow-sm">
-                {proTag ? (
-                  <>
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mahlzeiten</h2>
-                    <p className="mt-1 text-xs text-text-muted">Welche Mahlzeiten sollen im Tagesplan vorkommen?</p>
-                    <div className="mt-3">
-                      <TagesplanMahlzeitenFilter
-                        ausgewaehlt={tagesplanMahlzeiten}
-                        onAendern={onTagesplanMahlzeitenAendern}
-                        layout="raster2x2"
-                      />
-                    </div>
-                  </>
-                ) : (
-                  <>
-                    <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mahlzeit</h2>
-                    <p className="mt-1 text-xs text-text-muted">Womit soll es losgehen? Das lässt sich später jederzeit ändern.</p>
-                    <div className="mt-3">
-                      <MahlzeitFilter aktuell={mahlzeit} onAendern={onMahlzeitAendern} layout="raster2x2" />
-                    </div>
-                  </>
-                )}
-              </section>
-            )}
-
-            {schritt === 3 && (
-              <>
-                <section className="mx-4 rounded-2xl border border-secondary/20 bg-card p-6 shadow-sm">
-                  <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Ernährungsform</h2>
-                  <div className="mt-3">
-                    <DiaetFilter ausgewaehlt={diaeten} onAendern={onDiaetenAendern} />
-                  </div>
-                </section>
-                {!diaetGueltig && (
-                  <p className="mx-4 mt-2 text-xs text-primary">
-                    Bitte eine Option auswählen (z. B. "Keine Einschränkung").
-                  </p>
-                )}
-              </>
-            )}
-
-            {schritt === 4 && (
-              <>
-                <div className="flex flex-col gap-4 sm:flex-row">
-                  <AnimatedButton
-                    type="button"
-                    onClick={() => onAbschluss('haupt')}
-                    className="flex flex-1 flex-col items-start gap-2 rounded-2xl border border-secondary/20 bg-card p-6 text-left shadow-sm"
-                  >
-                    <IconDice5 size={32} stroke={1.75} className="text-primary" />
-                    <h2 className="font-display text-xl font-semibold text-text">Würfeln</h2>
-                    <p className="text-sm text-text-muted">
-                      Eine einzelne Zutaten-Kombination für deine nächste Mahlzeit auswürfeln.
-                    </p>
-                  </AnimatedButton>
-
-                  <AnimatedButton
-                    type="button"
-                    onClick={() => onAbschluss('rezepte')}
-                    className="flex flex-1 flex-col items-start gap-2 rounded-2xl border border-secondary/20 bg-card p-6 text-left shadow-sm"
-                  >
-                    <IconBook2 size={32} stroke={1.75} className="text-primary" />
-                    <h2 className="font-display text-xl font-semibold text-text">Rezepte</h2>
-                    <p className="text-sm text-text-muted">
-                      Fertige, kuratierte Rezept-Ideen zum Durchstöbern.
-                    </p>
-                  </AnimatedButton>
-                </div>
-
-                <p className="mt-4 text-center text-xs text-text-muted">
-                  Du kannst jederzeit zwischen beiden wechseln.
+                <p className="mt-5 text-xs font-semibold uppercase tracking-widest text-text-muted">
+                  Schritt {schritt} von 3
                 </p>
+                <h1 className="mt-1 font-display text-4xl font-semibold text-text sm:text-5xl">
+                  {SCHRITT_TITEL[schritt]}
+                </h1>
+              </>
+            ) : (
+              <>
+                <h1 className="mt-8 font-display text-4xl font-semibold text-text sm:text-5xl">Alles bereit!</h1>
+                <p className="mt-2 text-text-muted">Wie möchtest du starten?</p>
               </>
             )}
           </motion.div>
         </AnimatePresence>
+      </header>
+
+      {/* grid statt block: waehrend der Crossfade-Ueberlappung liegen altes
+          UND neues motion.div per col-start-1/row-start-1 in GENAU derselben
+          Grid-Zelle uebereinander (identischer "CSS-Grid-Stack"-Trick wie in
+          RezeptKarte.jsx) - die Zeile sized sich automatisch auf die
+          groessere der beiden Schritt-Inhalte, dadurch KEIN Hart-Sprung mehr
+          beim Wechsel zwischen unterschiedlich hohen Schritten. Bewusst OHNE
+          mode="wait" (das haette altes/neues NACHEINANDER statt
+          UEBERLAPPEND gezeigt und genau den vorherigen Sprung verursacht,
+          siehe Bugfix "Wizard-Schritt-Uebergaenge glaetten") und OHNE
+          mode="popLayout" (siehe RezeptKarte.jsx-Kommentar zur Herleitung:
+          das haette dem austretenden Element eigene, nicht immer exakt
+          passende inline-Positionswerte verpasst). Zusaetzlich per
+          useBeobachteteHoehe in einen Hoehen-Uebergangs-Wrapper gepackt
+          (siehe Kommentar an dessen Aufruf oben) - grid allein verhindert
+          nur den Sprung WAEHREND der Ueberlappung, nicht das finale
+          Schrumpfen auf die neue Zielhoehe danach. */}
+      <div className="relative flex flex-1 flex-col justify-center overflow-hidden px-6 py-6">
+        <div
+          className="overflow-hidden transition-[height] motion-reduce:transition-none"
+          style={{ height: inhaltHoehe, transitionDuration: `${HOEHEN_UEBERGANG_MS}ms`, transitionTimingFunction: HOEHEN_UEBERGANG_EASING }}
+        >
+        <div ref={inhaltRef} className="grid">
+          <AnimatePresence custom={richtung} initial={false}>
+            <motion.div
+              key={schritt}
+              className="col-start-1 row-start-1"
+              {...(schritt === 4
+                ? motionPropsFuer(reduzierteBewegung, {
+                    initial: { opacity: 0, scale: 0.95 },
+                    animate: { opacity: 1, scale: 1 },
+                    exit: { opacity: 0, scale: 0.95 },
+                    transition: SPRING_REVEAL,
+                  })
+                : {
+                    custom: richtung,
+                    variants: schrittVarianten(reduzierteBewegung),
+                    initial: 'eintritt',
+                    animate: 'mitte',
+                    exit: 'austritt',
+                    transition: reduzierteBewegung ? { duration: 0.15 } : { duration: 0.32, ease: 'easeOut' },
+                  })}
+            >
+              {schritt === 1 && (
+                <>
+                  <ZielEinstellungen
+                    ziel={ziel}
+                    onTypAendern={onTypAendern}
+                    onKalorienAendern={onKalorienAendern}
+                    onMakroAendern={onMakroAendern}
+                  />
+                  {!zielGueltig && ziel.typ && ziel.typ !== 'kein' && (
+                    <p className="mx-4 mt-2 text-xs text-primary">
+                      Bitte gültige Min-/Max-Werte eingeben (beide größer als 0, Min kleiner als Max).
+                    </p>
+                  )}
+                </>
+              )}
+
+              {schritt === 2 && (
+                <section className="mx-4 rounded-2xl border border-secondary/20 bg-card p-6 shadow-sm">
+                  {proTag ? (
+                    <>
+                      <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mahlzeiten</h2>
+                      <p className="mt-1 text-xs text-text-muted">Welche Mahlzeiten sollen im Tagesplan vorkommen?</p>
+                      <div className="mt-3">
+                        <TagesplanMahlzeitenFilter
+                          ausgewaehlt={tagesplanMahlzeiten}
+                          onAendern={onTagesplanMahlzeitenAendern}
+                          layout="raster2x2"
+                        />
+                      </div>
+                    </>
+                  ) : (
+                    <>
+                      <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mahlzeit</h2>
+                      <p className="mt-1 text-xs text-text-muted">Womit soll es losgehen? Das lässt sich später jederzeit ändern.</p>
+                      <div className="mt-3">
+                        <MahlzeitFilter aktuell={mahlzeit} onAendern={onMahlzeitAendern} layout="raster2x2" />
+                      </div>
+                    </>
+                  )}
+                </section>
+              )}
+
+              {schritt === 3 && (
+                <>
+                  <section className="mx-4 rounded-2xl border border-secondary/20 bg-card p-6 shadow-sm">
+                    <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Ernährungsform</h2>
+                    <div className="mt-3">
+                      <DiaetFilter ausgewaehlt={diaeten} onAendern={onDiaetenAendern} />
+                    </div>
+                  </section>
+                  {!diaetGueltig && (
+                    <p className="mx-4 mt-2 text-xs text-primary">
+                      Bitte eine Option auswählen (z. B. "Keine Einschränkung").
+                    </p>
+                  )}
+                </>
+              )}
+
+              {schritt === 4 && (
+                <>
+                  <div className="flex flex-col gap-4 sm:flex-row">
+                    <AnimatedButton
+                      type="button"
+                      onClick={() => onAbschluss('haupt')}
+                      className="flex flex-1 flex-col items-start gap-2 rounded-2xl border border-secondary/20 bg-card p-6 text-left shadow-sm"
+                    >
+                      <IconDice5 size={32} stroke={1.75} className="text-primary" />
+                      <h2 className="font-display text-xl font-semibold text-text">Würfeln</h2>
+                      <p className="text-sm text-text-muted">
+                        Eine einzelne Zutaten-Kombination für deine nächste Mahlzeit auswürfeln.
+                      </p>
+                    </AnimatedButton>
+
+                    <AnimatedButton
+                      type="button"
+                      onClick={() => onAbschluss('rezepte')}
+                      className="flex flex-1 flex-col items-start gap-2 rounded-2xl border border-secondary/20 bg-card p-6 text-left shadow-sm"
+                    >
+                      <IconBook2 size={32} stroke={1.75} className="text-primary" />
+                      <h2 className="font-display text-xl font-semibold text-text">Rezepte</h2>
+                      <p className="text-sm text-text-muted">
+                        Fertige, kuratierte Rezept-Ideen zum Durchstöbern.
+                      </p>
+                    </AnimatedButton>
+                  </div>
+
+                  <p className="mt-4 text-center text-xs text-text-muted">
+                    Du kannst jederzeit zwischen beiden wechseln.
+                  </p>
+                </>
+              )}
+            </motion.div>
+          </AnimatePresence>
+        </div>
+        </div>
       </div>
 
       {schritt <= 3 && (

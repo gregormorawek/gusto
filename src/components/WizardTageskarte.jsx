@@ -3,7 +3,8 @@ import { IconFlame } from '@tabler/icons-react'
 import { MAHLZEITEN, MAHLZEIT_ICON } from '../mahlzeiten'
 import { DIAET_ICON } from './DiaetFilter'
 import { kalorienZielGueltig } from '../kalorienZiel'
-import { SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
+import { useBeobachteteHoehe } from '../useBeobachteteHoehe'
 import AnimierteZahl from './AnimierteZahl'
 
 const DIAET_LABEL = {
@@ -86,6 +87,19 @@ const OLIVE = { aktivBorder: 'border-secondary', aktivBg: 'bg-secondary/15', akt
 // die Karte ab Schritt 4 (siehe OnboardingWizard, schritt <= 3) gar nicht
 // mehr gerendert wird - bewusst in Kauf genommen, siehe Ruecksprache.
 function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag, diaeten, reduzierteBewegung }) {
+  // Hoehen-Uebergang fuer die Karte selbst (siehe useBeobachteteHoehe.js) -
+  // OHNE das haette jede neu hinzukommende Sektion (Kalorien/Mahlzeiten/
+  // Diaet/Makros) die Karte HART springen lassen statt sanft zu wachsen,
+  // und damit den darunterliegenden "Weiter"-Button abrupt verschoben. Per
+  // getBoundingClientRect()-Messung ueber einen echten Schritt-2-zu-3-
+  // Wechsel konkret nachgewiesen: der Button sprang instant von 756px auf
+  // 781px Top-Position (Mahlzeiten-Sektion mountet), kurz darauf zurueck auf
+  // 756px (Haupt-Content-Uebergang schliesst ab) - zwei ueberlagerte,
+  // jeweils unanimierte Spruenge (siehe Bugfix "Wizard-Schritt-Uebergaenge
+  // glaetten"). Selbes Muster wie ZielEinstellungen.jsx (siehe dortiger
+  // Kommentar zur Herleitung).
+  const [inhaltRef, hoehe] = useBeobachteteHoehe()
+
   const kalorienGueltig = ziel.typ !== 'kein' && kalorienZielGueltig(ziel)
   const kalorienMittelwert = kalorienGueltig
     ? Math.round((Number(ziel.kalorien.min) + Number(ziel.kalorien.max)) / 2)
@@ -119,101 +133,113 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
       })}
       className="rounded-[14px] bg-card p-5 shadow-sm"
     >
-      <AnimatePresence>
-        {zeigeKalorien && (
-          <motion.div
-            key="kalorien"
-            {...motionPropsFuer(reduzierteBewegung, {
-              initial: { opacity: 0, y: 12 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: 12 },
-              transition: { duration: 0.3, ease: 'easeOut' },
-            })}
-            className="flex items-center gap-2"
-          >
-            <IconFlame size={28} stroke={1.75} className="shrink-0 text-primary" />
-            <p className="font-display text-4xl font-semibold text-text">
-              <AnimierteZahl wert={kalorienMittelwert} />
-              <span className="ml-1 text-base font-medium text-text-muted">kcal</span>
-            </p>
-          </motion.div>
-        )}
-      </AnimatePresence>
+      {/* Hoehe folgt per CSS transition der per ResizeObserver beobachteten
+          Hoehe von inhaltRef (siehe useBeobachteteHoehe-Aufruf oben) - NICHT
+          framer-motions layout-Prop, siehe dortiger Kommentar zur Herleitung.
+          flow-root auf inhaltRef verhindert Margin-Collapse der ersten
+          Sektion (analog zu ZielEinstellungen.jsx). */}
+      <div
+        className="overflow-hidden transition-[height] motion-reduce:transition-none"
+        style={{ height: hoehe, transitionDuration: `${HOEHEN_UEBERGANG_MS}ms`, transitionTimingFunction: HOEHEN_UEBERGANG_EASING }}
+      >
+        <div ref={inhaltRef} className="flow-root">
+          <AnimatePresence>
+            {zeigeKalorien && (
+              <motion.div
+                key="kalorien"
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0, y: 12 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 12 },
+                  transition: { duration: 0.3, ease: 'easeOut' },
+                })}
+                className="flex items-center gap-2"
+              >
+                <IconFlame size={28} stroke={1.75} className="shrink-0 text-primary" />
+                <p className="font-display text-4xl font-semibold text-text">
+                  <AnimierteZahl wert={kalorienMittelwert} />
+                  <span className="ml-1 text-base font-medium text-text-muted">kcal</span>
+                </p>
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <AnimatePresence>
-        {zeigeMahlzeiten && (
-          <motion.div
-            key="mahlzeiten"
-            {...motionPropsFuer(reduzierteBewegung, {
-              initial: { opacity: 0, y: 12 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: 12 },
-              transition: { duration: 0.3, ease: 'easeOut' },
-            })}
-            className={`flex gap-2 ${zeigeKalorien ? 'mt-4' : ''}`}
-          >
-            {MAHLZEITEN.map(({ slug, label }) => (
-              <IconChip
-                key={slug}
-                Icon={MAHLZEIT_ICON[slug]}
-                label={label}
-                aktiv={ausgewaehlteMahlzeiten.includes(slug)}
-                farbKlasse={TERRAKOTTA}
-                reduzierteBewegung={reduzierteBewegung}
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence>
+            {zeigeMahlzeiten && (
+              <motion.div
+                key="mahlzeiten"
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0, y: 12 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 12 },
+                  transition: { duration: 0.3, ease: 'easeOut' },
+                })}
+                className={`flex gap-2 ${zeigeKalorien ? 'mt-4' : ''}`}
+              >
+                {MAHLZEITEN.map(({ slug, label }) => (
+                  <IconChip
+                    key={slug}
+                    Icon={MAHLZEIT_ICON[slug]}
+                    label={label}
+                    aktiv={ausgewaehlteMahlzeiten.includes(slug)}
+                    farbKlasse={TERRAKOTTA}
+                    reduzierteBewegung={reduzierteBewegung}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <AnimatePresence>
-        {zeigeDiaet && (
-          <motion.div
-            key="diaet"
-            {...motionPropsFuer(reduzierteBewegung, {
-              initial: { opacity: 0, y: 16 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: 16 },
-              transition: SPRING_REVEAL,
-            })}
-            className={`flex flex-wrap gap-2 ${zeigeMahlzeiten ? 'mt-4' : ''}`}
-          >
-            {Object.keys(DIAET_ICON).map((slug) => (
-              <IconChip
-                key={slug}
-                Icon={DIAET_ICON[slug]}
-                label={DIAET_LABEL[slug]}
-                aktiv={diaeten.includes(slug)}
-                farbKlasse={OLIVE}
-                reduzierteBewegung={reduzierteBewegung}
-              />
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence>
+            {zeigeDiaet && (
+              <motion.div
+                key="diaet"
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0, y: 16 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 16 },
+                  transition: SPRING_REVEAL,
+                })}
+                className={`flex flex-wrap gap-2 ${zeigeMahlzeiten ? 'mt-4' : ''}`}
+              >
+                {Object.keys(DIAET_ICON).map((slug) => (
+                  <IconChip
+                    key={slug}
+                    Icon={DIAET_ICON[slug]}
+                    label={DIAET_LABEL[slug]}
+                    aktiv={diaeten.includes(slug)}
+                    farbKlasse={OLIVE}
+                    reduzierteBewegung={reduzierteBewegung}
+                  />
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
 
-      <AnimatePresence>
-        {zeigeMakros && (
-          <motion.div
-            key="makros"
-            {...motionPropsFuer(reduzierteBewegung, {
-              initial: { opacity: 0, y: 12 },
-              animate: { opacity: 1, y: 0 },
-              exit: { opacity: 0, y: 12 },
-              transition: { duration: 0.3, ease: 'easeOut' },
-            })}
-            className={`flex gap-4 ${zeigtEtwasVorMakros ? 'mt-4' : ''}`}
-          >
-            {sichtbareMakros.map(({ kategorie, label }) => (
-              <p key={kategorie} className="text-sm font-medium text-text-muted">
-                <span className="text-text-muted/70">{label}</span>{' '}
-                <AnimierteZahl wert={Math.round(Number(ziel.makro[kategorie]))} className="font-display text-lg font-semibold text-text" />
-                <span className="text-xs">g</span>
-              </p>
-            ))}
-          </motion.div>
-        )}
-      </AnimatePresence>
+          <AnimatePresence>
+            {zeigeMakros && (
+              <motion.div
+                key="makros"
+                {...motionPropsFuer(reduzierteBewegung, {
+                  initial: { opacity: 0, y: 12 },
+                  animate: { opacity: 1, y: 0 },
+                  exit: { opacity: 0, y: 12 },
+                  transition: { duration: 0.3, ease: 'easeOut' },
+                })}
+                className={`flex gap-4 ${zeigtEtwasVorMakros ? 'mt-4' : ''}`}
+              >
+                {sichtbareMakros.map(({ kategorie, label }) => (
+                  <p key={kategorie} className="text-sm font-medium text-text-muted">
+                    <span className="text-text-muted/70">{label}</span>{' '}
+                    <AnimierteZahl wert={Math.round(Number(ziel.makro[kategorie]))} className="font-display text-lg font-semibold text-text" />
+                    <span className="text-xs">g</span>
+                  </p>
+                ))}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </div>
+      </div>
     </motion.div>
   )
 }
