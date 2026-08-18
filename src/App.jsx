@@ -12,6 +12,7 @@ import KochModus from './components/KochModus'
 import AnimatedButton from './components/AnimatedButton'
 import { MAHLZEITEN, standardMahlzeit } from './mahlzeiten'
 import { supabase } from './supabase'
+import { useTastaturAusgleich } from './useTastaturAusgleich'
 import { gefiltertePoolFuer, vierterSlotOptionenFuer } from './zutatenFilter'
 import {
   aufPortionSkalieren,
@@ -487,6 +488,14 @@ function TagesplanSkeleton() {
 }
 
 function App() {
+  // App-weiter Backstop gegen ruckartiges Verschieben beim Fokussieren von
+  // Eingabefeldern (Tastatur ueberdeckt das Feld) - siehe
+  // useTastaturAusgleich.js. Bewusst hier auf Top-Level statt in einzelnen
+  // Formular-Komponenten, damit er ueberall greift (Onboarding-Wizard,
+  // Einstellungen-Panel, Zutatensuche, ...), ohne an jeder Stelle einzeln
+  // eingebunden werden zu muessen.
+  useTastaturAusgleich()
+
   // Diese Listen kamen frueher aus hartcodierten Arrays,
   // jetzt fuellen wir sie per useEffect aus der Datenbank.
   const [proteinOptionen, setProteinOptionen] = useState([])

@@ -99,7 +99,16 @@ function OnboardingWizard({
 
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
-      <header className="px-6 pt-8">
+      {/* sticky top-0: bleibt beim Fokussieren eines Eingabefelds (Tastatur
+          erscheint, siehe useTastaturAusgleich.js) an Ort und Stelle stehen,
+          waehrend sich nur der Inhalt darunter verschiebt - macht die
+          Bewegung insgesamt ruhiger UND verhindert strukturell, dass der
+          Header (wie im Kommentar in index.html zur alten resizes-content-
+          Entscheidung beschrieben) hinter die Statusleiste hochgescrollt
+          wird: sticky kann per Definition nicht ueber top:0 hinaus scrollen.
+          bg-bg noetig, damit der darunter scrollende Inhalt nicht sichtbar
+          durchscheint, sobald der Header steht und der Rest weiterzieht. */}
+      <header className="sticky top-0 z-10 bg-bg px-6 pt-8">
         {schritt > 1 ? (
           <AnimatedButton
             type="button"

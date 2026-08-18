@@ -21,6 +21,24 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Sanftes statt hartes Scrollen, wenn beim Fokussieren eines Eingabefelds
+   Ausgleich noetig ist (siehe useTastaturAusgleich.js + der Sticky-Header
+   in OnboardingWizard.jsx) - ohne dieses scroll-behavior wuerde selbst ein
+   per JS ausgeloester Scroll (z. B. Safaris eigenes "fokussiertes Feld
+   sichtbar halten") standardmaessig instant statt animiert springen.
+   Reduzierte Bewegung wird bewusst wieder auf "auto" (instant) zurueckgesetzt
+   - konsistent mit dem Rest der App, die durchgehend prefers-reduced-motion
+   respektiert (siehe framer-motion useReducedMotion()-Checks). */
+html {
+  scroll-behavior: smooth;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  html {
+    scroll-behavior: auto;
+  }
+}
+
 /* iOS Safari zoomt beim Fokussieren automatisch in jedes Formularfeld mit
    einer font-size unter 16px (Safari-Standardverhalten, kein Bug im Code).
    !important ist hier bewusst, da einzelne Tailwind-Utility-Klassen wie

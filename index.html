@@ -13,7 +13,19 @@
          Direktive resized sich der Layout-Viewport tatsaechlich, dvh
          reflowt korrekt, kein aggressives Auto-Scroll noetig. Unterstuetzt
          ab Safari 16.4/Chrome 108, unbekannte Werte werden von aelteren
-         Browsern ignoriert (kein Risiko fuer Abwaertskompatibilitaet). -->
+         Browsern ignoriert (kein Risiko fuer Abwaertskompatibilitaet).
+
+         NICHT auf overlays-content/resizes-visual umstellen, auch wenn der
+         dvh-Reflow beim Tastatur-Einblenden fuer sich genommen ruckartig
+         wirken kann (siehe Bugfix "Ruckartige Tastatur-Verschiebung") - das
+         war genau die oben beschriebene, am Geraet verifizierte Regression.
+         Stattdessen wird die verbleibende Ruckartigkeit seitdem ueber drei
+         ADDITIVE Massnahmen abgefedert, ohne dieses Setting anzufassen:
+         scroll-behavior:smooth in index.css, ein sticky-Header im Wizard
+         (OnboardingWizard.jsx, kann strukturell nicht hinter die
+         Statusleiste scrollen) und ein Visual-Viewport-Backstop
+         (useTastaturAusgleich.js), der nur bei tatsaechlich verbleibender
+         Ueberdeckung sanft nachkorrigiert. -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
     <title>gusto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
