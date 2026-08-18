@@ -31,6 +31,44 @@ body {
    respektiert (siehe framer-motion useReducedMotion()-Checks). */
 html {
   scroll-behavior: smooth;
+  /* GEFUNDENE URSACHE eines Breiten-Sprungs im Onboarding-Wizard
+     (OnboardingWizard.jsx): waehrend der Crossfade-Ueberlappung zweier
+     Schritte liegen KURZZEITIG beide Inhalte gleichzeitig im DOM (Grid-
+     Stack-Trick) - die Seite ist in diesem Moment hoeher als sonst (Summe
+     aus beiden Inhalten statt nur einem). Reicht diese Zwischen-Hoehe ueber
+     die Viewport-Hoehe hinaus, blendet der Browser kurzzeitig eine
+     vertikale Scrollbar ein, die ca. 15px Breite frisst - ALLE Bloecke auf
+     der Seite werden dadurch fuer die Dauer der Ueberlappung schmaler,
+     danach (Scrollbar verschwindet wieder) wieder breiter. Sichtbar u. a.
+     als "Mahlzeiten"-Feld, das beim Schritt-Wechsel kurz schmaeler
+     erscheint und sich dann verbreitert - per getBoundingClientRect()-
+     Vergleich von document.documentElement.clientWidth (390px vs. 375px)
+     synchron mit scrollHeight>innerHeight konkret nachgewiesen, NICHT an
+     einer inhaltsbasierten Grid-Spaltenbreite (das war die urspruengliche,
+     falsifizierte Hypothese - siehe stattdessen grid-cols-1-Kommentar in
+     OnboardingWizard.jsx fuer eine zusaetzliche, unabhaengige Haertung).
+     scrollbar-gutter:stable reserviert den Scrollbar-Platz IMMER, auch wenn
+     gerade nicht gescrollt werden kann - die verfuegbare Breite bleibt
+     dadurch konstant, unabhaengig davon, ob der Inhalt gerade (kurzzeitig)
+     ueber die Viewport-Hoehe hinausragt oder nicht.
+
+     scrollbar-gutter:stable + overflow-y:auto wurden zuerst versucht (der
+     modernere, weniger aufdringliche Ansatz - reserviert Platz, OHNE die
+     Scrollbar dauerhaft sichtbar zu erzwingen) - per getComputedStyle()
+     bestaetigt korrekt angewendet (CSS.supports(...)===true, kein Tippfehler,
+     kein Browser-Support-Problem), per direkter Messung ueber einen echten
+     Schritt-Wechsel aber NACHWEISLICH WIRKUNGSLOS auf dem html-Root-Element
+     (docClientWidth sprang weiterhin 390px->375px) - vermutlich, weil das
+     Wurzelelement seine Scrollbar ueber einen separaten, browserinternen
+     Viewport-Scrolling-Mechanismus zeigt statt ueber einen normalen CSS-
+     Scroll-Container, auf den scrollbar-gutter in der Praxis nicht
+     zuverlaessig durchgreift. Stattdessen der aeltere, dafuer garantiert
+     wirksame Ansatz: overflow-y:scroll erzwingt die Scrollbar-Spur permanent
+     sichtbar (statt nur bei Bedarf) - die verfuegbare Breite kann sich
+     dadurch nie mehr aendern, weil die Scrollbar nie mehr erscheint/
+     verschwindet. Per Messung bestaetigt wirksam (siehe Bugfix "Schritt-
+     Wechsel-Animation wiederherstellen"). */
+  overflow-y: scroll;
 }
 
 @media (prefers-reduced-motion: reduce) {

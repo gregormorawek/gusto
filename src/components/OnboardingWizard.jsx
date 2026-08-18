@@ -263,7 +263,26 @@ function OnboardingWizard({
           sind von dieser Aenderung nicht betroffen, da sie ausserhalb
           dieses flex-1-Containers liegen. */}
       <div className="relative flex flex-1 flex-col justify-start overflow-hidden px-6 py-6">
-        <div className="grid">
+        {/* grid-cols-1 (statt der impliziten grid-template-columns:none-
+            Voreinstellung, die eine einzelne auto-sized Spalte ergibt) -
+            urspruengliche (FALSIFIZIERTE) Hypothese fuer den Breiten-Sprung
+            beim Schritt-Wechsel war eine inhaltsbasierte auto-Spaltenbreite.
+            Per getBoundingClientRect()-Vergleich widerlegt: NICHT nur
+            ".grid" wurde schmaler (342px->327px), sondern der GESAMTE
+            aeussere Flex-Container UND document.documentElement.clientWidth
+            gleichermassen (390px->375px, exakt 15px) - synchron mit
+            document.documentElement.scrollHeight, das kurzzeitig ueber
+            window.innerHeight hinausschoss. Tatsaechliche Ursache: eine
+            waehrend der Crossfade-Ueberlappung kurzzeitig auftauchende
+            vertikale Scrollbar (siehe scrollbar-gutter:stable-Fix in
+            index.css) - behoben dort, nicht hier. grid-cols-1 bleibt
+            trotzdem bestehen, als zusaetzliche, unabhaengige Haertung:
+            macht die Spalte explizit minmax(0,1fr) (containerbreitenbasiert)
+            statt auto (inhaltsbasiert) - beide gestapelten Schritte liegen
+            dadurch garantiert deckungsgleich in Breite UND Position,
+            unabhaengig vom jeweiligen Inhalt, auch wenn das fuer den
+            konkret beobachteten Bug nicht die Ursache war. */}
+        <div className="grid grid-cols-1">
           <AnimatePresence custom={richtung} initial={false}>
             <motion.div
               key={schritt}
