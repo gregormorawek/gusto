@@ -23,12 +23,11 @@ import {
 } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import AnimierteZahl from './AnimierteZahl'
+import DampfSchwaden from './DampfSchwaden'
 import { SHEET_SLIDE_UEBERGANG, SPRING_REVEAL } from '../motionConfig'
 
 // aktion -> Icon, feste Zuordnung fuer die 8 erlaubten Werte (siehe
-// CLAUDE.md, "Neue kuratierte Rezepte"). Rein statisch fuer jetzt - ein
-// spaeterer Feature-Schritt ersetzt diese Icons durch animierte Versionen
-// (z. B. Pfanne mit Dampf beim Braten), die Zuordnungsstelle bleibt dieselbe.
+// CLAUDE.md, "Neue kuratierte Rezepte").
 const AKTION_ICON = {
   schneiden: IconCut,
   kochen: IconSoup,
@@ -38,6 +37,106 @@ const AKTION_ICON = {
   mischen: IconBowl,
   warten: IconHourglass,
   servieren: IconToolsKitchen2,
+}
+
+// aktion -> Icon-EIGENBEWEGUNG (rotate/x/y auf dem Icon selbst), nur fuer die
+// aktion-Typen, bei denen sich das Icon-Symbol selbst bewegt statt (wie bei
+// kochen/braten/roesten via DAMPF_AKTIONEN, oder servieren via
+// ServierGlitzer unten) eine Deko-Schicht daneben zu bekommen.
+// Alle Werte bewusst dezent gehalten (siehe Aufgabenstellung "subtil und
+// ruhig") und an den bisherigen App-Ton angelehnt (gedaempfte Bewegung, siehe
+// motionConfig.js-Kommentare).
+const ICON_EIGENBEWEGUNG = {
+  // Wisch-Pendel, kein voller Spin: +-18 Grad, sanft hin und her.
+  ruehren: {
+    animate: { rotate: [0, -18, 18, 0] },
+    transition: { duration: 2.2, repeat: Infinity, ease: 'easeInOut' },
+  },
+  // Leichtes seitliches Kippeln/Wackeln, wie beim Umruehren einer Schuessel -
+  // unregelmaessigere Keyframes als ruehren, damit es sich als eigener,
+  // unterscheidbarer Bewegungstyp anfuehlt statt wie eine schwaechere
+  // Kopie des Pendels.
+  mischen: {
+    animate: { rotate: [0, -8, 6, -4, 0], x: [0, -1, 1, -1, 0] },
+    transition: { duration: 1.6, repeat: Infinity, ease: 'easeInOut' },
+  },
+  // Ruhiger Hack-Rhythmus: leichtes Auf-und-Ab statt Rotation.
+  schneiden: {
+    animate: { y: [0, 3, 0] },
+    transition: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
+  },
+  // Periodischer Flip statt Dauerbewegung: die 180-Grad-Drehung findet nur in
+  // den ersten/letzten ~6% jedes Zyklus statt (times-Array), dazwischen
+  // Ruhe - "warten" soll entspannt wirken, nicht hektisch (siehe
+  // Aufgabenstellung).
+  warten: {
+    animate: { rotate: [0, 180, 180, 360] },
+    transition: { duration: 3.2, repeat: Infinity, times: [0, 0.06, 0.94, 1], ease: 'easeInOut' },
+  },
+}
+
+// aktion-Typen, bei denen statt einer Icon-Eigenbewegung die wiederverwendete
+// Dampf-Deko (siehe DampfSchwaden.jsx, urspruenglich vom "Jetzt
+// kochen"-Button) ueber dem (unbewegten) Icon erscheint.
+const DAMPF_AKTIONEN = new Set(['kochen', 'braten', 'roesten'])
+
+// Zwei kleine, versetzt getimte Glitzerpunkte fuer "servieren" - analog zu
+// DampfSchwaden aufgebaut (zwei Deko-Elemente, gegenlaeufig verzoegert),
+// aber als kurzes Aufblitzen (Opacity+Scale-Pulse) statt aufsteigender
+// Schwaden, da hier kein Dampf-, sondern ein "fertig & glaenzt"-Eindruck
+// gewuenscht ist.
+function ServierGlitzer() {
+  return (
+    <>
+      <motion.span
+        className="absolute -top-0.5 -right-0.5 h-1 w-1 rounded-full bg-primary"
+        animate={{ opacity: [0, 1, 0], scale: [0.4, 1, 0.4] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: 0 }}
+      />
+      <motion.span
+        className="absolute -bottom-0.5 -left-0.5 h-1 w-1 rounded-full bg-primary"
+        animate={{ opacity: [0, 1, 0], scale: [0.4, 1, 0.4] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut', delay: 0.9 }}
+      />
+    </>
+  )
+}
+
+// Schritt-Icon inkl. Animation fuer GENAU den aktuellen Schritt (siehe
+// aktuellerSchrittIndex-Berechnung in KochModusInhalt unten). animate/
+// transition werden nur gesetzt, wenn istAktuell&&!reduzierteBewegung
+// zutrifft - bei allen anderen Icons bleiben es reine <span>/<Icon>-Elemente
+// ganz ohne motion-Props, framer-motion startet dafuer KEINEN eigenen
+// Animations-Frame-Loop (nicht nur CSS-versteckt-aber-weiterlaufend, siehe
+// Aufgabenstellung zu Performance).
+function SchrittIcon({ Icon, aktion, istAktuell, reduzierteBewegung }) {
+  const animiert = istAktuell && !reduzierteBewegung
+  const eigenbewegung = animiert ? ICON_EIGENBEWEGUNG[aktion] : undefined
+  const zeigtDampf = animiert && DAMPF_AKTIONEN.has(aktion)
+  const zeigtGlitzer = animiert && aktion === 'servieren'
+
+  return (
+    <span
+      className={`relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ${
+        // Reduzierte Bewegung UND aktueller Schritt: da hier keine Animation
+        // laeuft, uebernimmt ein Ring die "das ist dein aktueller
+        // Schritt"-Markierung (siehe Aufgabenstellung) - bei aktiver Bewegung
+        // uebernimmt das die Animation selbst, kein zusaetzlicher Ring noetig.
+        istAktuell && reduzierteBewegung ? 'ring-2 ring-primary/50' : ''
+      }`}
+      aria-hidden="true"
+    >
+      {zeigtDampf && <DampfSchwaden punktFarbe="bg-primary" />}
+      {zeigtGlitzer && <ServierGlitzer />}
+      <motion.span
+        className="flex h-full w-full items-center justify-center"
+        animate={eigenbewegung?.animate}
+        transition={eigenbewegung?.transition}
+      >
+        <Icon size={18} stroke={1.75} />
+      </motion.span>
+    </span>
+  )
 }
 
 // Wie viel von der darunterliegenden RezeptKarte oben sichtbar bleibt
@@ -83,8 +182,14 @@ const DRAG_SCHLIESSEN_SPRING = { type: 'spring', stiffness: 300, damping: 32 }
 // dort, siehe Kommentar an der dortigen Verwendungsstelle) - NICHT mehr
 // lokaler State hier, damit der Haken-Status ein Schliessen+Wiederoeffnen
 // desselben Rezepts uebersteht (dieser Teil der Komponente wird ja bei jedem
-// Schliessen komplett unmounted).
-function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten }) {
+// Schliessen komplett unmounted). reduzierteBewegung kommt von
+// KochModusSheet durch (dort ohnehin schon per useReducedMotion ermittelt).
+function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten, reduzierteBewegung }) {
+  // Der "aktuelle Schritt" ist der erste noch NICHT abgehakte - findIndex
+  // liefert -1, wenn alle Schritte erledigt sind (dann animiert kein Icon
+  // mehr, siehe SchrittIcon-Vergleich istAktuell unten).
+  const aktuellerSchrittIndex = rezept.anleitung.findIndex((_, index) => !erledigteSchritte.has(index))
+
   const zutatenReferenz = [
     { label: 'Protein', name: karte.proteinZutat.name, portion: karte.portionen.proteinPortion },
     { label: 'Kohlenhydrate', name: karte.carbsZutat.name, portion: karte.portionen.carbsPortion },
@@ -152,12 +257,12 @@ function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten
                 </span>
 
                 {Icon && (
-                  <span
-                    className="mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary"
-                    aria-hidden="true"
-                  >
-                    <Icon size={18} stroke={1.75} />
-                  </span>
+                  <SchrittIcon
+                    Icon={Icon}
+                    aktion={schritt.aktion}
+                    istAktuell={index === aktuellerSchrittIndex}
+                    reduzierteBewegung={reduzierteBewegung}
+                  />
                 )}
 
                 <span className={`flex-1 text-sm ${erledigt ? 'text-text-muted line-through' : 'text-text'}`}>
@@ -367,6 +472,7 @@ function KochModusSheet({ eintrag, onZurueck, erledigteSchritte, onSchrittUmscha
             karte={karte}
             erledigteSchritte={erledigteSchritte}
             onSchrittUmschalten={onSchrittUmschalten}
+            reduzierteBewegung={reduzierteBewegung}
           />
         </div>
       </motion.div>

@@ -2,35 +2,10 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { IconChefHat, IconPhotoOff } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
+import DampfSchwaden from './DampfSchwaden'
 import SlotKarte from './SlotKarte'
 import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
 import { motionPropsFuer } from '../motionConfig'
-
-// Zwei kleine, gegenlaeufig getimte Dampf-Schwaden ueber dem Kochmuetzen-
-// Icon im "Jetzt kochen"-Button - rein dekorativ, dezent geloopt (der Button
-// ist ja dauerhaft sichtbar, keine einmalige Reveal-Animation). Nur lokal
-// hier definiert (nicht in motionConfig.js) - bislang die einzige
-// Verwendungsstelle fuer eine ENDLOS-Loop-Animation, alle bisherigen Presets
-// dort sind einmalige Ein-/Ausblende-Effekte. Wird vom Aufrufer NUR bei
-// aktiver Bewegung gerendert (siehe reduzierteBewegung-Check unten an der
-// Verwendungsstelle) - komplett weggelassen statt nur pausiert, damit unter
-// reduzierter Bewegung wirklich keine Restanimation im DOM haengen bleibt.
-function DampfSchwaden() {
-  return (
-    <>
-      <motion.span
-        className="absolute -top-1 left-1 h-1 w-1 rounded-full bg-card/70 blur-[1px]"
-        animate={{ y: [0, -8, -14], opacity: [0, 0.8, 0] }}
-        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut', delay: 0 }}
-      />
-      <motion.span
-        className="absolute -top-1 right-1 h-1 w-1 rounded-full bg-card/70 blur-[1px]"
-        animate={{ y: [0, -8, -14], opacity: [0, 0.8, 0] }}
-        transition={{ duration: 1.6, repeat: Infinity, ease: 'easeOut', delay: 0.5 }}
-      />
-    </>
-  )
-}
 
 // Reiner Crossfade fuer den Kartenwechsel (Tab-Wechsel UND Wuerfeln, seit
 // key={angezeigtesRezept.id} unten identisch ausgeloest) - bewusst OHNE
