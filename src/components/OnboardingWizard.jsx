@@ -261,8 +261,35 @@ function OnboardingWizard({
           Sonderfall. Titel-Block (im sticky Header) und der untere Bereich
           (Karte + Button, eigener Flex-Sibling unterhalb dieses Bereichs)
           sind von dieser Aenderung nicht betroffen, da sie ausserhalb
-          dieses flex-1-Containers liegen. */}
-      <div className="relative flex flex-1 flex-col justify-start overflow-hidden px-6 py-6">
+          dieses flex-1-Containers liegen.
+
+          min-h-0 - GEFUNDENE URSACHE dafuer, dass die untere Karte +
+          "Weiter"-Button bei JEDEM Schritt-Wechsel kurz nach unten sprangen
+          und danach wieder zurueck nach oben schnappten: Flex-Items haben
+          per CSS-Spezifikation einen IMPLIZITEN min-height:auto (nicht 0)
+          entlang der Hauptachse - das bedeutet, dieses flex-1-Element darf
+          NIE kleiner werden als der eigene INHALT es verlangt, selbst wenn
+          overflow-hidden gesetzt ist (overflow-hidden schneidet nur sichtbar
+          ab, verhindert aber nicht, dass die Box SELBST waechst). Waehrend
+          der Crossfade-Ueberlappung ist der Inhalt dieses Bereichs (die
+          Grid-Stack-Zeile, die sich auf die Vereinigung aus altem+neuem
+          Schritt sized) kurzzeitig HOEHER als der eigentlich verfuegbare
+          Platz - ohne min-h-0 wuchs deshalb NICHT nur diese Box, sondern
+          die GESAMTE Seite (min-h-dvh ist nur eine Mindesthoehe, kein
+          Deckel) ueber die Viewport-Hoehe hinaus, was den darunter als
+          naechstes Flex-Geschwister folgenden Footer (Karte + Button)
+          zeitweise nach unten schob - und wieder zurueck, sobald der alte
+          Schritt-Inhalt am Ende des Crossfades entfernt wird und die Zeile
+          auf ihre normale Hoehe zurueckschrumpft. Per getBoundingClientRect()-
+          Serie hart nachgewiesen: btnTop sprang exakt beim Klick von 756px
+          auf 780px (24px, synchron mit document.documentElement.scrollHeight
+          844px->868px) und zurueck auf 756px, sobald gridHeight von 390px
+          auf 302px fiel. min-h-0 hebt den impliziten min-height:auto auf -
+          das Element darf jetzt tatsaechlich auf seine zugewiesene flex-1-
+          Groesse schrumpfen, das kurzzeitig zu hohe Grid-Stack-Overlay wird
+          von overflow-hidden dann wie beabsichtigt intern abgeschnitten
+          statt die gesamte Seite (und damit den Footer) zu verschieben. */}
+      <div className="relative flex min-h-0 flex-1 flex-col justify-start overflow-hidden px-6 py-6">
         {/* grid-cols-1 (statt der impliziten grid-template-columns:none-
             Voreinstellung, die eine einzelne auto-sized Spalte ergibt) -
             urspruengliche (FALSIFIZIERTE) Hypothese fuer den Breiten-Sprung
@@ -400,7 +427,38 @@ function OnboardingWizard({
       </div>
 
       {schritt <= 3 && (
-        <div className="px-6 pb-8 pt-4">
+        // sticky bottom-0 statt normaler Dokumentfluss - GEFUNDENE URSACHE
+        // dafuer, dass Karte + "Weiter"-Button bei JEDEM Schritt-Wechsel
+        // kurz nach unten sprangen und danach zurueckschnappten (min-h-0 am
+        // Frage-Bereich oben behebt nur EINEN von ZWEI unabhaengigen
+        // Beitraegen zu diesem Bug - dieser hier ist der zweite, staerkere).
+        // WizardTageskarte hat seit dem Clipping-Bugfix (Entfernen von
+        // useBeobachteteHoehe/wachstumBeimMount, siehe dortiger Kommentar in
+        // WizardTageskarte.jsx) KEINE Wachstums-Animation beim allerersten
+        // Erscheinen mehr - sie erscheint bei Schritt 1->2 SOFORT in voller
+        // Hoehe, synchron mit dem React-State-Update, WAEHREND der unabhaengig
+        // getimte obere Crossfade noch ca. 330ms lang den ALTEN (hoeheren)
+        // Schritt-1-Inhalt zusaetzlich zum neuen zeigt (Grid-Stack-
+        // Ueberlappung). Beide Effekte addieren sich: die Seite braucht
+        // waehrend dieses Fensters kurzzeitig MEHR Hoehe als der Viewport
+        // hergibt, wodurch der Footer (der bisher ganz normal im
+        // Dokumentfluss NACH dem Frage-Bereich sitzt) nach unten geschoben
+        // wird - und zurueckschnappt, sobald der Crossfade abschliesst und
+        // der alte Inhalt entfernt wird. Per getBoundingClientRect()-Serie
+        // hart nachgewiesen: btnTop 756px->780px->756px, synchron mit
+        // document.documentElement.scrollHeight 844px->868px->844px.
+        // sticky bottom-0 (exaktes Gegenstueck zum bereits bewaehrten sticky
+        // top-0 am Header oben) loest das strukturell: sobald der Footer
+        // wegen zu hohem Inhalt darueber unter den sichtbaren Viewport-
+        // Bereich rutschen wuerde, "klebt" er stattdessen an der Viewport-
+        // Unterkante fest, GENAU an der Position, an der er nach Abschluss
+        // des Uebergangs ohnehin natuerlich zu liegen kommt (das Layout
+        // passt nach Abschluss des Crossfades wieder in den Viewport) -
+        // dadurch faellt die sichtbare Vertikalbewegung praktisch komplett
+        // weg, statt nur schneller/langsamer zu sein. z-10 + bg-bg wie beim
+        // Header, damit der darunter befindliche Inhalt beim Ueberlappen
+        // nicht sichtbar durchscheint.
+        <div className="sticky bottom-0 z-10 bg-bg px-6 pb-8 pt-4">
           <WizardTageskarte
             schritt={schritt}
             ziel={ziel}
