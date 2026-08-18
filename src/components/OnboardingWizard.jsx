@@ -120,18 +120,33 @@ function OnboardingWizard({
           durchscheint, sobald der Header steht und der Rest weiterzieht. */}
       <header className="sticky top-0 z-10 bg-bg px-6 pt-8">
         {schritt > 1 ? (
+          // EXPLIZIT h-9 w-9 (statt sich implizit aus p-2 + text-2xl-
+          // Zeilenhoehe zu ergeben) + flex-Zentrierung fuers "←" - GEFUNDENE
+          // URSACHE eines vierten, wieder separaten Beitrags zum "Doppel-
+          // Sprung"/Nachjustieren (siehe Bugfix "Wizard-Uebergaenge, dritter
+          // Versuch"): der Kommentar am Platzhalter unten behauptet zwar
+          // "derselben Groesse", tatsaechlich war der Button OHNE explizite
+          // Hoehe 48px hoch (p-2 + text-2xl-Inhalt), der Platzhalter dagegen
+          // exakt 36px (h-9) - per getBoundingClientRect()-Messung an beiden
+          // Elementen konkret nachgewiesen. Dieser 12px-Unterschied liess
+          // den STICKY HEADER beim Schritt-1-zu-2-Wechsel augenblicklich und
+          // unanimiert wachsen (Button ersetzt Platzhalter), was den
+          // darunterliegenden, per justify-center zentrierten Frage-Bereich
+          // sofort mitverschob - voellig unabhaengig von/zusaetzlich zu den
+          // beiden anderen in diesem Bugfix gefundenen Ursachen.
           <AnimatedButton
             type="button"
             onClick={zurueckKlicken}
             aria-label="Zurück"
-            className="-ml-2 rounded-full p-2 text-2xl text-text-muted hover:text-primary"
+            className="-ml-2 flex h-9 w-9 items-center justify-center rounded-full text-2xl text-text-muted hover:text-primary"
           >
             ←
           </AnimatedButton>
         ) : (
-          // Platzhalter in derselben Groesse wie der Zurueck-Pfeil, damit
-          // der Titel beim Wechsel von Schritt 1 zu Schritt 2 nicht springt.
-          // Der frühere "gusto"-Logo-Schriftzug daneben ist entfernt (siehe
+          // Platzhalter in derselben Groesse wie der Zurueck-Pfeil (siehe
+          // dortiger Kommentar zur h-9 w-9-Vereinheitlichung), damit der
+          // Titel beim Wechsel von Schritt 1 zu Schritt 2 nicht springt. Der
+          // frühere "gusto"-Logo-Schriftzug daneben ist entfernt (siehe
           // Startbildschirm.jsx - der neue Splash-Screen uebernimmt jetzt den
           // grossen Marken-Moment, die Wiederholung hier im Wizard war
           // redundant) - der Platzhalter bleibt trotzdem bestehen, sonst

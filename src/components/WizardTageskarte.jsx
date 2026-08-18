@@ -109,7 +109,41 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
   // Schritt-3-Groesse eingefroren. Der Hook selbst wurde seitdem robuster
   // gemacht (Callback-Ref statt einmaligem Mount-Effekt), diese
   // Verwendungsstelle musste dafuer nicht geaendert werden.
-  const [inhaltRef, hoehe] = useBeobachteteHoehe()
+  //
+  // wachstumBeimMount:true - und ein DRITTER Bug, wieder an genau dieser
+  // Karte: weil sie bei !hatInhalt fruh null zurueckgibt, erscheint sie beim
+  // Wechsel Schritt 1->2 zum ALLERERSTEN Mal - SOFORT in voller Hoehe, ohne
+  // vorherigen Wert, von dem aus eine Transition haette starten koennen.
+  // Da diese Karte im Footer unterhalb des zentrierten Frage-Bereichs sitzt,
+  // verschob dieses schlagartige Platz-Beanspruchen den (zu dem Zeitpunkt
+  // selbst noch unveraenderten) Frage-Bereich augenblicklich und OHNE jede
+  // Animation - ein von der eigentlichen Schritt-Crossfade-Aufloesung
+  // voellig entkoppeltes zweites Bewegungs-Ereignis ("Doppel-Sprung"/
+  // Nachjustieren, siehe Bugfix "Wizard-Uebergaenge, dritter Versuch",
+  // dortiger Kommentar in useBeobachteteHoehe.js fuer die per
+  // getBoundingClientRect()-Serie nachgewiesenen Zahlen). Mit
+  // wachstumBeimMount waechst die Karte beim allerersten Erscheinen sanft
+  // aus 0 statt schlagartig - der Footer beansprucht seinen Platz dadurch
+  // GRADUELL, synchron mit statt NACH der Schritt-Crossfade-Bewegung.
+  //
+  // VIERTER Bug, wieder an derselben Stelle gefunden (per
+  // getBoundingClientRect() auf ".rounded-[14px].bg-card.p-5" hart
+  // nachgewiesen: 9ms nach dem Klick bereits 40px hoch, obwohl hoehe zu dem
+  // Zeitpunkt noch 0 war): das p-5-Padding sass bisher auf der AEUSSEREN,
+  // NICHT hoehen-animierten motion.div, die den overflow-hidden/height-
+  // Wrapper nur umschliesst. Dieses Padding (20px oben + 20px unten = 40px)
+  // ist deshalb IMMER sofort da, unabhaengig von wachstumBeimMount, das nur
+  // den INNEREN Inhalt bei 0 startet - die Karte poppte dadurch trotz des
+  // dritten Fixes weiterhin sofort auf 40px auf, statt komplett bei 0 zu
+  // beginnen. Fix unten: padding-top/-bottom liegen jetzt auf demselben
+  // Element wie overflow-hidden/height UND sind an denselben Vor-Unlock-
+  // Zustand gekoppelt (hoehe === 0 ist hier eindeutig, da eine gerenderte
+  // Karte durch hatInhalt oben immer echten, nie 0px hohen Inhalt hat) - sie
+  // wachsen dadurch synchron mit der Hoehe von 0 auf 20px, statt konstant zu
+  // bleiben. Seitliches Padding (px-5) bleibt unangetastet, da es die
+  // vertikale Position nachfolgender Geschwister nicht beeinflusst.
+  const [inhaltRef, hoehe] = useBeobachteteHoehe({ wachstumBeimMount: true })
+  const nochNichtGewachsen = hoehe === 0
 
   const kalorienGueltig = ziel.typ !== 'kein' && kalorienZielGueltig(ziel)
   const kalorienMittelwert = kalorienGueltig
@@ -142,114 +176,123 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
         animate: { opacity: 1, y: 0 },
         transition: { duration: 0.3, ease: 'easeOut' },
       })}
-      className="rounded-[14px] bg-card p-5 shadow-sm"
+      className="overflow-hidden rounded-[14px] bg-card px-5 shadow-sm transition-[height,padding-top,padding-bottom] motion-reduce:transition-none"
+      style={{
+        height: hoehe,
+        // Siehe Kommentar zu "nochNichtGewachsen" oben - Padding wandert
+        // synchron mit der Hoehe von 0 auf die eigentlichen p-5-20px, statt
+        // (wie zuvor auf der aeusseren, unanimierten Huelle) konstant zu
+        // bleiben und die Karte dadurch sofort auf 40px aufpoppen zu lassen.
+        paddingTop: nochNichtGewachsen ? 0 : 20,
+        paddingBottom: nochNichtGewachsen ? 0 : 20,
+        transitionDuration: `${HOEHEN_UEBERGANG_MS}ms`,
+        transitionTimingFunction: HOEHEN_UEBERGANG_EASING,
+      }}
     >
       {/* Hoehe folgt per CSS transition der per ResizeObserver beobachteten
           Hoehe von inhaltRef (siehe useBeobachteteHoehe-Aufruf oben) - NICHT
           framer-motions layout-Prop, siehe dortiger Kommentar zur Herleitung.
           flow-root auf inhaltRef verhindert Margin-Collapse der ersten
-          Sektion (analog zu ZielEinstellungen.jsx). */}
-      <div
-        className="overflow-hidden transition-[height] motion-reduce:transition-none"
-        style={{ height: hoehe, transitionDuration: `${HOEHEN_UEBERGANG_MS}ms`, transitionTimingFunction: HOEHEN_UEBERGANG_EASING }}
-      >
-        <div ref={inhaltRef} className="flow-root">
-          <AnimatePresence>
-            {zeigeKalorien && (
-              <motion.div
-                key="kalorien"
-                {...motionPropsFuer(reduzierteBewegung, {
-                  initial: { opacity: 0, y: 12 },
-                  animate: { opacity: 1, y: 0 },
-                  exit: { opacity: 0, y: 12 },
-                  transition: { duration: 0.3, ease: 'easeOut' },
-                })}
-                className="flex items-center gap-2"
-              >
-                <IconFlame size={28} stroke={1.75} className="shrink-0 text-primary" />
-                <p className="font-display text-4xl font-semibold text-text">
-                  <AnimierteZahl wert={kalorienMittelwert} />
-                  <span className="ml-1 text-base font-medium text-text-muted">kcal</span>
+          Sektion (analog zu ZielEinstellungen.jsx). overflow-hidden/height/
+          padding sitzen jetzt direkt auf dieser (aeusseren) motion.div selbst
+          - siehe Kommentar zu "nochNichtGewachsen" oben, warum das Padding
+          nicht mehr auf einer separaten, unanimierten Huelle sitzen darf. */}
+      <div ref={inhaltRef} className="flow-root">
+        <AnimatePresence>
+          {zeigeKalorien && (
+            <motion.div
+              key="kalorien"
+              {...motionPropsFuer(reduzierteBewegung, {
+                initial: { opacity: 0, y: 12 },
+                animate: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: 12 },
+                transition: { duration: 0.3, ease: 'easeOut' },
+              })}
+              className="flex items-center gap-2"
+            >
+              <IconFlame size={28} stroke={1.75} className="shrink-0 text-primary" />
+              <p className="font-display text-4xl font-semibold text-text">
+                <AnimierteZahl wert={kalorienMittelwert} />
+                <span className="ml-1 text-base font-medium text-text-muted">kcal</span>
+              </p>
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {zeigeMahlzeiten && (
+            <motion.div
+              key="mahlzeiten"
+              {...motionPropsFuer(reduzierteBewegung, {
+                initial: { opacity: 0, y: 12 },
+                animate: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: 12 },
+                transition: { duration: 0.3, ease: 'easeOut' },
+              })}
+              className={`flex gap-2 ${zeigeKalorien ? 'mt-4' : ''}`}
+            >
+              {MAHLZEITEN.map(({ slug, label }) => (
+                <IconChip
+                  key={slug}
+                  Icon={MAHLZEIT_ICON[slug]}
+                  label={label}
+                  aktiv={ausgewaehlteMahlzeiten.includes(slug)}
+                  farbKlasse={TERRAKOTTA}
+                  reduzierteBewegung={reduzierteBewegung}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {zeigeDiaet && (
+            <motion.div
+              key="diaet"
+              {...motionPropsFuer(reduzierteBewegung, {
+                initial: { opacity: 0, y: 16 },
+                animate: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: 16 },
+                transition: SPRING_REVEAL,
+              })}
+              className={`flex flex-wrap gap-2 ${zeigeMahlzeiten ? 'mt-4' : ''}`}
+            >
+              {Object.keys(DIAET_ICON).map((slug) => (
+                <IconChip
+                  key={slug}
+                  Icon={DIAET_ICON[slug]}
+                  label={DIAET_LABEL[slug]}
+                  aktiv={diaeten.includes(slug)}
+                  farbKlasse={OLIVE}
+                  reduzierteBewegung={reduzierteBewegung}
+                />
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
+
+        <AnimatePresence>
+          {zeigeMakros && (
+            <motion.div
+              key="makros"
+              {...motionPropsFuer(reduzierteBewegung, {
+                initial: { opacity: 0, y: 12 },
+                animate: { opacity: 1, y: 0 },
+                exit: { opacity: 0, y: 12 },
+                transition: { duration: 0.3, ease: 'easeOut' },
+              })}
+              className={`flex gap-4 ${zeigtEtwasVorMakros ? 'mt-4' : ''}`}
+            >
+              {sichtbareMakros.map(({ kategorie, label }) => (
+                <p key={kategorie} className="text-sm font-medium text-text-muted">
+                  <span className="text-text-muted/70">{label}</span>{' '}
+                  <AnimierteZahl wert={Math.round(Number(ziel.makro[kategorie]))} className="font-display text-lg font-semibold text-text" />
+                  <span className="text-xs">g</span>
                 </p>
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {zeigeMahlzeiten && (
-              <motion.div
-                key="mahlzeiten"
-                {...motionPropsFuer(reduzierteBewegung, {
-                  initial: { opacity: 0, y: 12 },
-                  animate: { opacity: 1, y: 0 },
-                  exit: { opacity: 0, y: 12 },
-                  transition: { duration: 0.3, ease: 'easeOut' },
-                })}
-                className={`flex gap-2 ${zeigeKalorien ? 'mt-4' : ''}`}
-              >
-                {MAHLZEITEN.map(({ slug, label }) => (
-                  <IconChip
-                    key={slug}
-                    Icon={MAHLZEIT_ICON[slug]}
-                    label={label}
-                    aktiv={ausgewaehlteMahlzeiten.includes(slug)}
-                    farbKlasse={TERRAKOTTA}
-                    reduzierteBewegung={reduzierteBewegung}
-                  />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {zeigeDiaet && (
-              <motion.div
-                key="diaet"
-                {...motionPropsFuer(reduzierteBewegung, {
-                  initial: { opacity: 0, y: 16 },
-                  animate: { opacity: 1, y: 0 },
-                  exit: { opacity: 0, y: 16 },
-                  transition: SPRING_REVEAL,
-                })}
-                className={`flex flex-wrap gap-2 ${zeigeMahlzeiten ? 'mt-4' : ''}`}
-              >
-                {Object.keys(DIAET_ICON).map((slug) => (
-                  <IconChip
-                    key={slug}
-                    Icon={DIAET_ICON[slug]}
-                    label={DIAET_LABEL[slug]}
-                    aktiv={diaeten.includes(slug)}
-                    farbKlasse={OLIVE}
-                    reduzierteBewegung={reduzierteBewegung}
-                  />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-
-          <AnimatePresence>
-            {zeigeMakros && (
-              <motion.div
-                key="makros"
-                {...motionPropsFuer(reduzierteBewegung, {
-                  initial: { opacity: 0, y: 12 },
-                  animate: { opacity: 1, y: 0 },
-                  exit: { opacity: 0, y: 12 },
-                  transition: { duration: 0.3, ease: 'easeOut' },
-                })}
-                className={`flex gap-4 ${zeigtEtwasVorMakros ? 'mt-4' : ''}`}
-              >
-                {sichtbareMakros.map(({ kategorie, label }) => (
-                  <p key={kategorie} className="text-sm font-medium text-text-muted">
-                    <span className="text-text-muted/70">{label}</span>{' '}
-                    <AnimierteZahl wert={Math.round(Number(ziel.makro[kategorie]))} className="font-display text-lg font-semibold text-text" />
-                    <span className="text-xs">g</span>
-                  </p>
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
-        </div>
+              ))}
+            </motion.div>
+          )}
+        </AnimatePresence>
       </div>
     </motion.div>
   )
