@@ -229,8 +229,40 @@ function OnboardingWizard({
           nach ~330ms bereits fertig sichtbar/positioniert, der Wrapper zog
           danach nochmal separat ueber weitere ~330ms nach). Exakt dasselbe
           Muster wie RezeptKarte.jsx, das ebenfalls OHNE einen solchen
-          Wrapper auskommt. */}
-      <div className="relative flex flex-1 flex-col justify-center overflow-hidden px-6 py-6">
+          Wrapper auskommt.
+
+          justify-start statt justify-center - GEFUNDENE URSACHE eines
+          Rucklers, der spezifisch beim Wechsel 1->2 auftrat ("Mahlzeiten"-
+          Viereck bewegt sich kurz nach oben und springt dann zurueck nach
+          unten): Schritt 1 (Kalorienziel, mit Min/Max- + Makro-Feldern) ist
+          deutlich hoeher als Schritt 2 (nur das Mahlzeiten-Viereck). Mit
+          justify-center wird die Grid-Stack-Zeile INNERHALB des flex-1-
+          Bereichs vertikal zentriert - waehrend der Ueberlappung sized sich
+          die Zeile auf den GROESSEREN (alten, Schritt-1-)Inhalt, die
+          Zentrierung berechnet die Top-Position also relativ zu DESSEN
+          Hoehe. Sobald der alte Inhalt am Ende des Crossfades entfernt wird,
+          schrumpft die Zeile schlagartig auf die Hoehe des NEUEN (kuerzeren,
+          Schritt-2-)Inhalts - die Zentrierung berechnet die Top-Position
+          dadurch neu und verschiebt die Zeile (und damit das Mahlzeiten-
+          Viereck) einen zweiten, vom Crossfade entkoppelten Schritt nach
+          unten. Per getBoundingClientRect()-Serie ueber den gesamten
+          Uebergang konkret nachgewiesen (gridTop glitt zunaechst souveraen
+          nach oben, sprang danach hart zurueck nach unten). Existierte laut
+          Ruecksprache bereits VOR jeder Kartenhoehen-Animation - liegt also
+          nicht an WizardTageskarte, sondern strukturell an der Kombination
+          aus Zentrierung + stark unterschiedlichen Schritt-Hoehen (bei 2->3
+          bisher zufaellig unauffaellig, weil beide Schritte aehnlich hoch
+          sind). Mit justify-start haengt die Top-Position der Zeile nicht
+          mehr von IHRER EIGENEN Hoehe ab - sie bleibt fix am oberen Rand
+          dieses Bereichs, unabhaengig davon, welcher/wie hohe Schritt
+          gerade (oder ueberlappend) sichtbar ist. Gilt automatisch fuer
+          ALLE Uebergaenge (1<->2, 2<->3), nicht nur 1->2, da die Ursache
+          strukturell im Alignment liegt, nicht in einem schrittspezifischen
+          Sonderfall. Titel-Block (im sticky Header) und der untere Bereich
+          (Karte + Button, eigener Flex-Sibling unterhalb dieses Bereichs)
+          sind von dieser Aenderung nicht betroffen, da sie ausserhalb
+          dieses flex-1-Containers liegen. */}
+      <div className="relative flex flex-1 flex-col justify-start overflow-hidden px-6 py-6">
         <div className="grid">
           <AnimatePresence custom={richtung} initial={false}>
             <motion.div
