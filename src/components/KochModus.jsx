@@ -23,7 +23,6 @@ import {
 } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import AnimierteZahl from './AnimierteZahl'
-import DampfSchwaden from './DampfSchwaden'
 import { SHEET_SLIDE_UEBERGANG, SPRING_REVEAL } from '../motionConfig'
 
 // aktion -> Icon, feste Zuordnung fuer die 8 erlaubten Werte (siehe
@@ -39,52 +38,220 @@ const AKTION_ICON = {
   servieren: IconToolsKitchen2,
 }
 
-// aktion -> Icon-EIGENBEWEGUNG (rotate/x/y auf dem Icon selbst), nur fuer die
-// aktion-Typen, bei denen sich das Icon-Symbol selbst bewegt statt (wie bei
-// kochen/braten/roesten via DAMPF_AKTIONEN, oder servieren via
-// ServierGlitzer unten) eine Deko-Schicht daneben zu bekommen.
-// Alle Werte bewusst dezent gehalten (siehe Aufgabenstellung "subtil und
-// ruhig") und an den bisherigen App-Ton angelehnt (gedaempfte Bewegung, siehe
-// motionConfig.js-Kommentare).
+// aktion -> Icon-EIGENBEWEGUNG (rotate/x/y/scale auf dem Icon-Symbol SELBST).
+// Nur fuer aktion-Typen gesetzt, bei denen sich das Symbol bewegt - kochen/
+// braten/roesten/servieren bleiben hier bewusst OHNE Eintrag (das Symbol
+// selbst bleibt ruhig, nur die Deko-Schicht drumherum bewegt sich, siehe
+// AKTION_DEKO unten). Alle Werte bewusst dezent (siehe Aufgabenstellung
+// "subtil und ruhig") und an den bisherigen App-Ton angelehnt.
 const ICON_EIGENBEWEGUNG = {
-  // Wisch-Pendel, kein voller Spin: +-18 Grad, sanft hin und her.
+  // Durchgehende, langsame volle Drehung statt Pendel - wie ein tatsaechlich
+  // ruehrender Loeffel. repeatType:'loop' mit Ziel 360 statt eines Keyframe-
+  // Arrays: nach jedem Durchlauf springt der interne Rotationswert zurueck
+  // auf 0, was optisch nahtlos ist (0deg und 360deg sehen identisch aus).
   ruehren: {
-    animate: { rotate: [0, -18, 18, 0] },
-    transition: { duration: 2.2, repeat: Infinity, ease: 'easeInOut' },
+    animate: { rotate: 360 },
+    transition: { duration: 2.4, repeat: Infinity, repeatType: 'loop', ease: 'linear' },
   },
-  // Leichtes seitliches Kippeln/Wackeln, wie beim Umruehren einer Schuessel -
-  // unregelmaessigere Keyframes als ruehren, damit es sich als eigener,
-  // unterscheidbarer Bewegungstyp anfuehlt statt wie eine schwaechere
-  // Kopie des Pendels.
+  // Seitliches Wackeln MIT Skalierungs-Puls (leichtes Ein-/Ausatmen) - die
+  // zusaetzliche scale-Dimension unterscheidet "mischen" jetzt klar von
+  // "ruehren" (reine Rotation). Etwas groessere Ausschlaege als zuvor
+  // (Aufgabenstellung: "etwas mehr Amplitude").
   mischen: {
-    animate: { rotate: [0, -8, 6, -4, 0], x: [0, -1, 1, -1, 0] },
-    transition: { duration: 1.6, repeat: Infinity, ease: 'easeInOut' },
+    animate: { rotate: [0, -12, 9, -6, 0], x: [0, -1.5, 1.5, -1, 0], scale: [1, 1.05, 0.97, 1.02, 1] },
+    transition: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' },
   },
-  // Ruhiger Hack-Rhythmus: leichtes Auf-und-Ab statt Rotation.
+  // Ruhiger Hack-Rhythmus: leichtes Auf-und-Ab. Der Einschlag-Moment am
+  // unteren Punkt (t=0.5 dieses Zyklus) bekommt zusaetzlich einen kurzen
+  // Funken-Blitz, siehe SchneidenFunke/AKTION_DEKO unten - dieselbe Duration
+  // (0.7s) und dieselben impliziten times [0, 0.5, 1], damit beide Schichten
+  // exakt synchron laufen.
   schneiden: {
     animate: { y: [0, 3, 0] },
     transition: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
   },
   // Periodischer Flip statt Dauerbewegung: die 180-Grad-Drehung findet nur in
   // den ersten/letzten ~6% jedes Zyklus statt (times-Array), dazwischen
-  // Ruhe - "warten" soll entspannt wirken, nicht hektisch (siehe
-  // Aufgabenstellung).
+  // Ruhe - "warten" soll entspannt wirken, nicht hektisch. Der fallende
+  // Sandkorn-Punkt (WartenSandkorn/AKTION_DEKO unten) sorgt dafuer, dass die
+  // lange Ruhephase trotzdem nicht komplett bewegungslos wirkt.
   warten: {
     animate: { rotate: [0, 180, 180, 360] },
     transition: { duration: 3.2, repeat: Infinity, times: [0, 0.06, 0.94, 1], ease: 'easeInOut' },
   },
 }
 
-// aktion-Typen, bei denen statt einer Icon-Eigenbewegung die wiederverwendete
-// Dampf-Deko (siehe DampfSchwaden.jsx, urspruenglich vom "Jetzt
-// kochen"-Button) ueber dem (unbewegten) Icon erscheint.
-const DAMPF_AKTIONEN = new Set(['kochen', 'braten', 'roesten'])
+// Ruhe-Zielpose fuers Icon-Symbol, wenn KEINE Eigenbewegung laeuft (Schritt
+// war nie aktuell ODER wurde gerade abgehakt/deaktiviert) - alle Achsen
+// neutral. Bei einem Wechsel WEG von der Eigenbewegung (Schritt wird
+// abgehakt, waehrend das Icon gerade z. B. mitten in einer Rotation steht)
+// interpoliert framer-motion automatisch VOM aktuellen Wert zu dieser Pose,
+// sobald sich animate/transition-Props aendern - kein manuelles Stop/Reset
+// noetig, DAS ist der Mechanismus hinter dem weichen Ausklingen unten.
+const ICON_RUHE_POSE = { rotate: 0, x: 0, y: 0, scale: 1 }
 
-// Zwei kleine, versetzt getimte Glitzerpunkte fuer "servieren" - analog zu
-// DampfSchwaden aufgebaut (zwei Deko-Elemente, gegenlaeufig verzoegert),
-// aber als kurzes Aufblitzen (Opacity+Scale-Pulse) statt aufsteigender
-// Schwaden, da hier kein Dampf-, sondern ein "fertig & glaenzt"-Eindruck
-// gewuenscht ist.
+// Eigene (nicht mit SPRING_REVEAL geteilte) Feder fuers Zurueckfinden zur
+// Ruhepose: SPRING_REVEAL (stiffness 300/damping 20) ist fuer das
+// AUFTAUCHEN groesserer Flaechen gedacht und dabei bewusst leicht
+// unterdaempft mit spuerbarem Nachwippen ueber ~500-600ms. Fuers Icon
+// wollen wir stattdessen ein knackigeres "findet zurueck zur Mitte" in
+// ca. 300-350ms (siehe Aufgabenstellung) - hoehere stiffness/damping.
+const ICON_RUHE_SPRING = { type: 'spring', stiffness: 380, damping: 28 }
+
+// Transition fuers Ausfaden der Deko-Partikel (Blasen/Funken/Glitzer/...),
+// wenn ein Schritt abgehakt wird - siehe AnimatePresence-Nutzung in
+// SchrittIcon unten. Kurz und rein opacity-basiert, kein Bewegungsversatz
+// (Aufgabenstellung: "kurzer Opacity-Fade-out").
+const DEKO_FADE_TRANSITION = { duration: 0.35, ease: 'easeOut' }
+
+// aktion -> Deko-Komponente (Partikel/Gluehen NEBEN dem unbewegten Icon-
+// Symbol). ruehren/mischen haben KEINEN Eintrag - deren gesamte Bewegung
+// sitzt bereits auf dem Icon-Symbol selbst (siehe ICON_EIGENBEWEGUNG).
+// Jede Komponente bekommt in SchrittIcon eine EIGENE AnimatePresence, damit
+// sie beim Deaktivieren nicht hart aus dem DOM verschwindet, sondern
+// ausfaedet (siehe DEKO_FADE_TRANSITION).
+
+// kochen: 2-3 kleine Blasen steigen auf und "poppen" (kurzer Scale-Spike auf
+// ~1, dann schnell auf ~0.2 runter) statt durchgehender Dampf-Linien -
+// sprudelnder statt dunstender Eindruck. Positionen bewusst in den seitlichen
+// Randstreifen des 32px-Kreises (das 18px-Icon selbst sitzt zentriert, laesst
+// also ca. 7px Rand auf jeder Seite frei) bzw. bereits ueber dem Icon - eine
+// mittige Platzierung wuerde die Blasen mit der eigenen (dunkelorangen)
+// Kontur des Suppentopf-Icons verschmelzen lassen (per Screenshot-Test
+// bestaetigt: dort kaum erkennbar). unterschiedliche delays fuer einen
+// unregelmaessigen, natuerlichen Sprudel-Rhythmus.
+const KOCHEN_BLASEN = [
+  { left: '2px', bottom: '3px', delay: 0 },
+  { right: '2px', bottom: '5px', delay: 0.35 },
+  { left: '13px', top: '4px', delay: 0.7 },
+]
+
+function KochBlasen() {
+  return (
+    <>
+      {KOCHEN_BLASEN.map(({ delay, ...position }, i) => (
+        <motion.span
+          key={i}
+          className="absolute h-1 w-1 rounded-full bg-primary"
+          style={position}
+          animate={{ y: [0, -6, -11, -12], scale: [0.6, 1, 1, 0.2], opacity: [0, 0.85, 0.85, 0] }}
+          transition={{ duration: 1.3, repeat: Infinity, ease: 'easeOut', delay, times: [0, 0.45, 0.85, 1] }}
+        />
+      ))}
+    </>
+  )
+}
+
+// braten: warmer Terracotta-Gluehpuls im Icon-Hintergrund (langsames Atmen)
+// PLUS kurze, radial nach aussen spritzende Funken (Sizzle) - zwei parallele
+// Schichten, die sich klar von "kochen" (nur aufsteigende Blasen) und
+// "roesten" (nur durchgehendes, langsames Gluehen ohne Funken) abgrenzen.
+const BRATEN_FUNKEN = [
+  { top: '40%', left: '35%', dx: -8, dy: -6, delay: 0 },
+  { top: '55%', left: '65%', dx: 8, dy: -5, delay: 0.22 },
+  { top: '35%', left: '55%', dx: 5, dy: 8, delay: 0.44 },
+  { top: '58%', left: '38%', dx: -6, dy: 7, delay: 0.66 },
+]
+
+function BratenSizzle() {
+  return (
+    <>
+      <motion.span
+        className="absolute inset-0.5 rounded-full bg-primary/25 blur-[3px]"
+        animate={{ opacity: [0.25, 0.55, 0.25], scale: [0.95, 1.08, 0.95] }}
+        transition={{ duration: 1.8, repeat: Infinity, ease: 'easeInOut' }}
+      />
+      {BRATEN_FUNKEN.map((f, i) => (
+        <motion.span
+          key={i}
+          className="absolute h-0.5 w-0.5 rounded-full bg-primary"
+          style={{ top: f.top, left: f.left }}
+          animate={{ x: [0, f.dx], y: [0, f.dy], opacity: [0, 1, 0], scale: [0.5, 1, 0.3] }}
+          transition={{ duration: 0.8, repeat: Infinity, ease: 'easeOut', delay: f.delay }}
+        />
+      ))}
+    </>
+  )
+}
+
+// roesten: durchgehender (nicht gepulster/partikelhafter) langsamer
+// Gluehschein, der zwischen Terracotta (--color-primary) und Oliv
+// (--color-secondary) ueberblendet - zwei versetzt getimte, halbtransparente
+// Kreisflaechen statt einer echten Farb-Interpolation (KEIN neuer Farbwert,
+// siehe CLAUDE.md - beide Toene sind bereits bestehende Tokens). Dazu zwei
+// duenne, schnell flirrende Hitze-Wellenlinien (schmaler + hoehere Frequenz
+// als DampfSchwaden's Schwaden) - klare Abgrenzung zu "kochen".
+function RoestenGluehen() {
+  return (
+    <>
+      <motion.span
+        className="absolute inset-0.5 rounded-full bg-primary/25 blur-[3px]"
+        animate={{ opacity: [0.45, 0.15, 0.45], scale: [1, 1.1, 1] }}
+        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut', delay: 0 }}
+      />
+      <motion.span
+        className="absolute inset-0.5 rounded-full bg-secondary/20 blur-[3px]"
+        animate={{ opacity: [0.15, 0.4, 0.15], scale: [1, 1.08, 1] }}
+        transition={{ duration: 3.2, repeat: Infinity, ease: 'easeInOut', delay: 1.6 }}
+      />
+      <motion.span
+        className="absolute -top-1 left-2 h-2 w-px bg-primary/70"
+        animate={{ scaleY: [0.6, 1, 0.6], opacity: [0.3, 0.9, 0.3], skewX: [-6, 6, -6] }}
+        transition={{ duration: 0.7, repeat: Infinity, ease: 'easeInOut', delay: 0 }}
+      />
+      <motion.span
+        className="absolute -top-1 right-2 h-2 w-px bg-primary/70"
+        animate={{ scaleY: [0.6, 1, 0.6], opacity: [0.3, 0.9, 0.3], skewX: [6, -6, 6] }}
+        transition={{ duration: 0.7, repeat: Infinity, ease: 'easeInOut', delay: 0.25 }}
+      />
+    </>
+  )
+}
+
+// schneiden: kurzer Funken-/Strich-Blitz am unteren Icon-Rand exakt am
+// Einschlag-Moment. times deckungsgleich mit ICON_EIGENBEWEGUNG.schneiden
+// (dieselbe 0.7s-Periode, Peak bei t=0.5 = dem tiefsten Punkt der Auf-Ab-
+// Bewegung) - marginLeft statt einer translate-x-Utility-Klasse, weil
+// framer-motion beim Animieren von scaleX die GESAMTE inline transform-
+// Eigenschaft des Elements selbst schreibt und eine zusaetzliche Tailwind-
+// Transform-Klasse auf demselben Element ueberschreiben wuerde.
+function SchneidenFunke() {
+  return (
+    <motion.span
+      className="absolute bottom-0.5 left-1/2 h-px w-2.5 bg-primary"
+      style={{ marginLeft: '-5px' }}
+      animate={{ opacity: [0, 0, 1, 0, 0], scaleX: [0.4, 0.4, 1, 0.6, 0.4] }}
+      transition={{ duration: 0.7, repeat: Infinity, ease: 'easeInOut', times: [0, 0.4, 0.5, 0.65, 1] }}
+    />
+  )
+}
+
+// warten: einzelner, langsam fallender Punkt (Sanduhr-Sand) - laeuft
+// unabhaengig vom Flip auf einer eigenen, kuerzeren Schleife (1.5s) durch,
+// damit die lange Ruhephase zwischen den Flips (siehe ICON_EIGENBEWEGUNG.
+// warten) nicht komplett bewegungslos wirkt.
+function WartenSandkorn() {
+  return (
+    <motion.span
+      className="absolute left-1/2 top-1.5 h-0.5 w-0.5 rounded-full bg-primary"
+      style={{ marginLeft: '-1px' }}
+      animate={{ y: [0, 11], opacity: [0, 0.8, 0.8, 0] }}
+      transition={{ duration: 1.5, repeat: Infinity, ease: 'easeIn', times: [0, 0.15, 0.8, 1] }}
+    />
+  )
+}
+
+// servieren: die bestehenden Glitzerpunkte PLUS ein einmaliges diagonales
+// Hochglanz-Wischen pro Loop ("fertig, glaenzt"-Moment). Die Rotation des
+// Wisch-Streifens sitzt bewusst auf einem STATISCHEN Zwischen-Span (per
+// Tailwind-Klasse), nicht auf dem von framer-motion animierten innersten
+// Span - aus demselben Grund wie bei SchneidenFunke oben (framer wuerde
+// eine zusaetzliche Transform-Klasse auf dem animierten Element selbst
+// ueberschreiben). Der aeussere Span clippt den Streifen auf die Icon-
+// Kreisflaeche (overflow-hidden+rounded-full), ausschliesslich fuer diese
+// eine Deko - der gemeinsame Icon-Container bleibt bewusst OHNE
+// overflow-hidden, damit z. B. DampfSchwaden/Glitzer bei anderen aktion-
+// Typen weiterhin leicht ueber den Kreisrand hinausragen koennen.
 function ServierGlitzer() {
   return (
     <>
@@ -102,18 +269,61 @@ function ServierGlitzer() {
   )
 }
 
+function ServierDeko() {
+  return (
+    <>
+      <ServierGlitzer />
+      <span className="absolute inset-0 overflow-hidden rounded-full">
+        <span className="absolute -inset-y-3 left-0 h-[150%] w-3 -rotate-12">
+          <motion.span
+            className="block h-full w-full bg-gradient-to-r from-transparent via-card/90 to-transparent"
+            animate={{ x: ['-150%', '250%'] }}
+            transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1.4, ease: 'easeInOut' }}
+          />
+        </span>
+      </span>
+    </>
+  )
+}
+
+const AKTION_DEKO = {
+  kochen: KochBlasen,
+  braten: BratenSizzle,
+  roesten: RoestenGluehen,
+  schneiden: SchneidenFunke,
+  warten: WartenSandkorn,
+  servieren: ServierDeko,
+}
+
 // Schritt-Icon inkl. Animation fuer GENAU den aktuellen Schritt (siehe
-// aktuellerSchrittIndex-Berechnung in KochModusInhalt unten). animate/
-// transition werden nur gesetzt, wenn istAktuell&&!reduzierteBewegung
-// zutrifft - bei allen anderen Icons bleiben es reine <span>/<Icon>-Elemente
-// ganz ohne motion-Props, framer-motion startet dafuer KEINEN eigenen
-// Animations-Frame-Loop (nicht nur CSS-versteckt-aber-weiterlaufend, siehe
-// Aufgabenstellung zu Performance).
+// aktuellerSchrittIndex-Berechnung in KochModusInhalt unten).
+//
+// Zwei getrennte Bewegungs-Kanaele mit unterschiedlichem Ausklinge-Verhalten
+// beim Deaktivieren (Schritt wird abgehakt oder ist nicht mehr aktuell):
+//  1. Icon-Eigenbewegung (rotate/x/y/scale auf dem Symbol selbst, siehe
+//     ICON_EIGENBEWEGUNG): bleibt PERMANENT gemountet, animate/transition-
+//     Props wechseln lediglich zur Ruhepose (ICON_RUHE_POSE) mit einer
+//     eigenen, weichen Feder (ICON_RUHE_SPRING) - framer-motion interpoliert
+//     dabei automatisch vom aktuellen (ggf. mitten in der Bewegung
+//     befindlichen) Wert aus, kein hartes Einfrieren.
+//  2. Deko-Partikel (Blasen/Funken/Gluehen/Glitzer, siehe AKTION_DEKO): WIRD
+//     entfernt, aber ueber eine lokale AnimatePresence mit exit={{opacity:0}}
+//     erst ausgefadet statt sofort aus dem DOM zu verschwinden - dadurch
+//     laeuft kein neuer Partikel-Zyklus mehr an, der laufende blendet aber
+//     weich aus statt hart abzureissen.
 function SchrittIcon({ Icon, aktion, istAktuell, reduzierteBewegung }) {
   const animiert = istAktuell && !reduzierteBewegung
-  const eigenbewegung = animiert ? ICON_EIGENBEWEGUNG[aktion] : undefined
-  const zeigtDampf = animiert && DAMPF_AKTIONEN.has(aktion)
-  const zeigtGlitzer = animiert && aktion === 'servieren'
+  const eigenbewegung = ICON_EIGENBEWEGUNG[aktion]
+  const zielPose = animiert && eigenbewegung ? eigenbewegung.animate : ICON_RUHE_POSE
+  const zielTransition =
+    animiert && eigenbewegung
+      ? eigenbewegung.transition
+      : reduzierteBewegung
+        ? { duration: 0 } // Reduzierte Bewegung: instantan, keine Ausklinge-Animation.
+        : ICON_RUHE_SPRING
+
+  const Deko = AKTION_DEKO[aktion]
+  const zeigtDeko = animiert && !!Deko
 
   return (
     <span
@@ -126,12 +336,22 @@ function SchrittIcon({ Icon, aktion, istAktuell, reduzierteBewegung }) {
       }`}
       aria-hidden="true"
     >
-      {zeigtDampf && <DampfSchwaden punktFarbe="bg-primary" />}
-      {zeigtGlitzer && <ServierGlitzer />}
+      <AnimatePresence>
+        {zeigtDeko && (
+          <motion.span
+            key="deko"
+            className="pointer-events-none absolute inset-0"
+            exit={{ opacity: 0 }}
+            transition={DEKO_FADE_TRANSITION}
+          >
+            <Deko />
+          </motion.span>
+        )}
+      </AnimatePresence>
       <motion.span
-        className="flex h-full w-full items-center justify-center"
-        animate={eigenbewegung?.animate}
-        transition={eigenbewegung?.transition}
+        className="relative flex h-full w-full items-center justify-center"
+        animate={zielPose}
+        transition={zielTransition}
       >
         <Icon size={18} stroke={1.75} />
       </motion.span>
