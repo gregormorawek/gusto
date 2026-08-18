@@ -454,76 +454,104 @@ function OnboardingWizard({
         </div>
       </div>
 
-      {schritt <= 3 && (
-        // sticky bottom-0 statt normaler Dokumentfluss - GEFUNDENE URSACHE
-        // dafuer, dass Karte + "Weiter"-Button bei JEDEM Schritt-Wechsel
-        // kurz nach unten sprangen und danach zurueckschnappten (min-h-0 am
-        // Frage-Bereich oben behebt nur EINEN von ZWEI unabhaengigen
-        // Beitraegen zu diesem Bug - dieser hier ist der zweite, staerkere).
-        // WizardTageskarte hat seit dem Clipping-Bugfix (Entfernen von
-        // useBeobachteteHoehe/wachstumBeimMount, siehe dortiger Kommentar in
-        // WizardTageskarte.jsx) KEINE Wachstums-Animation beim allerersten
-        // Erscheinen mehr - sie erscheint bei Schritt 1->2 SOFORT in voller
-        // Hoehe, synchron mit dem React-State-Update, WAEHREND der unabhaengig
-        // getimte obere Crossfade noch ca. 330ms lang den ALTEN (hoeheren)
-        // Schritt-1-Inhalt zusaetzlich zum neuen zeigt (Grid-Stack-
-        // Ueberlappung). Beide Effekte addieren sich: die Seite braucht
-        // waehrend dieses Fensters kurzzeitig MEHR Hoehe als der Viewport
-        // hergibt, wodurch der Footer (der bisher ganz normal im
-        // Dokumentfluss NACH dem Frage-Bereich sitzt) nach unten geschoben
-        // wird - und zurueckschnappt, sobald der Crossfade abschliesst und
-        // der alte Inhalt entfernt wird. Per getBoundingClientRect()-Serie
-        // hart nachgewiesen: btnTop 756px->780px->756px, synchron mit
-        // document.documentElement.scrollHeight 844px->868px->844px.
-        // sticky bottom-0 (exaktes Gegenstueck zum bereits bewaehrten sticky
-        // top-0 am Header oben) loest das strukturell: sobald der Footer
-        // wegen zu hohem Inhalt darueber unter den sichtbaren Viewport-
-        // Bereich rutschen wuerde, "klebt" er stattdessen an der Viewport-
-        // Unterkante fest, GENAU an der Position, an der er nach Abschluss
-        // des Uebergangs ohnehin natuerlich zu liegen kommt (das Layout
-        // passt nach Abschluss des Crossfades wieder in den Viewport) -
-        // dadurch faellt die sichtbare Vertikalbewegung praktisch komplett
-        // weg, statt nur schneller/langsamer zu sein. z-10 + bg-bg wie beim
-        // Header, damit der darunter befindliche Inhalt beim Ueberlappen
-        // nicht sichtbar durchscheint.
-        <div className="sticky bottom-0 z-10 bg-bg px-6 pb-8 pt-4">
-          {/* ERSTER Versuch fuer dieses Problem war ein Grid-Stack mit
-              key={schritt} um WizardTageskarte (analog zum Frage-Bereich/
-              RezeptKarte.jsx) - per eigener Verifikation SOFORT wieder
-              verworfen: key={schritt} erzwingt bei JEDEM Schritt-Wechsel
-              einen kompletten Neu-Mount der Karte, wodurch auch AnimierteZahl
-              (siehe dortiger Kommentar - haelt ihren zuletzt gezeigten Wert
-              bewusst in einem Ref fest, damit ein Wertwechsel smooth vom
-              ALTEN zum NEUEN Wert hochzaehlt statt jedes Mal neu bei 0
-              anzusetzen) bei jedem Schritt-Wechsel neu montiert wurde - die
-              Kalorien-/Makro-Zahlen zaehlten dadurch REGRESSIV jedes Mal neu
-              von 0 hoch statt vom vorherigen Wert weiterzuzaehlen. Fix
-              stattdessen in WizardTageskarte.jsx selbst (layout-Prop auf der
-              Karten-Huelle) - siehe dortiger Kommentar zur Herleitung. Diese
-              Stelle bleibt bewusst eine EINZIGE, durchgehend gemountete
-              WizardTageskarte-Instanz (kein key, kein Grid-Stack hier). */}
-          <WizardTageskarte
-            schritt={schritt}
-            ziel={ziel}
-            mahlzeit={mahlzeit}
-            tagesplanMahlzeiten={tagesplanMahlzeiten}
-            proTag={proTag}
-            diaeten={diaeten}
-            reduzierteBewegung={reduzierteBewegung}
-          />
+      {/* sticky bottom-0 statt normaler Dokumentfluss - GEFUNDENE URSACHE
+          dafuer, dass Karte + "Weiter"-Button bei JEDEM Schritt-Wechsel
+          kurz nach unten sprangen und danach zurueckschnappten (min-h-0 am
+          Frage-Bereich oben behebt nur EINEN von ZWEI unabhaengigen
+          Beitraegen zu diesem Bug - dieser hier ist der zweite, staerkere).
+          WizardTageskarte hat seit dem Clipping-Bugfix (Entfernen von
+          useBeobachteteHoehe/wachstumBeimMount, siehe dortiger Kommentar in
+          WizardTageskarte.jsx) KEINE Wachstums-Animation beim allerersten
+          Erscheinen mehr - sie erscheint bei Schritt 1->2 SOFORT in voller
+          Hoehe, synchron mit dem React-State-Update, WAEHREND der unabhaengig
+          getimte obere Crossfade noch ca. 330ms lang den ALTEN (hoeheren)
+          Schritt-1-Inhalt zusaetzlich zum neuen zeigt (Grid-Stack-
+          Ueberlappung). Beide Effekte addieren sich: die Seite braucht
+          waehrend dieses Fensters kurzzeitig MEHR Hoehe als der Viewport
+          hergibt, wodurch der Footer (der bisher ganz normal im
+          Dokumentfluss NACH dem Frage-Bereich sitzt) nach unten geschoben
+          wird - und zurueckschnappt, sobald der Crossfade abschliesst und
+          der alte Inhalt entfernt wird. Per getBoundingClientRect()-Serie
+          hart nachgewiesen: btnTop 756px->780px->756px, synchron mit
+          document.documentElement.scrollHeight 844px->868px->844px.
+          sticky bottom-0 (exaktes Gegenstueck zum bereits bewaehrten sticky
+          top-0 am Header oben) loest das strukturell: sobald der Footer
+          wegen zu hohem Inhalt darueber unter den sichtbaren Viewport-
+          Bereich rutschen wuerde, "klebt" er stattdessen an der Viewport-
+          Unterkante fest, GENAU an der Position, an der er nach Abschluss
+          des Uebergangs ohnehin natuerlich zu liegen kommt (das Layout
+          passt nach Abschluss des Crossfades wieder in den Viewport) -
+          dadurch faellt die sichtbare Vertikalbewegung praktisch komplett
+          weg, statt nur schneller/langsamer zu sein. z-10 + bg-bg wie beim
+          Header, damit der darunter befindliche Inhalt beim Ueberlappen
+          nicht sichtbar durchscheint.
 
-          <div className="mt-6">
-            <AnimatedButton
-              type="button"
-              onClick={weiterKlicken}
-              disabled={(schritt === 1 && !zielGueltig) || (schritt === 3 && !diaetGueltig)}
-              className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
-            >
-              Weiter
-            </AnimatedButton>
-          </div>
-        </div>
-      )}
+          Dieser Wrapper selbst ist jetzt IMMER gemountet (statt vorher
+          {schritt <= 3 && (...)} um das ganze sticky-Element herum) -
+          GEFUNDENE URSACHE (per Ausschlussverfahren, da direkt per
+          getBoundingClientRect()-Serie in Chromium nicht reproduzierbar -
+          vermutlich eine WebKit/Safari-spezifische Eigenheit bei einem
+          FRISCH gemounteten position:sticky-Element) des letzten
+          verbleibenden Sprungs beim Uebergang "Alles bereit"->Schritt 3:
+          dieser sticky-Wrapper existierte auf Schritt 4 bisher GAR NICHT
+          (kein Footer dort) und wurde beim Zurueck-Wechsel zu Schritt 3
+          FRISCH neu erzeugt - ein neu eingefuegtes sticky-Element muss
+          seinen "angeklebten" Zustand erst on-the-fly etablieren, was in
+          Safari nachweislich (siehe frueherer Bugfix-Kontext zu sticky-
+          Positionierung) einen Frame lang verzoegert reagieren kann,
+          waehrenddessen es kurzzeitig an seiner normalen Dokumentfluss-
+          Position (statt der Viewport-Unterkante) erscheint - sichtbar als
+          "Karte startet zu tief, snappt dann nach oben". Alle ANDEREN
+          Uebergaenge (1->2, 2->3, 3->2, 3->4) betrifft das nicht, da der
+          sticky-Wrapper dort bereits durchgehend existiert und nur seine
+          Kinder sich aendern/resizen, nie neu gemountet wird. Fix: exakt
+          dasselbe Muster wie beim Fortschrittsbalken oben (siehe dortiger
+          Kommentar) - der sticky-Container bleibt strukturell IMMER
+          bestehen, nur sein INHALT wird fuer Schritt 4 weggelassen. Der
+          sticky-Kontext existiert dadurch bereits VOR jedem Schritt-Wechsel
+          durchgehend, kann also nie mehr "frisch" etabliert werden muessen. */}
+      <div className="sticky bottom-0 z-10 bg-bg px-6 pb-8 pt-4">
+        {schritt <= 3 && (
+          <>
+            {/* ERSTER Versuch fuer das Kartenhoehen-Problem (nicht dieses
+                hier) war ein Grid-Stack mit key={schritt} um WizardTageskarte
+                (analog zum Frage-Bereich/RezeptKarte.jsx) - per eigener
+                Verifikation SOFORT wieder verworfen: key={schritt} erzwingt
+                bei JEDEM Schritt-Wechsel einen kompletten Neu-Mount der
+                Karte, wodurch auch AnimierteZahl (siehe dortiger Kommentar -
+                haelt ihren zuletzt gezeigten Wert bewusst in einem Ref fest,
+                damit ein Wertwechsel smooth vom ALTEN zum NEUEN Wert
+                hochzaehlt statt jedes Mal neu bei 0 anzusetzen) bei jedem
+                Schritt-Wechsel neu montiert wurde - die Kalorien-/Makro-
+                Zahlen zaehlten dadurch REGRESSIV jedes Mal neu von 0 hoch
+                statt vom vorherigen Wert weiterzuzaehlen. Fix stattdessen in
+                WizardTageskarte.jsx selbst (useBeobachteteHoehe erneut
+                aktiviert) - siehe dortiger Kommentar zur Herleitung. Diese
+                Stelle bleibt bewusst eine EINZIGE, durchgehend gemountete
+                WizardTageskarte-Instanz (kein key, kein Grid-Stack hier). */}
+            <WizardTageskarte
+              schritt={schritt}
+              ziel={ziel}
+              mahlzeit={mahlzeit}
+              tagesplanMahlzeiten={tagesplanMahlzeiten}
+              proTag={proTag}
+              diaeten={diaeten}
+              reduzierteBewegung={reduzierteBewegung}
+            />
+
+            <div className="mt-6">
+              <AnimatedButton
+                type="button"
+                onClick={weiterKlicken}
+                disabled={(schritt === 1 && !zielGueltig) || (schritt === 3 && !diaetGueltig)}
+                className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+              >
+                Weiter
+              </AnimatedButton>
+            </div>
+          </>
+        )}
+      </div>
     </div>
   )
 }
