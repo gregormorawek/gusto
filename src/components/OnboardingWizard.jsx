@@ -108,7 +108,24 @@ function OnboardingWizard({
   }
 
   return (
-    <div className="flex min-h-dvh flex-col bg-bg">
+    // h-dvh statt min-h-dvh - GEFUNDENE URSACHE dafuer, dass die Seite trotz
+    // "kein Scrollen auf dem Handy"-Prinzip scrollbar wurde: min-h-dvh ist
+    // nur eine MINDESTHOEHE, kein Deckel - wenn die Summe aus Header (durch
+    // min-h-[80px] am Titel-Block, siehe dortiger Kommentar), Footer (natuerliche
+    // Kartenhoehe) und Frage-Bereich zusammen mehr Platz braucht als der
+    // Viewport hergibt, wuchs die GESAMTE Seite bisher einfach darueber
+    // hinaus, statt dass min-h-0/overflow-hidden am Frage-Bereich (flex-1)
+    // wie beabsichtigt greifen konnte - diese beiden Eigenschaften wirken
+    // nur, wenn der FLEX-CONTAINER selbst eine DEFINITE (nicht nur minimale)
+    // Hoehe hat, aus der die Flexbox-Rechnung ableiten kann, wie viel Platz
+    // "uebrig" ist. Per Messung konkret nachgewiesen: scrollHeight 849px bei
+    // innerHeight 812px, ein Ueberschuss von 37px bei Schritt 3 (Header
+    // 202px + Footer 329px + Frage-Bereich-Inhalt zusammen). h-dvh gibt dem
+    // Wurzel-Container stattdessen eine FESTE Hoehe exakt in Viewport-Groesse
+    // - der flex-1-Frage-Bereich bekommt dadurch eine echte, definite
+    // "Rest-Hoehe" zugewiesen und schneidet ueberschuessigen Inhalt per
+    // overflow-hidden intern ab, statt die ganze Seite wachsen zu lassen.
+    <div className="flex h-dvh flex-col bg-bg">
       {/* sticky top-0: bleibt beim Fokussieren eines Eingabefelds (Tastatur
           erscheint, siehe useTastaturAusgleich.js) an Ort und Stelle stehen,
           waehrend sich nur der Inhalt darunter verschiebt - macht die
@@ -168,10 +185,27 @@ function OnboardingWizard({
             gridTop 202px->172px). Fix: der Block bleibt strukturell IMMER
             vorhanden (reserviert seine Hoehe durchgehend, wie der Zurueck-
             Button-Platzhalter oben) - nur seine Sichtbarkeit blendet per
-            opacity aus/ein, exakt synchron mit dem Titel-Crossfade darunter. */}
-        <div
-          className="mt-6 flex gap-1.5 transition-opacity motion-reduce:transition-none"
-          style={{ opacity: schritt <= 3 ? 1 : 0, transitionDuration: `${TITEL_TRANSITION.duration * 1000}ms` }}
+            opacity aus/ein, exakt synchron mit dem Titel-Crossfade darunter.
+
+            motion.div mit animate-Prop statt einer reinen CSS
+            transition-opacity - GEFUNDENE URSACHE dafuer, dass der Balken
+            beim Uebergang 3->4 sichtbar NACHGELAGERT verblasste statt
+            synchron mit dem Titel: per getComputedStyle()-Serie (10 rAF-
+            Frames nach dem Klick) hart nachgewiesen, dass balkenOpacity bei
+            t+12ms noch unveraendert bei 1.000 stand, WAEHREND der Titel-
+            Crossfade (framer-motion) zur selben Zeit schon bei 13% angekommen
+            war - der Balken bewegte sich ueberhaupt erst ab ca. t+25ms. Eine
+            reine CSS transition-opacity startet ueber den Style-Recalc-
+            Zyklus des Browsers, waehrend framer-motion ueber einen eigenen,
+            JS-/requestAnimationFrame-gesteuerten Scheduler animiert - zwei
+            unterschiedliche Startzeitpunkte fuer denselben React-Commit.
+            motion.div mit animate={{opacity}} nutzt denselben Scheduler wie
+            der Titel-Crossfade darunter (identische TITEL_TRANSITION), beide
+            starten dadurch garantiert im selben Frame. */}
+        <motion.div
+          className="mt-6 flex gap-1.5"
+          animate={{ opacity: schritt <= 3 ? 1 : 0 }}
+          transition={reduzierteBewegung ? { duration: 0.15 } : TITEL_TRANSITION}
         >
           {[1, 2, 3].map((s) => (
             <span key={s} className="h-1.5 flex-1 overflow-hidden rounded-full bg-text-muted/20">
@@ -181,7 +215,7 @@ function OnboardingWizard({
               />
             </span>
           ))}
-        </div>
+        </motion.div>
 
         {/* Titel-Block per Grid-Stack ueberlappend gecrossfadet (identisches
             Muster wie der Frage-Bereich/RezeptKarte.jsx) - GEFUNDENE URSACHE
@@ -201,7 +235,7 @@ function OnboardingWizard({
             kein Nullpunkt-Sprung mehr dazwischen, nur noch der eine bereits
             etablierte finale Snap beim Entfernen des alten Titels.
 
-            min-h-[104px] - GEFUNDENE URSACHE des LETZTEN verbleibenden
+            min-h-[80px] - GEFUNDENE URSACHE des LETZTEN verbleibenden
             Sprungs, der beim Wechsel "Alles bereit"->Schritt 3 auffiel (bei
             SCHMALEM Viewport reproduziert, 375x812 - bei zu grossem Viewport
             im Test zuvor nicht sichtbar/messbar gewesen). Per Layout-
@@ -210,29 +244,38 @@ function OnboardingWizard({
             der Frage-Bereich-Container zeigt bei diesem Uebergang GENAU
             EINEN Shift (top 202px->178px, Hoehe bleibt konstant 428px) -
             kein "erst zu tief, dann Sprung"-Doppelmuster, sondern ein reiner,
-            unanimierter Sprung der VERTIKALEN POSITION. Ursache: Schritt-4-
-            Titel ("Alles bereit!" + Subtext, mt-8/mt-2) ist per Messung
-            104px hoch, Schritt-<=3-Titel ("Schritt X von 3" + Ueberschrift,
-            mt-5/mt-1) nur 80px - der Grid-Stack oben verhindert zwar die
-            FRUEHERE Doppel-Sprung-Variante (Luecke waehrend mode="wait"),
-            aber sobald der alte (kuerzere ODER laengere) Titel entfernt
-            wird, sized sich DIESER Grid-Stack selbst auf seine neue
-            Zielhoehe - der resultierende 24px-Hoehenunterschied im Header
-            verschiebt daher IMMER den gesamten darunterliegenden Frage-
-            Bereich samt Footer, in BEIDE Richtungen (3->4 UND 4->3
-            gleichermassen) - bei 3->4 faellt das nur weniger auf, weil
-            GLEICHZEITIG auch der Footer verschwindet (eine zweite, groessere
-            Hoehenaenderung ueberlagert/maskiert die kleinere). min-h-[104px]
-            reserviert immer die Hoehe der GROESSEREN Variante - der
-            Titel-Block (und damit der gesamte Header) hat dadurch ab jetzt
-            fuer JEDEN Schritt (1-4) exakt dieselbe Hoehe, das Grid-Stack-
-            Sizing-Problem kann strukturell nicht mehr auftreten, weil beide
-            Zustaende bereits IDENTISCH hoch sind. Bewusst hartcodierter
-            Pixelwert statt einer erneuten Hoehen-Messung (useBeobachteteHoehe
-            o.ae.) - hier ist die Zielhoehe bekannt und stabil (zwei fest
-            formulierte Text-Varianten, kein dynamischer User-Inhalt), ein
-            Mess-Hook waere unnoetige Komplexitaet fuer einen Konstantwert. */}
-        <div className="grid min-h-[104px]">
+            unanimierter Sprung der VERTIKALEN POSITION. Urspruengliche Ursache:
+            Schritt-4-Titel ("Alles bereit!" + Subtext, damals mt-8/mt-2) war
+            per Messung 104px hoch, Schritt-<=3-Titel ("Schritt X von 3" +
+            Ueberschrift, mt-5/mt-1) nur 80px - der Grid-Stack oben verhindert
+            zwar die FRUEHERE Doppel-Sprung-Variante (Luecke waehrend
+            mode="wait"), aber sobald der alte (kuerzere ODER laengere) Titel
+            entfernt wird, sized sich DIESER Grid-Stack selbst auf seine neue
+            Zielhoehe - der 24px-Hoehenunterschied im Header verschob daher
+            IMMER den gesamten darunterliegenden Frage-Bereich samt Footer, in
+            BEIDE Richtungen (3->4 UND 4->3 gleichermassen).
+
+            NACHTRAG (Nebenwirkungs-Bugfix "PROBLEM 1"): min-h-[104px] behob
+            zwar den Sprung, kostete aber 24px permanent reservierten Platz
+            auf JEDEM Schritt - bei knappem Viewport (375x812, Schritt 3 MIT
+            leerer Diaet-Auswahl, also dem "Bitte eine Option auswaehlen"-
+            Hinweistext sichtbar - der PRIMAERE Erstbesuch-Fall, nicht etwa
+            ein Sonderfall) reichte der verbleibende Platz im flex-1-Frage-
+            Bereich dadurch nicht mehr aus (234px verfuegbar vs. 310px
+            benoetigt) - der Hinweistext wurde von h-full/overflow-hidden
+            (siehe Kommentar dort zu "PROBLEM 2") unsichtbar abgeschnitten,
+            statt (wie vor dem h-dvh-Fix) wenigstens per Scroll erreichbar zu
+            sein - eine Verschlechterung. Fix: schritt4s Titel-Abstaende auf
+            mt-5/mt-1 verkleinert (identisch zu Schritt <=3s eigenen Werten,
+            siehe JSX unten) - dadurch ist die NATUERLICHE Hoehe beider
+            Varianten jetzt IDENTISCH bei 80px (per direkter Kind-Element-
+            Messung bestaetigt, nicht per scrollHeight - CSS-Grids
+            align-items:stretch stretcht das Kind sonst auf die Zeilenhoehe
+            und taeuscht scrollHeight vor). min-h-[80px] reserviert dadurch
+            keinen einzigen ungenutzten Pixel mehr, behebt den Sprung aber
+            weiterhin genauso zuverlaessig, da beide Varianten nun exakt
+            gleich hoch sind. */}
+        <div className="grid min-h-[80px]">
           <AnimatePresence initial={false}>
             <motion.div
               key={schritt}
@@ -255,8 +298,8 @@ function OnboardingWizard({
                 </>
               ) : (
                 <>
-                  <h1 className="mt-8 font-display text-4xl font-semibold text-text sm:text-5xl">Alles bereit!</h1>
-                  <p className="mt-2 text-text-muted">Wie möchtest du starten?</p>
+                  <h1 className="mt-5 font-display text-4xl font-semibold text-text sm:text-5xl">Alles bereit!</h1>
+                  <p className="mt-1 text-text-muted">Wie möchtest du starten?</p>
                 </>
               )}
             </motion.div>
@@ -366,8 +409,35 @@ function OnboardingWizard({
             statt auto (inhaltsbasiert) - beide gestapelten Schritte liegen
             dadurch garantiert deckungsgleich in Breite UND Position,
             unabhaengig vom jeweiligen Inhalt, auch wenn das fuer den
-            konkret beobachteten Bug nicht die Ursache war. */}
-        <div className="grid grid-cols-1">
+            konkret beobachteten Bug nicht die Ursache war.
+
+            h-full overflow-hidden HIER ZUSAETZLICH (nicht nur am aeusseren
+            Flex-Container) - GEFUNDENE URSACHE dafuer, dass die sticky
+            Kalorien-Karte beim Uebergang 3->2 kurzzeitig die Mahlzeit-
+            Optionen ueberdeckte: getBoundingClientRect() zeigte den
+            aeusseren Flex-Container (mit overflow-hidden, Hoehe seit dem
+            h-dvh-Fix jetzt definit statt nur minimal) korrekt bei
+            outerBottom=484px geclippt, WAEHREND dieses .grid-Element
+            selbst per Layout-Box (CSS Grid sized sich per Definition auf
+            seinen Inhalt, unabhaengig vom verfuegbaren Platz im Elternteil)
+            weiterhin bis 528px reichte (44px Ueberhang) - overflow-hidden
+            auf dem AEUSSEREN Container allein reichte nicht: es clippt
+            zuverlaessig, WAS ausserhalb SEINER EIGENEN Box liegt, aber ein
+            zu grosses DIREKTES Kind clippt dadurch nicht automatisch SICH
+            SELBST - das Kind bleibt als eigene Box 528px hoch, nur der
+            sichtbare Ausschnitt in den Eltern-Grenzen war geclippt, waehrend
+            transformierte Nachfahren (framer-motion animiert per transform:
+            translateX/opacity, siehe schrittVarianten oben) auf eigenen
+            Compositing-Layern in der Praxis dennoch teilweise sichtbar
+            blieben. Per Screenshot-Serie visuell bestaetigt: die Mahlzeiten-
+            Chips ragten sichtbar in die darunterliegende Kalorien-Karte
+            hinein. h-full zwingt dieses .grid-Element auf GENAU die Hoehe
+            des jetzt definiten Eltern-Containers (statt sich per Inhalt
+            selbst hochzuziehen), overflow-hidden DIREKT hier etabliert eine
+            eigene, garantiert wirksame Clip-Grenze an GENAU dieser Hoehe -
+            das Kollisionsrisiko mit dem Footer ist dadurch strukturell
+            ausgeschlossen, unabhaengig von Compositing-Feinheiten. */}
+        <div className="grid h-full grid-cols-1 overflow-hidden">
           <AnimatePresence custom={richtung} initial={false}>
             <motion.div
               key={schritt}
@@ -539,8 +609,26 @@ function OnboardingWizard({
           Kommentar) - der sticky-Container bleibt strukturell IMMER
           bestehen, nur sein INHALT wird fuer Schritt 4 weggelassen. Der
           sticky-Kontext existiert dadurch bereits VOR jedem Schritt-Wechsel
-          durchgehend, kann also nie mehr "frisch" etabliert werden muessen. */}
-      <div className="sticky bottom-0 z-10 bg-bg px-6 pb-8 pt-4">
+          durchgehend, kann also nie mehr "frisch" etabliert werden muessen.
+
+          pb-2/pt-1 (statt urspruenglich pb-8/pt-4) + mt-1 am Karte-Button-
+          Abstand unten - GEFUNDENE URSACHE (Nebenwirkung des h-dvh- und
+          min-h-[80px]-Fixes, siehe dortige Kommentare zu "PROBLEM 1"): bei
+          schmalem+niedrigem Viewport (375x812) MIT leerer Diaet-Auswahl
+          (der PRIMAERE Erstbesuch-Fall, nicht etwa ein Sonderfall - jeder
+          neue Nutzer hat diaeten=[] beim ersten Durchlauf) reichte der
+          verfuegbare Platz im flex-1-Frage-Bereich selbst nach Ausschoepfen
+          der Titel-Reservierung nicht aus, um Ernaehrungsform-Karte UND den
+          "Bitte eine Option auswaehlen"-Hinweis UND die Kalorien-Karte UND
+          den Button gleichzeitig ohne Clipping zu zeigen (Defizit per
+          Messung: 52px). Nach Ruecksprache gezielt auf mehrere Abstaende
+          verteilt reduziert (nicht an einer einzigen Stelle konzentriert),
+          bewusst NUR im Wizard-eigenen Footer-Container - WizardTageskarte.jsx
+          selbst (dort auch ausserhalb des Wizards wiederverwendet) bleibt
+          unangetastet. Per Screenshot-Vergleich bei 375x812 (knapp, jetzt
+          alles sichtbar) und 390x844 (mehr Platz, wirkt nicht gedraengt)
+          gegengeprueft. */}
+      <div className="sticky bottom-0 z-10 bg-bg px-6 pb-2 pt-1">
         {schritt <= 3 && (
           <>
             {/* ERSTER Versuch fuer das Kartenhoehen-Problem (nicht dieses
@@ -569,7 +657,7 @@ function OnboardingWizard({
               reduzierteBewegung={reduzierteBewegung}
             />
 
-            <div className="mt-6">
+            <div className="mt-1">
               <AnimatedButton
                 type="button"
                 onClick={weiterKlicken}
