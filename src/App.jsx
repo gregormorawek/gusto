@@ -6,6 +6,7 @@ import SuessDeftigFilter from './components/SuessDeftigFilter'
 import TagesplanAnsicht from './components/TagesplanAnsicht'
 import RezepteAnsicht from './components/RezepteAnsicht'
 import OnboardingWizard from './components/OnboardingWizard'
+import Startbildschirm from './components/Startbildschirm'
 import EinstellungenPanel from './components/EinstellungenPanel'
 import KochModus from './components/KochModus'
 import AnimatedButton from './components/AnimatedButton'
@@ -583,6 +584,14 @@ function App() {
   // initializer liest den Wert einmalig aus dem localStorage; solange er
   // false ist, zeigt die App statt der Haupt-Ansicht den Wizard.
   const [onboardingAbgeschlossen, setOnboardingAbgeschlossen] = useState(onboardingAbgeschlossenLaden)
+
+  // Startbildschirm (Startbildschirm.jsx) - Marken-Moment VOR Wizard/
+  // Hauptansicht, siehe Rendering-Weiche weiter unten. BEWUSST kein
+  // localStorage wie bei onboardingAbgeschlossen: der Startbildschirm soll
+  // bei JEDEM App-Start erscheinen (nicht nur beim allerersten Besuch),
+  // daher reiner In-Memory-State, der bei jedem Neuladen wieder bei true
+  // beginnt.
+  const [zeigtStartbildschirm, setZeigtStartbildschirm] = useState(true)
 
   // Ob das Einstellungen-Panel (Kalorienziel + Ernaehrungsform, ausserhalb
   // des Onboardings ueber das Zahnrad-Icon erreichbar) gerade offen ist.
@@ -1305,6 +1314,15 @@ function App() {
     setTagesplanRerollZaehler((aktuelleZaehler) =>
       aktuelleZaehler.map((z, i) => (i === index ? { ...z, [kategorie]: 0 } : z))
     )
+  }
+
+  // Allererster Bildschirm der App - siehe Startbildschirm.jsx. Tap auf den
+  // dortigen Button setzt NUR diesen State zurueck; welche der beiden
+  // folgenden Ansichten (Wizard/Hauptansicht) dann erscheint, entscheidet
+  // weiterhin ausschliesslich die bestehende onboardingAbgeschlossen-Weiche
+  // direkt darunter, komplett unveraendert.
+  if (zeigtStartbildschirm) {
+    return <Startbildschirm onWeiter={() => setZeigtStartbildschirm(false)} />
   }
 
   if (!onboardingAbgeschlossen) {

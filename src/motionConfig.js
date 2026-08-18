@@ -23,6 +23,14 @@ export const SPRING_REVEAL = { type: 'spring', stiffness: 300, damping: 20 }
 // dessen Nachwippen.
 export const SHEET_SLIDE_UEBERGANG = { type: 'tween', duration: 0.35, ease: [0.32, 0.72, 0, 1] }
 
+// Expo-out Cubic-Bezier fuer den Marken-Moment im Startbildschirm
+// (Startbildschirm.jsx) - schneller Start, sehr sanftes, lange auslaufendes
+// Abbremsen. Deutlich staerker ausgepraegt als SHEET_SLIDE_UEBERGANGs Bezier
+// oben (dort [0.32, 0.72, 0, 1], fuer ein grosses Sheet gedacht) - hier
+// gewuenscht fuers Logo/Glow/Button-Einblenden, wo ein laengeres,
+// zeremonielleres Ausklingen zum "Ankommen"-Gefuehl beitraegt.
+export const EXPO_OUT = [0.16, 1, 0.3, 1]
+
 // Reines Fade ohne Bewegung, fuer Backdrop/Farb-Uebergaenge o.ae.
 export const FADE_UEBERGANG = { duration: 0.25 }
 
