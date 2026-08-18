@@ -8,8 +8,7 @@ import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
 import WizardTageskarte from './WizardTageskarte'
 import AnimatedButton from './AnimatedButton'
 import { kalorienZielGueltig } from '../kalorienZiel'
-import { EXPO_OUT, HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
-import { useBeobachteteHoehe } from '../useBeobachteteHoehe'
+import { EXPO_OUT, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 
 const SCHRITT_TITEL = {
   1: 'Kalorienziel',
@@ -93,18 +92,6 @@ function OnboardingWizard({
   // Frage hereinkommen soll.
   const [richtung, setRichtung] = useState(1)
   const reduzierteBewegung = useReducedMotion()
-
-  // Hoehen-Uebergang fuer den Frage-Bereich (siehe useBeobachteteHoehe.js,
-  // gleiches Muster wie WizardTageskarte.jsx/ZielEinstellungen.jsx) - der
-  // CSS-Grid-Stack-Trick unten (col-start-1/row-start-1, siehe dortiger
-  // Kommentar) verhindert zwar den Sprung WAEHREND der Ueberlappung von
-  // altem und neuem Schritt-Inhalt, aber das FINALE Schrumpfen der Grid-
-  // Zeile auf die Hoehe des neuen (oft kuerzeren) Inhalts bleibt ohne
-  // dieses zusaetzliche Hoehen-Tracking hart/unanimiert, sobald der aeltere
-  // (groessere) Inhalt fertig ausgefadet ist und entfernt wird - per
-  // getBoundingClientRect()-Messung am "Weiter"-Button konkret nachgewiesen
-  // (glatter Anstieg, dann sprunghafter Rueckfall).
-  const [inhaltRef, inhaltHoehe] = useBeobachteteHoehe()
 
   const zielGueltig = kalorienZielGueltig(ziel)
   const diaetGueltig = diaeten.length > 0
@@ -215,17 +202,21 @@ function OnboardingWizard({
           siehe Bugfix "Wizard-Schritt-Uebergaenge glaetten") und OHNE
           mode="popLayout" (siehe RezeptKarte.jsx-Kommentar zur Herleitung:
           das haette dem austretenden Element eigene, nicht immer exakt
-          passende inline-Positionswerte verpasst). Zusaetzlich per
-          useBeobachteteHoehe in einen Hoehen-Uebergangs-Wrapper gepackt
-          (siehe Kommentar an dessen Aufruf oben) - grid allein verhindert
-          nur den Sprung WAEHREND der Ueberlappung, nicht das finale
-          Schrumpfen auf die neue Zielhoehe danach. */}
+          passende inline-Positionswerte verpasst).
+          BEWUSST OHNE zusaetzlichen useBeobachteteHoehe-Wrapper (anders als
+          ein frueherer Versuch, siehe Bugfix "Wizard-Uebergaenge, zweiter
+          Versuch"): grid sized sich WAEHREND der Ueberlappung bereits
+          korrekt auf die groessere Seite; ein zusaetzlicher Hoehen-
+          Uebergang ERST NACH dem Ende der Ueberlappung erzeugte einen
+          sichtbar ZWEITEN, vom Crossfade entkoppelten Sprung ("skaliert
+          kurz nach dem Sichtbarwerden nochmals nach") - per
+          getBoundingClientRect()-Serie konkret nachgewiesen (Inhalt war
+          nach ~330ms bereits fertig sichtbar/positioniert, der Wrapper zog
+          danach nochmal separat ueber weitere ~330ms nach). Exakt dasselbe
+          Muster wie RezeptKarte.jsx, das ebenfalls OHNE einen solchen
+          Wrapper auskommt. */}
       <div className="relative flex flex-1 flex-col justify-center overflow-hidden px-6 py-6">
-        <div
-          className="overflow-hidden transition-[height] motion-reduce:transition-none"
-          style={{ height: inhaltHoehe, transitionDuration: `${HOEHEN_UEBERGANG_MS}ms`, transitionTimingFunction: HOEHEN_UEBERGANG_EASING }}
-        >
-        <div ref={inhaltRef} className="grid">
+        <div className="grid">
           <AnimatePresence custom={richtung} initial={false}>
             <motion.div
               key={schritt}
@@ -339,7 +330,6 @@ function OnboardingWizard({
               )}
             </motion.div>
           </AnimatePresence>
-        </div>
         </div>
       </div>
 

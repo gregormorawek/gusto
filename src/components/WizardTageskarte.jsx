@@ -98,6 +98,17 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
   // jeweils unanimierte Spruenge (siehe Bugfix "Wizard-Schritt-Uebergaenge
   // glaetten"). Selbes Muster wie ZielEinstellungen.jsx (siehe dortiger
   // Kommentar zur Herleitung).
+  //
+  // Diese Karte war es auch, an der ein zweiter, subtilerer Bug in
+  // useBeobachteteHoehe selbst gefunden wurde (siehe dortiger Kommentar zu
+  // "CALLBACK-REF statt useRef()"): weil diese Komponente bei !hatInhalt
+  // (z. B. Schritt 1, bevor ein Kalorienziel gesetzt ist) frueh null
+  // zurueckgibt, war das gemessene Element beim allerersten Render noch gar
+  // nicht vorhanden - der ResizeObserver wurde dadurch nie erstellt, die
+  // Karte blieb beim Zurueck-Navigieren (Schritt 3->2) hart auf der
+  // Schritt-3-Groesse eingefroren. Der Hook selbst wurde seitdem robuster
+  // gemacht (Callback-Ref statt einmaligem Mount-Effekt), diese
+  // Verwendungsstelle musste dafuer nicht geaendert werden.
   const [inhaltRef, hoehe] = useBeobachteteHoehe()
 
   const kalorienGueltig = ziel.typ !== 'kein' && kalorienZielGueltig(ziel)
