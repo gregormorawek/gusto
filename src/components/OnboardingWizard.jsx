@@ -100,23 +100,26 @@ function OnboardingWizard({
   return (
     <div className="flex min-h-dvh flex-col bg-bg">
       <header className="px-6 pt-8">
-        <div className="flex items-center gap-3">
-          {schritt > 1 ? (
-            <AnimatedButton
-              type="button"
-              onClick={zurueckKlicken}
-              aria-label="Zurück"
-              className="-ml-2 rounded-full p-2 text-2xl text-text-muted hover:text-primary"
-            >
-              ←
-            </AnimatedButton>
-          ) : (
-            // Platzhalter in derselben Groesse wie der Zurueck-Pfeil, damit
-            // der Titel beim Wechsel von Schritt 1 zu Schritt 2 nicht springt.
-            <span className="h-9 w-9" />
-          )}
-          <p className="font-display text-lg font-semibold text-primary">gusto</p>
-        </div>
+        {schritt > 1 ? (
+          <AnimatedButton
+            type="button"
+            onClick={zurueckKlicken}
+            aria-label="Zurück"
+            className="-ml-2 rounded-full p-2 text-2xl text-text-muted hover:text-primary"
+          >
+            ←
+          </AnimatedButton>
+        ) : (
+          // Platzhalter in derselben Groesse wie der Zurueck-Pfeil, damit
+          // der Titel beim Wechsel von Schritt 1 zu Schritt 2 nicht springt.
+          // Der frühere "gusto"-Logo-Schriftzug daneben ist entfernt (siehe
+          // Startbildschirm.jsx - der neue Splash-Screen uebernimmt jetzt den
+          // grossen Marken-Moment, die Wiederholung hier im Wizard war
+          // redundant) - der Platzhalter bleibt trotzdem bestehen, sonst
+          // wuerde der Fortschrittsbalken/Titel beim Schritt-1-zu-2-Wechsel
+          // um seine Hoehe nach unten springen.
+          <span className="block h-9 w-9" />
+        )}
 
         {schritt <= 3 ? (
           <>
