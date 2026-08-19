@@ -25,9 +25,18 @@ const DIAETEN = [
 // AuswahlChip). ausgewaehlt ist das Array der aktuell aktiven Slugs,
 // onAendern wird mit dem geklickten Slug aufgerufen (das eigentliche Toggle
 // passiert in App.jsx).
+//
+// Chips gestapelt statt umbrechend + groesse="breit" (Redesign, siehe
+// ZielEinstellungen.jsx fuer dieselbe Aenderung an den Kalorienziel-Chips) -
+// analog dortiger Begruendung ("brechen unsauber um"). KEIN eigenes px-4
+// mehr: beide Aufrufer (OnboardingWizard.jsx Schritt 3, EinstellungenPanel)
+// betten diese Komponente bereits in eine eigene gepolsterte Karte ein - das
+// fruehere zusaetzliche px-4 hier erzeugte dadurch doppeltes Padding, die
+// (jetzt volle Breite einnehmenden) Chips wirkten gegenueber der
+// "Ernaehrungsform"-Ueberschrift daneben sichtbar eingerueckt.
 function DiaetFilter({ ausgewaehlt, onAendern }) {
   return (
-    <div className="mt-3 flex flex-wrap gap-3 px-4">
+    <div className="mt-2 flex flex-col gap-1">
       {DIAETEN.map(({ slug, label }) => {
         const aktiv = ausgewaehlt.includes(slug)
         return (
@@ -35,6 +44,7 @@ function DiaetFilter({ ausgewaehlt, onAendern }) {
             key={slug}
             Icon={DIAET_ICON[slug]}
             label={label}
+            groesse="breit"
             aktiv={aktiv}
             input={{ type: 'checkbox', checked: aktiv, onChange: () => onAendern(slug) }}
           />

@@ -19,9 +19,14 @@ import AnimatedButton from './AnimatedButton'
 //   sichtbare Haken/Punkt der nativen Checkbox/Radio entfaellt zugunsten des
 //   neuen Auswahl-Zustands.
 //
-// groesse unterscheidet die ueberall verwendete kompakte Pille von der
-// groesseren, quadratischeren Kachel-Form fuer das Wizard-2x2-Mahlzeitraster
-// (siehe MahlzeitFilter layout="raster2x2").
+// groesse unterscheidet drei Formen: die ueberall verwendete kompakte Pille
+// (Default, schrumpft auf ihren Inhalt), die groessere, quadratischere
+// Kachel-Form fuer das Wizard-2x2-Mahlzeitraster (siehe MahlzeitFilter
+// layout="raster2x2") sowie 'breit' - dieselbe horizontale Icon-links/Text-
+// daneben-Anordnung wie 'kompakt', aber volle Breite ihres Containers statt
+// Inhalts-Breite, fuer gestapelte (statt umbrechende) Chip-Gruppen wie
+// Kalorienziel (ZielEinstellungen.jsx) und Ernaehrungsform (DiaetFilter.jsx)
+// - siehe dortige Kommentare zur Herleitung ("brechen unsauber um").
 const RAND_UND_SCHATTEN =
   'transition-[transform,box-shadow,border-color] duration-150 ease-out motion-reduce:transition-none focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-primary/50 focus-visible:ring-offset-2 focus-visible:ring-offset-bg'
 
@@ -33,7 +38,12 @@ const RAND_UND_SCHATTEN =
 // statt translate-y-px (1px) fuer einen wahrnehmbaren, aber nicht
 // uebertriebenen Versatz.
 function containerKlassen({ aktiv, groesse, deaktiviert }) {
-  const form = groesse === 'gross' ? 'flex-col gap-1.5 rounded-2xl px-4 py-3 w-full' : 'gap-1.5 rounded-full px-3 py-1.5'
+  const form =
+    groesse === 'gross'
+      ? 'flex-col gap-1.5 rounded-2xl px-4 py-3 w-full'
+      : groesse === 'breit'
+        ? 'w-full gap-2.5 rounded-full px-4 py-1'
+        : 'gap-1.5 rounded-full px-3 py-1.5'
   const rand = aktiv
     ? 'border-primary bg-primary/20 shadow-[inset_0_2px_5px_0_rgba(62,46,34,0.35)] translate-y-0.5'
     : 'border-text-muted/30 bg-card shadow-sm hover:border-primary/50'

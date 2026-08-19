@@ -522,9 +522,31 @@ function OnboardingWizard({
 
               {schritt === 3 && (
                 <>
-                  <section className="mx-4 rounded-2xl border border-secondary/20 bg-card p-6 shadow-sm">
+                  {/* p-3 statt Schritt 2s p-6 - Platzbudget-Anpassung
+                      (Redesign "Chips volle Breite"): die vier gestapelten
+                      Ernaehrungsform-Chips brauchen spuerbar mehr Hoehe als
+                      das fruehere 2+1-umbrechende Layout. Per Messung bei
+                      375x700 nachgewiesen: mit p-6 (unveraendertem Chip-
+                      Padding) 48.5px Ueberhang (vierte Chip "Keine
+                      Einschraenkung" wurde vom overflow-hidden-Frage-Bereich
+                      abgeschnitten) - selbst NACH Reduktion auf p-4 plus
+                      kompakterem Chip-Innenabstand (siehe AuswahlChip.jsx
+                      'breit'/DiaetFilter.jsx-Gap) blieben noch -10.5px
+                      Ueberhang. Erst diese Kombination aus mehreren, bewusst
+                      VERTEILTEN Reduktionen (Karten-Padding UND Chip-
+                      Innenabstand UND Chip-Zwischenabstand - keine einzelne
+                      Stelle traegt die gesamte Last) schafft wieder positiven
+                      Puffer (per Nachmessung ~23px bei 375x700). Bewusst NUR
+                      hier reduziert (nicht an Schritt 2s Karte, siehe
+                      Aufgabenstellung "Mahlzeiten-Chips ... bleibt
+                      unangetastet") - der dadurch leicht abweichende
+                      Innenabstand zwischen Schritt 2 und 3 ist der bewusst in
+                      Kauf genommene Trade-off, um das Clipping OHNE
+                      Aufbrechen der bereits geloesten h-dvh/min-h-0/sticky-
+                      Struktur zu beheben. */}
+                  <section className="mx-4 rounded-2xl border border-secondary/20 bg-card p-3 shadow-sm">
                     <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Ernährungsform</h2>
-                    <div className="mt-3">
+                    <div className="mt-2">
                       <DiaetFilter ausgewaehlt={diaeten} onAendern={onDiaetenAendern} />
                     </div>
                   </section>
