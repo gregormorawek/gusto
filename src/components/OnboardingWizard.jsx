@@ -274,7 +274,27 @@ function OnboardingWizard({
             und taeuscht scrollHeight vor). min-h-[80px] reserviert dadurch
             keinen einzigen ungenutzten Pixel mehr, behebt den Sprung aber
             weiterhin genauso zuverlaessig, da beide Varianten nun exakt
-            gleich hoch sind. */}
+            gleich hoch sind.
+
+            NACHTRAG 2 (Bugfix "Wizard-Uebergaenge, siebter Versuch",
+            Problem 2): trotz identischer mt-5/mt-1-Abstaende blieb ein
+            kleinerer, aber weiterhin messbarer 8px-Sprung beim Uebergang
+            4->3 (headerBottom 186px->178px) bestehen - GEFUNDENE URSACHE per
+            direkter Kind-Element-Messung (h1/p-Rects statt der vom
+            Grid-align-items:stretch verzerrten Wrapper-Hoehe, die faelschlich
+            fuer beide Varianten identisch 88px zeigte): Schritt-4s
+            Untertitel "Wie möchtest du starten?" (reines p, keine
+            Groessen-Klasse) rendert in font-sans-Standardgroesse
+            (16px/leading-normal = 24px Zeilenhoehe), waehrend Schritt-<=3s
+            Eyebrow-Label "Schritt X von 3" per text-xs NUR 16px Zeilenhoehe
+            hat (12px/leading-4) - ein 8px-Unterschied genau in DIESER einen
+            Zeile, unabhaengig von den (korrekten) mt-5/mt-1-Aussenabstaenden.
+            leading-4 (identische 16px Zeilenhoehe wie text-xs) auf dem
+            Untertitel behebt den Rest-Sprung, OHNE dessen Schriftgroesse
+            (bewusst weiterhin gut lesbare 16px statt 12px, passend zum
+            freundlicheren Ton dieser Abschluss-Zeile) zu aendern - per
+            Screenshot bei 375x812 gegengeprueft: kein sichtbares Clipping
+            der Umlaute/Unterlaengen bei 16px Schrift in 16px Zeilenhoehe. */}
         <div className="grid min-h-[80px]">
           <AnimatePresence initial={false}>
             <motion.div
@@ -299,7 +319,7 @@ function OnboardingWizard({
               ) : (
                 <>
                   <h1 className="mt-5 font-display text-4xl font-semibold text-text sm:text-5xl">Alles bereit!</h1>
-                  <p className="mt-1 text-text-muted">Wie möchtest du starten?</p>
+                  <p className="mt-1 leading-4 text-text-muted">Wie möchtest du starten?</p>
                 </>
               )}
             </motion.div>

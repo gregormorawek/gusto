@@ -201,31 +201,67 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
             )}
           </AnimatePresence>
 
-          <AnimatePresence>
-            {zeigeMahlzeiten && (
-              <motion.div
-                key="mahlzeiten"
-                {...motionPropsFuer(reduzierteBewegung, {
-                  initial: { opacity: 0, y: 12 },
-                  animate: { opacity: 1, y: 0 },
-                  exit: { opacity: 0, y: 12 },
-                  transition: { duration: 0.3, ease: 'easeOut' },
-                })}
-                className={`flex gap-2 ${zeigeKalorien ? 'mt-4' : ''}`}
-              >
-                {MAHLZEITEN.map(({ slug, label }) => (
-                  <IconChip
-                    key={slug}
-                    Icon={MAHLZEIT_ICON[slug]}
-                    label={label}
-                    aktiv={ausgewaehlteMahlzeiten.includes(slug)}
-                    farbKlasse={TERRAKOTTA}
-                    reduzierteBewegung={reduzierteBewegung}
-                  />
-                ))}
-              </motion.div>
-            )}
-          </AnimatePresence>
+          {/* BEWUSST OHNE AnimatePresence/exit (anders als kalorien/diaet/
+              makros unten) - GEFUNDENE URSACHE (Bugfix "Wizard-Uebergaenge,
+              siebter Versuch", Problem 1) des "Karte schrumpft erst spaet UND
+              Makrozeile springt ruckartig"-Effekts beim Uebergang 3->2: Per
+              getBoundingClientRect()-Serie bei 375x812 hart nachgewiesen,
+              dass die Kartenhoehe (per useBeobachteteHoehe/ResizeObserver
+              oben) ganze ~300ms UNVERAENDERT bei 201px stand (exakt die
+              vorherige AnimatePresence-exit-Dauer dieses Blocks), WAEHREND
+              in dieser Zeit optisch NICHTS geschah - der ResizeObserver
+              feuert erst, wenn dieser Block TATSAECHLICH aus dem DOM entfernt
+              wird (AnimatePresence haelt ein exit-animiertes Kind bis zum
+              Ende seiner eigenen Transition im DOM, sein reiner
+              opacity/y-Transform aendert die Layout-Box in der Zwischenzeit
+              NICHT). Erst bei diesem verspaeteten Entfernen sprang die
+              Makrozeile schlagartig auf ihre finale Position (t~330ms),
+              woraufhin die AEUSSERE CSS-Hoehen-Transition (350ms) ERST DANN
+              zu schrumpfen begann - macht in Summe ~650ms und einen sichtbar
+              entkoppelten Inhalts-Sprung mitten in der Animation.
+              Ohne AnimatePresence entfernt React diesen Block SOFORT
+              (synchron mit dem schritt-Wechsel) aus dem DOM, sobald
+              zeigeMahlzeiten false wird - die Makrozeile reflowed dadurch
+              INSTANTAN auf ihre finale Position, noch bevor der erste Frame
+              gemalt wird (kein sichtbarer Sprung, da er VOR dem ersten Paint
+              passiert), waehrend die AEUSSERE Karte zu diesem Zeitpunkt noch
+              ihre grosse 201px-Hoehe zeigt und den bereits fertig
+              positionierten Inhalt unten per overflow-hidden schlicht
+              ueberschuessig einrahmt - die anschliessende 350ms-CSS-Hoehen-
+              Transition schneidet diesen ueberschuessigen Leerraum dann
+              einfach weich weg, exakt das bereits bewaehrte Verhalten der
+              GEGENUEBERGESETZTEN Eintritts-Richtung (2->3, dort war/ist
+              dieses Muster laut Ruecksprache schon immer unauffaellig: ein
+              neu gemountetes Kind besetzt seine Box ebenfalls sofort in
+              voller Groesse, die Karte waechst nur per CSS weich hinterher -
+              exakt symmetrisch, nur jetzt auch fuers Schrumpfen genutzt).
+              Der Fade/Slide-Effekt (opacity 0->1, y 12->0) bleibt fuers
+              ERSCHEINEN (initial/animate, kein AnimatePresence noetig - die
+              wirken auch ganz ohne AnimatePresence beim Mount) unveraendert
+              bestehen; nur das eigene AUSTRITTS-Fade (0.3s, siehe vorheriger
+              exit-Wert oben) entfaellt, weil es die eigentliche Ursache des
+              Sprungs war. */}
+          {zeigeMahlzeiten && (
+            <motion.div
+              {...motionPropsFuer(reduzierteBewegung, {
+                initial: { opacity: 0, y: 12 },
+                animate: { opacity: 1, y: 0 },
+                transition: { duration: 0.3, ease: 'easeOut' },
+              })}
+              className={`flex gap-2 ${zeigeKalorien ? 'mt-4' : ''}`}
+            >
+              {MAHLZEITEN.map(({ slug, label }) => (
+                <IconChip
+                  key={slug}
+                  Icon={MAHLZEIT_ICON[slug]}
+                  label={label}
+                  aktiv={ausgewaehlteMahlzeiten.includes(slug)}
+                  farbKlasse={TERRAKOTTA}
+                  reduzierteBewegung={reduzierteBewegung}
+                />
+              ))}
+            </motion.div>
+          )}
 
           <AnimatePresence>
             {zeigeDiaet && (
