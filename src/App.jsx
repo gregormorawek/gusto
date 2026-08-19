@@ -1,4 +1,5 @@
 import { useEffect, useState } from 'react'
+import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import './App.css'
 import SlotKarte from './components/SlotKarte'
 import MahlzeitFilter from './components/MahlzeitFilter'
@@ -23,6 +24,17 @@ import {
   makroZielExaktePortion,
   portionenMitMakroZielenBerechnen,
 } from './portionenRechner'
+import { EXPO_OUT, transitionFuer } from './motionConfig'
+
+// Crossfade-Uebergang Startbildschirm -> naechste Ansicht (Wizard oder
+// Hauptansicht, siehe Rendering-Weiche am Komponentenende) - dieselbe
+// EXPO_OUT-Kurve wie die Logo-Einblendung in Startbildschirm.jsx, fuer
+// denselben ruhigen, unaufgeregten Charakter (kein Ueberschwingen). Sowohl
+// das Ausblenden des Startbildschirms als auch das Einblenden der
+// naechsten Ansicht verwenden GENAU dieses Preset, damit beide Seiten
+// synchron (gleiche Dauer/Kurve, gleicher Start-Zeitpunkt) laufen statt
+// zeitlich gegeneinander zu versetzen.
+const STARTBILDSCHIRM_UEBERGANG = { duration: 0.6, ease: EXPO_OUT }
 
 // Feste Reihenfolge der Mahlzeit-Typen fuer den Tagesplan, uebernommen aus
 // den Filter-Slugs (fruehstueck, mittag, abend, snack).
@@ -601,6 +613,11 @@ function App() {
   // daher reiner In-Memory-State, der bei jedem Neuladen wieder bei true
   // beginnt.
   const [zeigtStartbildschirm, setZeigtStartbildschirm] = useState(true)
+
+  // Fuer den Crossfade-Uebergang beim Verlassen des Startbildschirms (siehe
+  // Rendering-Weiche am Komponentenende) - dort wird bei reduzierter
+  // Bewegung sofort hart umgeschaltet statt sanft ueberzublenden.
+  const reduzierteBewegung = useReducedMotion()
 
   // Ob das Einstellungen-Panel (Kalorienziel + Ernaehrungsform, ausserhalb
   // des Onboardings ueber das Zahnrad-Icon erreichbar) gerade offen ist.
@@ -1330,254 +1347,317 @@ function App() {
   // folgenden Ansichten (Wizard/Hauptansicht) dann erscheint, entscheidet
   // weiterhin ausschliesslich die bestehende onboardingAbgeschlossen-Weiche
   // direkt darunter, komplett unveraendert.
-  if (zeigtStartbildschirm) {
-    return <Startbildschirm onWeiter={() => setZeigtStartbildschirm(false)} />
-  }
-
-  if (!onboardingAbgeschlossen) {
-    return (
-      <OnboardingWizard
-        ziel={ziel}
-        onTypAendern={zielTypAendern}
-        onKalorienAendern={zielKalorienAendern}
-        onMakroAendern={zielMakroAendern}
-        mahlzeit={mahlzeit}
-        onMahlzeitAendern={mahlzeitAendern}
-        diaeten={diaeten}
-        onDiaetenAendern={diaetenAendern}
-        tagesplanMahlzeiten={tagesplanMahlzeiten}
-        onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
-        onAbschluss={onboardingAbschliessen}
-      />
-    )
-  }
-
-  if (laedt) {
-    return <p className="p-4">Lädt...</p>
-  }
-
-  // Die vier Summen sind KEIN eigener State, sondern werden bei jedem
-  // Rendern frisch aus protein, carbs, fett und gemuese berechnet.
-  // So koennen Anzeige und tatsaechliche Auswahl nie auseinanderlaufen.
   //
-  // Jeder Naehrwert steht in der Datenbank als 100g-Referenzwert.
-  // Mit aufPortionSkalieren() rechnen wir ihn zuerst pro Zutat auf die
-  // tatsaechliche Portionsgroesse um, und summieren erst DANACH.
-  const summeKalorien =
-    aufPortionSkalieren(protein.kalorien, proteinPortion ?? protein.portion_g) +
-    aufPortionSkalieren(carbs.kalorien, carbsPortion ?? carbs.portion_g) +
-    aufPortionSkalieren(fett.kalorien, fettPortion ?? fett.portion_g) +
-    aufPortionSkalieren(gemuese.kalorien, gemuesePortion ?? gemuese.portion_g)
-
-  const summeProtein =
-    aufPortionSkalieren(protein.protein_g, proteinPortion ?? protein.portion_g) +
-    aufPortionSkalieren(carbs.protein_g, carbsPortion ?? carbs.portion_g) +
-    aufPortionSkalieren(fett.protein_g, fettPortion ?? fett.portion_g) +
-    aufPortionSkalieren(gemuese.protein_g, gemuesePortion ?? gemuese.portion_g)
-
-  const summeCarbs =
-    aufPortionSkalieren(protein.carbs_g, proteinPortion ?? protein.portion_g) +
-    aufPortionSkalieren(carbs.carbs_g, carbsPortion ?? carbs.portion_g) +
-    aufPortionSkalieren(fett.carbs_g, fettPortion ?? fett.portion_g) +
-    aufPortionSkalieren(gemuese.carbs_g, gemuesePortion ?? gemuese.portion_g)
-
-  const summeFett =
-    aufPortionSkalieren(protein.fett_g, proteinPortion ?? protein.portion_g) +
-    aufPortionSkalieren(carbs.fett_g, carbsPortion ?? carbs.portion_g) +
-    aufPortionSkalieren(fett.fett_g, fettPortion ?? fett.portion_g) +
-    aufPortionSkalieren(gemuese.fett_g, gemuesePortion ?? gemuese.portion_g)
-
-  const aktuelleMakroZiele = makroZieleFuer(mahlzeit)
-
-  // Fuer jeden Slot exakt derselbe gefilterte Pool wie beim Wuerfeln (siehe
-  // proteinWuerfeln etc.) - das Suchfeld darf KEINE eigene, ungefilterte
-  // Zutatenliste verwenden, sondern nur innerhalb dieses Pools suchen.
-  const proteinSuchPool = gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten, suessDeftig)
-  const carbsSuchPool = gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten, suessDeftig)
-  const fettSuchPool = gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten, suessDeftig)
-  const gemueseSuchPool = vierterSlotOptionenFuer(gemueseOptionen, obstOptionen, mahlzeit, diaeten, suessDeftig)
-
-  return (
-    <>
-      {/* Der fruehere "gusto"-Logo+Slogan-Header ist auf den Hauptseiten
-          (Planen/Rezepte, nach Abschluss des Onboardings) bewusst entfernt -
-          spart vertikalen Platz app-weit. Bleibt NUR im OnboardingWizard
-          erhalten (dort unveraendert, siehe WizardTageskarte.jsx u. a.) - der
-          Wizard ist der einzige Ort, an dem der Marken-Einstieg noch gezeigt
-          wird. Das Einstellungen-Zahnrad teilt sich jetzt die Zeile mit der
-          Planen/Rezepte-Tab-Leiste (oben rechts) statt einer eigenen Zeile,
-          damit es weiterhin auf jeder Hauptseite erreichbar bleibt. */}
-      <div className="mb-4 flex items-center justify-between px-4 pt-4">
-        <div className="flex gap-2">
-          <AnimatedButton
-            type="button"
-            onClick={() => setAnsicht('haupt')}
-            className={
-              ansicht === 'haupt'
-                ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
-                : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
-            }
-          >
-            Planen
-          </AnimatedButton>
-          <AnimatedButton
-            type="button"
-            onClick={() => setAnsicht('rezepte')}
-            className={
-              ansicht === 'rezepte'
-                ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
-                : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
-            }
-          >
-            Rezepte
-          </AnimatedButton>
-        </div>
-        <AnimatedButton
-          type="button"
-          onClick={() => setEinstellungenOffen(true)}
-          aria-label="Einstellungen öffnen"
-          className="text-2xl text-text-muted hover:text-primary"
-        >
-          ⚙
-        </AnimatedButton>
-      </div>
-
-      <EinstellungenPanel
-        offen={einstellungenOffen}
-        onSchliessen={() => setEinstellungenOffen(false)}
-        ziel={ziel}
-        onTypAendern={zielTypAendern}
-        onKalorienAendern={zielKalorienAendern}
-        onMakroAendern={zielMakroAendern}
-        diaeten={diaeten}
-        onDiaetenAendern={diaetenAendern}
-        suessDeftig={suessDeftig}
-        onSuessDeftigAendern={suessDeftigAendern}
-        tagesplanMahlzeiten={tagesplanMahlzeiten}
-        onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
-      />
-
-      <KochModus
-        eintrag={kochModusEintrag}
-        onZurueck={() => setKochModusEintrag(null)}
-        erledigteSchritte={erledigteSchritte}
-        onSchrittUmschalten={kochSchrittUmschalten}
-      />
-
-      {ansicht === 'rezepte' ? (
-        <RezepteAnsicht
-          rezepte={rezepte}
-          zutatenNachId={zutatenNachId}
-          diaeten={diaeten}
+  // Fuer den Crossfade (Bugfix "Startbildschirm-Uebergang") darf diese
+  // Weiche NICHT mehr per frueher Return komplett abbrechen (das wuerde die
+  // naechste Ansicht erst NACH dem Ausblenden des Startbildschirms montieren
+  // - ein harter Schnitt statt einer Ueberlappung). Stattdessen wird die
+  // GESAMTE bisherige Rendering-Kette (Wizard/Laedt/Hauptansicht,
+  // unveraendert per fruehem Return INNERHALB dieser Funktion) in ein IIFE
+  // gewrappt und als eigener Wert (naechsteAnsicht) berechnet - sie wird erst
+  // dann ueberhaupt ausgewertet/montiert, wenn zeigtStartbildschirm bereits
+  // false ist (siehe Bedingung ganz unten bei der Verwendung), damit VOR dem
+  // ersten Tap weiterhin exakt nichts von alldem gemountet wird (keine
+  // Verhaltensaenderung fuer die Zeit davor). Alle Hooks der Komponente
+  // stehen bereits VOLLSTAENDIG oberhalb dieser Stelle (siehe Kommentare zu
+  // den einzelnen useState/useEffect-Aufrufen weiter oben) - das IIFE selbst
+  // ruft KEINE weiteren Hooks auf, ist also unproblematisch fuer die
+  // Rules-of-Hooks.
+  const naechsteAnsicht = (() => {
+    if (!onboardingAbgeschlossen) {
+      return (
+        <OnboardingWizard
           ziel={ziel}
-          makroZiele={makroZiele}
+          onTypAendern={zielTypAendern}
+          onKalorienAendern={zielKalorienAendern}
+          onMakroAendern={zielMakroAendern}
+          mahlzeit={mahlzeit}
+          onMahlzeitAendern={mahlzeitAendern}
+          diaeten={diaeten}
+          onDiaetenAendern={diaetenAendern}
           tagesplanMahlzeiten={tagesplanMahlzeiten}
-          onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
-          onKochModusOeffnen={kochModusOeffnen}
+          onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
+          onAbschluss={onboardingAbschliessen}
         />
-      ) : ziel.typ === 'proTag' ? (
-        tagesplan ? (
-          <TagesplanAnsicht
-            tagesplan={tagesplan}
-            tagesplanRerollZaehler={tagesplanRerollZaehler}
-            onSlotWuerfeln={tagesplanSlotWuerfeln}
-            onZutatWaehlen={tagesplanZutatWaehlen}
-            proteinOptionen={proteinOptionen}
-            carbsOptionen={carbsOptionen}
-            fettOptionen={fettOptionen}
-            gemueseOptionen={gemueseOptionen}
-            obstOptionen={obstOptionen}
-            diaeten={diaeten}
-            suessDeftig={suessDeftig}
-            onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
-            onNeuPlanen={tagPlanen}
-          />
-        ) : (
-          // Kurzes Fenster zwischen "Pro Tag aktiv" und "Plan fertig
-          // generiert" (siehe Auto-Generieren-Effekt oben) - tagesplanErzeugen
-          // selbst ist zwar synchron/lokal (keine Netzwerk-Anfrage, die
-          // Zutaten-Pools sind zu diesem Zeitpunkt schon geladen), der Effekt
-          // feuert aber erst NACH dem ersten Render, wodurch ohne dieses
-          // Skeleton kurz ein leerer Screen aufblitzen wuerde.
-          <TagesplanSkeleton />
-        )
-      ) : (
-        <>
-          <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />
+      )
+    }
 
-          {(mahlzeit === 'fruehstueck' || mahlzeit === 'snack') && (
-            <SuessDeftigFilter aktuell={suessDeftig} onAendern={suessDeftigAendern} />
-          )}
+    if (laedt) {
+      return <p className="p-4">Lädt...</p>
+    }
 
+    // Die vier Summen sind KEIN eigener State, sondern werden bei jedem
+    // Rendern frisch aus protein, carbs, fett und gemuese berechnet.
+    // So koennen Anzeige und tatsaechliche Auswahl nie auseinanderlaufen.
+    //
+    // Jeder Naehrwert steht in der Datenbank als 100g-Referenzwert.
+    // Mit aufPortionSkalieren() rechnen wir ihn zuerst pro Zutat auf die
+    // tatsaechliche Portionsgroesse um, und summieren erst DANACH.
+    const summeKalorien =
+      aufPortionSkalieren(protein.kalorien, proteinPortion ?? protein.portion_g) +
+      aufPortionSkalieren(carbs.kalorien, carbsPortion ?? carbs.portion_g) +
+      aufPortionSkalieren(fett.kalorien, fettPortion ?? fett.portion_g) +
+      aufPortionSkalieren(gemuese.kalorien, gemuesePortion ?? gemuese.portion_g)
+
+    const summeProtein =
+      aufPortionSkalieren(protein.protein_g, proteinPortion ?? protein.portion_g) +
+      aufPortionSkalieren(carbs.protein_g, carbsPortion ?? carbs.portion_g) +
+      aufPortionSkalieren(fett.protein_g, fettPortion ?? fett.portion_g) +
+      aufPortionSkalieren(gemuese.protein_g, gemuesePortion ?? gemuese.portion_g)
+
+    const summeCarbs =
+      aufPortionSkalieren(protein.carbs_g, proteinPortion ?? protein.portion_g) +
+      aufPortionSkalieren(carbs.carbs_g, carbsPortion ?? carbs.portion_g) +
+      aufPortionSkalieren(fett.carbs_g, fettPortion ?? fett.portion_g) +
+      aufPortionSkalieren(gemuese.carbs_g, gemuesePortion ?? gemuese.portion_g)
+
+    const summeFett =
+      aufPortionSkalieren(protein.fett_g, proteinPortion ?? protein.portion_g) +
+      aufPortionSkalieren(carbs.fett_g, carbsPortion ?? carbs.portion_g) +
+      aufPortionSkalieren(fett.fett_g, fettPortion ?? fett.portion_g) +
+      aufPortionSkalieren(gemuese.fett_g, gemuesePortion ?? gemuese.portion_g)
+
+    const aktuelleMakroZiele = makroZieleFuer(mahlzeit)
+
+    // Fuer jeden Slot exakt derselbe gefilterte Pool wie beim Wuerfeln (siehe
+    // proteinWuerfeln etc.) - das Suchfeld darf KEINE eigene, ungefilterte
+    // Zutatenliste verwenden, sondern nur innerhalb dieses Pools suchen.
+    const proteinSuchPool = gefiltertePoolFuer(proteinOptionen, mahlzeit, diaeten, suessDeftig)
+    const carbsSuchPool = gefiltertePoolFuer(carbsOptionen, mahlzeit, diaeten, suessDeftig)
+    const fettSuchPool = gefiltertePoolFuer(fettOptionen, mahlzeit, diaeten, suessDeftig)
+    const gemueseSuchPool = vierterSlotOptionenFuer(gemueseOptionen, obstOptionen, mahlzeit, diaeten, suessDeftig)
+
+    return (
+      <>
+        {/* Der fruehere "gusto"-Logo+Slogan-Header ist auf den Hauptseiten
+            (Planen/Rezepte, nach Abschluss des Onboardings) bewusst entfernt -
+            spart vertikalen Platz app-weit. Bleibt NUR im OnboardingWizard
+            erhalten (dort unveraendert, siehe WizardTageskarte.jsx u. a.) - der
+            Wizard ist der einzige Ort, an dem der Marken-Einstieg noch gezeigt
+            wird. Das Einstellungen-Zahnrad teilt sich jetzt die Zeile mit der
+            Planen/Rezepte-Tab-Leiste (oben rechts) statt einer eigenen Zeile,
+            damit es weiterhin auf jeder Hauptseite erreichbar bleibt. */}
+        <div className="mb-4 flex items-center justify-between px-4 pt-4">
+          <div className="flex gap-2">
+            <AnimatedButton
+              type="button"
+              onClick={() => setAnsicht('haupt')}
+              className={
+                ansicht === 'haupt'
+                  ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
+                  : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
+              }
+            >
+              Planen
+            </AnimatedButton>
+            <AnimatedButton
+              type="button"
+              onClick={() => setAnsicht('rezepte')}
+              className={
+                ansicht === 'rezepte'
+                  ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
+                  : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
+              }
+            >
+              Rezepte
+            </AnimatedButton>
+          </div>
           <AnimatedButton
             type="button"
             onClick={() => setEinstellungenOffen(true)}
-            className="mt-2 px-4 text-sm text-primary hover:underline"
+            aria-label="Einstellungen öffnen"
+            className="text-2xl text-text-muted hover:text-primary"
           >
-            Einstellungen anpassen
+            ⚙
           </AnimatedButton>
+        </div>
 
-          <section id="slots" className="grid grid-cols-2 gap-4 p-4">
-            <SlotKarte
-              titel="Protein"
-              text={protein.name}
-              portion={proteinPortion}
-              onWuerfeln={proteinWuerfeln}
-              zielWert={aktuelleMakroZiele.protein}
-              onZielAendern={(wert) => makroZielAendern('protein', wert)}
-              zielErreichbar={proteinZielErreichbar}
-              sucheAnzeigen={rerollZaehler.protein >= REROLL_SCHWELLE_FUER_SUCHE}
-              suchPool={proteinSuchPool}
-              onZutatWaehlen={(zutat) => zutatManuellWaehlen('protein', zutat)}
-            />
-            <SlotKarte
-              titel="Kohlenhydrate"
-              text={carbs.name}
-              portion={carbsPortion}
-              onWuerfeln={carbsWuerfeln}
-              zielWert={aktuelleMakroZiele.carbs}
-              onZielAendern={(wert) => makroZielAendern('carbs', wert)}
-              zielErreichbar={carbsZielErreichbar}
-              sucheAnzeigen={rerollZaehler.carbs >= REROLL_SCHWELLE_FUER_SUCHE}
-              suchPool={carbsSuchPool}
-              onZutatWaehlen={(zutat) => zutatManuellWaehlen('carbs', zutat)}
-            />
-            <SlotKarte
-              titel="Fett"
-              text={fett.name}
-              portion={fettPortion}
-              onWuerfeln={fettWuerfeln}
-              zielWert={aktuelleMakroZiele.fett}
-              onZielAendern={(wert) => makroZielAendern('fett', wert)}
-              zielErreichbar={fettZielErreichbar}
-              sucheAnzeigen={rerollZaehler.fett >= REROLL_SCHWELLE_FUER_SUCHE}
-              suchPool={fettSuchPool}
-              onZutatWaehlen={(zutat) => zutatManuellWaehlen('fett', zutat)}
-            />
-            <SlotKarte
-              titel={gemuese.kategorie === 'obst' ? 'Obst' : 'Gemüse'}
-              text={gemuese.name}
-              portion={gemuesePortion}
-              onWuerfeln={gemueseWuerfeln}
-              sucheAnzeigen={rerollZaehler.gemuese >= REROLL_SCHWELLE_FUER_SUCHE}
-              suchPool={gemueseSuchPool}
-              onZutatWaehlen={(zutat) => zutatManuellWaehlen('gemuese', zutat)}
-            />
-          </section>
+        <EinstellungenPanel
+          offen={einstellungenOffen}
+          onSchliessen={() => setEinstellungenOffen(false)}
+          ziel={ziel}
+          onTypAendern={zielTypAendern}
+          onKalorienAendern={zielKalorienAendern}
+          onMakroAendern={zielMakroAendern}
+          diaeten={diaeten}
+          onDiaetenAendern={diaetenAendern}
+          suessDeftig={suessDeftig}
+          onSuessDeftigAendern={suessDeftigAendern}
+          tagesplanMahlzeiten={tagesplanMahlzeiten}
+          onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
+        />
 
-          <section id="summe" className="mx-4 rounded-lg border border-secondary/20 bg-secondary/10 p-4 shadow-sm">
-            <h2 className="text-lg font-semibold text-text">Summe</h2>
-            <p className="font-display text-3xl font-semibold text-text">{summeKalorien.toFixed(1)} kcal</p>
-            <p className="text-text-muted">
-              P {summeProtein.toFixed(1)}g · K {summeCarbs.toFixed(1)}g · F {summeFett.toFixed(1)}g
-            </p>
-          </section>
+        <KochModus
+          eintrag={kochModusEintrag}
+          onZurueck={() => setKochModusEintrag(null)}
+          erledigteSchritte={erledigteSchritte}
+          onSchrittUmschalten={kochSchrittUmschalten}
+        />
 
-          <AnimatedButton type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
-            Neue Auswahl würfeln
-          </AnimatedButton>
-        </>
+        {ansicht === 'rezepte' ? (
+          <RezepteAnsicht
+            rezepte={rezepte}
+            zutatenNachId={zutatenNachId}
+            diaeten={diaeten}
+            ziel={ziel}
+            makroZiele={makroZiele}
+            tagesplanMahlzeiten={tagesplanMahlzeiten}
+            onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
+            onKochModusOeffnen={kochModusOeffnen}
+          />
+        ) : ziel.typ === 'proTag' ? (
+          tagesplan ? (
+            <TagesplanAnsicht
+              tagesplan={tagesplan}
+              tagesplanRerollZaehler={tagesplanRerollZaehler}
+              onSlotWuerfeln={tagesplanSlotWuerfeln}
+              onZutatWaehlen={tagesplanZutatWaehlen}
+              proteinOptionen={proteinOptionen}
+              carbsOptionen={carbsOptionen}
+              fettOptionen={fettOptionen}
+              gemueseOptionen={gemueseOptionen}
+              obstOptionen={obstOptionen}
+              diaeten={diaeten}
+              suessDeftig={suessDeftig}
+              onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
+              onNeuPlanen={tagPlanen}
+            />
+          ) : (
+            // Kurzes Fenster zwischen "Pro Tag aktiv" und "Plan fertig
+            // generiert" (siehe Auto-Generieren-Effekt oben) - tagesplanErzeugen
+            // selbst ist zwar synchron/lokal (keine Netzwerk-Anfrage, die
+            // Zutaten-Pools sind zu diesem Zeitpunkt schon geladen), der Effekt
+            // feuert aber erst NACH dem ersten Render, wodurch ohne dieses
+            // Skeleton kurz ein leerer Screen aufblitzen wuerde.
+            <TagesplanSkeleton />
+          )
+        ) : (
+          <>
+            <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />
+
+            {(mahlzeit === 'fruehstueck' || mahlzeit === 'snack') && (
+              <SuessDeftigFilter aktuell={suessDeftig} onAendern={suessDeftigAendern} />
+            )}
+
+            <AnimatedButton
+              type="button"
+              onClick={() => setEinstellungenOffen(true)}
+              className="mt-2 px-4 text-sm text-primary hover:underline"
+            >
+              Einstellungen anpassen
+            </AnimatedButton>
+
+            <section id="slots" className="grid grid-cols-2 gap-4 p-4">
+              <SlotKarte
+                titel="Protein"
+                text={protein.name}
+                portion={proteinPortion}
+                onWuerfeln={proteinWuerfeln}
+                zielWert={aktuelleMakroZiele.protein}
+                onZielAendern={(wert) => makroZielAendern('protein', wert)}
+                zielErreichbar={proteinZielErreichbar}
+                sucheAnzeigen={rerollZaehler.protein >= REROLL_SCHWELLE_FUER_SUCHE}
+                suchPool={proteinSuchPool}
+                onZutatWaehlen={(zutat) => zutatManuellWaehlen('protein', zutat)}
+              />
+              <SlotKarte
+                titel="Kohlenhydrate"
+                text={carbs.name}
+                portion={carbsPortion}
+                onWuerfeln={carbsWuerfeln}
+                zielWert={aktuelleMakroZiele.carbs}
+                onZielAendern={(wert) => makroZielAendern('carbs', wert)}
+                zielErreichbar={carbsZielErreichbar}
+                sucheAnzeigen={rerollZaehler.carbs >= REROLL_SCHWELLE_FUER_SUCHE}
+                suchPool={carbsSuchPool}
+                onZutatWaehlen={(zutat) => zutatManuellWaehlen('carbs', zutat)}
+              />
+              <SlotKarte
+                titel="Fett"
+                text={fett.name}
+                portion={fettPortion}
+                onWuerfeln={fettWuerfeln}
+                zielWert={aktuelleMakroZiele.fett}
+                onZielAendern={(wert) => makroZielAendern('fett', wert)}
+                zielErreichbar={fettZielErreichbar}
+                sucheAnzeigen={rerollZaehler.fett >= REROLL_SCHWELLE_FUER_SUCHE}
+                suchPool={fettSuchPool}
+                onZutatWaehlen={(zutat) => zutatManuellWaehlen('fett', zutat)}
+              />
+              <SlotKarte
+                titel={gemuese.kategorie === 'obst' ? 'Obst' : 'Gemüse'}
+                text={gemuese.name}
+                portion={gemuesePortion}
+                onWuerfeln={gemueseWuerfeln}
+                sucheAnzeigen={rerollZaehler.gemuese >= REROLL_SCHWELLE_FUER_SUCHE}
+                suchPool={gemueseSuchPool}
+                onZutatWaehlen={(zutat) => zutatManuellWaehlen('gemuese', zutat)}
+              />
+            </section>
+
+            <section id="summe" className="mx-4 rounded-lg border border-secondary/20 bg-secondary/10 p-4 shadow-sm">
+              <h2 className="text-lg font-semibold text-text">Summe</h2>
+              <p className="font-display text-3xl font-semibold text-text">{summeKalorien.toFixed(1)} kcal</p>
+              <p className="text-text-muted">
+                P {summeProtein.toFixed(1)}g · K {summeCarbs.toFixed(1)}g · F {summeFett.toFixed(1)}g
+              </p>
+            </section>
+
+            <AnimatedButton type="button" onClick={neueAuswahlWuerfeln} className="m-4 rounded-lg bg-primary px-4 py-2 text-card">
+              Neue Auswahl würfeln
+            </AnimatedButton>
+          </>
+        )}
+      </>
+    )
+  })()
+
+  // Rendering-Weiche: solange der Startbildschirm sichtbar ist, wird
+  // naechsteAnsicht (Wizard/Laedt/Hauptansicht, siehe IIFE oben) NICHT in den
+  // Baum eingehaengt - sie wird erst ab dem Tap auf "Los geht's" ueberhaupt
+  // gemountet, GLEICHZEITIG mit dem Start des Ausblendens des
+  // Startbildschirms (beide Seiten teilen sich STARTBILDSCHIRM_UEBERGANG,
+  // laufen also synchron los) - genau das erzeugt den gewuenschten
+  // Crossfade statt eines harten Schnitts. AnimatePresence haelt den
+  // Startbildschirm dabei automatisch so lange im DOM, bis seine eigene
+  // exit-Transition fertig ist (siehe Kommentar an dessen motion.div unten)
+  // - der (bereits laengst abgeschlossene) Press-Effekt des Buttons ist
+  // dadurch waehrend der gesamten Ausblend-Dauer sichtbar gewesen, statt vom
+  // bisherigen sofortigen Unmount verschluckt zu werden.
+  return (
+    <>
+      {!zeigtStartbildschirm && (
+        <motion.div
+          key="app-inhalt"
+          initial={reduzierteBewegung ? { opacity: 1 } : { opacity: 0 }}
+          animate={{ opacity: 1 }}
+          transition={transitionFuer(reduzierteBewegung, STARTBILDSCHIRM_UEBERGANG)}
+        >
+          {naechsteAnsicht}
+        </motion.div>
       )}
+
+      {/* eigenes AnimatePresence NUR um den Startbildschirm (nicht um die
+          gesamte Rendering-Weiche) - GENAU dieses Muster (Fade nur auf einer
+          bewusst schlanken, ausschliesslich fuer den Uebergang zustaendigen
+          motion.div) ist bereits an mehreren Stellen der App etabliert (z. B.
+          Titel-Crossfade in OnboardingWizard.jsx). fixed inset-0 + bg-bg +
+          hoher z-index, damit der Startbildschirm waehrend seines Ausblendens
+          weiterhin die GESAMTE App wie bisher verdeckt (unabhaengig von der
+          tatsaechlichen Hoehe von naechsteAnsicht darunter) und nicht durch
+          Layout-Fluss verschoben wird. */}
+      <AnimatePresence>
+        {zeigtStartbildschirm && (
+          <motion.div
+            key="startbildschirm"
+            className="fixed inset-0 z-50 bg-bg"
+            exit={{ opacity: 0 }}
+            transition={transitionFuer(reduzierteBewegung, STARTBILDSCHIRM_UEBERGANG)}
+          >
+            <Startbildschirm onWeiter={() => setZeigtStartbildschirm(false)} />
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   )
 }
