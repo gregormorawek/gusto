@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import './App.css'
 import SlotKarte from './components/SlotKarte'
@@ -24,17 +24,23 @@ import {
   makroZielExaktePortion,
   portionenMitMakroZielenBerechnen,
 } from './portionenRechner'
-import { EXPO_OUT, transitionFuer } from './motionConfig'
+import { SHEET_SLIDE_UEBERGANG } from './motionConfig'
 
-// Crossfade-Uebergang Startbildschirm -> naechste Ansicht (Wizard oder
-// Hauptansicht, siehe Rendering-Weiche am Komponentenende) - dieselbe
-// EXPO_OUT-Kurve wie die Logo-Einblendung in Startbildschirm.jsx, fuer
-// denselben ruhigen, unaufgeregten Charakter (kein Ueberschwingen). Sowohl
-// das Ausblenden des Startbildschirms als auch das Einblenden der
-// naechsten Ansicht verwenden GENAU dieses Preset, damit beide Seiten
-// synchron (gleiche Dauer/Kurve, gleicher Start-Zeitpunkt) laufen statt
-// zeitlich gegeneinander zu versetzen.
-const STARTBILDSCHIRM_UEBERGANG = { duration: 0.6, ease: EXPO_OUT }
+// Seiten-Swipe Startbildschirm -> naechste Ansicht (Wizard oder Hauptansicht,
+// siehe Rendering-Weiche am Komponentenende): SHEET_SLIDE_UEBERGANG statt
+// EXPO_OUT (fruehere Crossfade-Version) - dieselbe Begruendung wie an dessen
+// eigener Definition in motionConfig.js: ein reiner Tween mit fester
+// Ueberschwingfrei-Bezier-Kurve ist fuer eine GROSSFLAECHIGE, die ganze Seite
+// einnehmende Bewegung zuverlaessiger overshoot-frei als ein Spring (der bei
+// Springs rechnerisch zwar kritisch gedaempft werden KANN, aber empfindlich
+// auf Distanz/Werte reagiert - siehe dortiger Kommentar). Beide Seiten (das
+// ausblendende/rausschiebende Startbildschirm-Overlay UND die einschiebende
+// naechste Ansicht) verwenden GENAU dieses eine Preset, damit sie exakt
+// synchron (gleiche Dauer/Kurve, gleicher Start-Zeitpunkt) laufen - nur so
+// bleiben ihre beruehrenden Kanten waehrend der GESAMTEN Bewegung
+// deckungsgleich (keine Luecke, kein Ueberlappen, siehe Herleitung an der
+// Verwendungsstelle unten).
+const STARTBILDSCHIRM_SWIPE = SHEET_SLIDE_UEBERGANG
 
 // Feste Reihenfolge der Mahlzeit-Typen fuer den Tagesplan, uebernommen aus
 // den Filter-Slugs (fruehstueck, mittag, abend, snack).
@@ -614,10 +620,21 @@ function App() {
   // beginnt.
   const [zeigtStartbildschirm, setZeigtStartbildschirm] = useState(true)
 
-  // Fuer den Crossfade-Uebergang beim Verlassen des Startbildschirms (siehe
+  // Fuer den Seiten-Swipe beim Verlassen des Startbildschirms (siehe
   // Rendering-Weiche am Komponentenende) - dort wird bei reduzierter
-  // Bewegung sofort hart umgeschaltet statt sanft ueberzublenden.
+  // Bewegung sofort hart umgeschaltet statt geschwind hereinzuschieben.
   const reduzierteBewegung = useReducedMotion()
+
+  // DOM-Referenz auf den einschiebenden "naechste Ansicht"-Wrapper (siehe
+  // Rendering-Weiche am Komponentenende) - wird NUR gebraucht, um nach
+  // Abschluss des Swipes das von framer-motion gesetzte inline
+  // transform:translateX(...) wieder zu entfernen (siehe dortiger
+  // Kommentar) - dieser Wrapper bleibt fuer den Rest der Sitzung bestehen
+  // (kein AnimatePresence/Unmount noetig), ein liegen gebliebenes
+  // transform wuerde sonst DAUERHAFT einen neuen Stacking/Containing-Block-
+  // Kontext fuer alle darin verschachtelten fixed inset-0-Overlays
+  // (KochModus, EinstellungenPanel) erzeugen.
+  const naechsteAnsichtRef = useRef(null)
 
   // Ob das Einstellungen-Panel (Kalorienziel + Ernaehrungsform, ausserhalb
   // des Onboardings ueber das Zahnrad-Icon erreichbar) gerade offen ist.
@@ -1615,44 +1632,81 @@ function App() {
   // Rendering-Weiche: solange der Startbildschirm sichtbar ist, wird
   // naechsteAnsicht (Wizard/Laedt/Hauptansicht, siehe IIFE oben) NICHT in den
   // Baum eingehaengt - sie wird erst ab dem Tap auf "Los geht's" ueberhaupt
-  // gemountet, GLEICHZEITIG mit dem Start des Ausblendens des
-  // Startbildschirms (beide Seiten teilen sich STARTBILDSCHIRM_UEBERGANG,
-  // laufen also synchron los) - genau das erzeugt den gewuenschten
-  // Crossfade statt eines harten Schnitts. AnimatePresence haelt den
-  // Startbildschirm dabei automatisch so lange im DOM, bis seine eigene
-  // exit-Transition fertig ist (siehe Kommentar an dessen motion.div unten)
-  // - der (bereits laengst abgeschlossene) Press-Effekt des Buttons ist
-  // dadurch waehrend der gesamten Ausblend-Dauer sichtbar gewesen, statt vom
-  // bisherigen sofortigen Unmount verschluckt zu werden.
+  // gemountet, GLEICHZEITIG mit dem Start des Rausschiebens des
+  // Startbildschirms (beide Seiten teilen sich STARTBILDSCHIRM_SWIPE, laufen
+  // also synchron los) - genau das erzeugt den gewuenschten Seiten-Swipe
+  // statt eines harten Schnitts. AnimatePresence haelt den Startbildschirm
+  // dabei automatisch so lange im DOM, bis seine eigene exit-Transition
+  // fertig ist (siehe Kommentar an dessen motion.div unten) - der (bereits
+  // laengst abgeschlossene) Press-Effekt des Buttons ist dadurch waehrend
+  // der gesamten Rausschieb-Dauer sichtbar gewesen, statt vom sofortigen
+  // Unmount verschluckt zu werden.
+  //
+  // x: '100%'/'−100%' statt Pixelwerten - GENAU dieselbe prozentuale Distanz
+  // (jeweils die EIGENE Breite des Elements) auf BEIDEN Seiten sorgt
+  // rechnerisch dafuer, dass ihre beruehrenden Kanten zu JEDEM Zeitpunkt t
+  // deckungsgleich bleiben, unabhaengig von der tatsaechlichen Viewport-
+  // Breite: bei identischem Bewegungsfortschritt u(t) (gleiche Kurve UND
+  // Startzeitpunkt, siehe STARTBILDSCHIRM_SWIPE oben) liegt die RECHTE Kante
+  // des rausschiebenden Startbildschirms bei 100%*(1-u(t)) - EXAKT derselbe
+  // Wert wie die LINKE Kante der hereinschiebenden naechsten Ansicht
+  // (100%*(1-u(t)), da sie bei 100% startet und zu 0% faehrt) - keine Luecke,
+  // kein Ueberlappen, zu keinem Zeitpunkt der Bewegung.
   return (
     <>
       {!zeigtStartbildschirm && (
         <motion.div
           key="app-inhalt"
-          initial={reduzierteBewegung ? { opacity: 1 } : { opacity: 0 }}
-          animate={{ opacity: 1 }}
-          transition={transitionFuer(reduzierteBewegung, STARTBILDSCHIRM_UEBERGANG)}
+          ref={naechsteAnsichtRef}
+          initial={reduzierteBewegung ? false : { x: '100%' }}
+          animate={{ x: 0 }}
+          transition={reduzierteBewegung ? { duration: 0.15 } : STARTBILDSCHIRM_SWIPE}
+          onAnimationComplete={() => {
+            // Nach Abschluss das von framer-motion gesetzte inline
+            // transform:translateX(0px) wieder entfernen (siehe Kommentar an
+            // naechsteAnsichtRef oben) - dieser Wrapper bleibt fuer den Rest
+            // der Sitzung bestehen, ein liegen gebliebener (wenn auch
+            // optisch wirkungsloser) transform-Wert wuerde sonst DAUERHAFT
+            // einen neuen Containing-Block fuer alle darin verschachtelten
+            // fixed inset-0-Overlays (KochModus, EinstellungenPanel)
+            // erzeugen - siehe Aufgabenstellung "Stacking-Kontext-Probleme".
+            // Direkte DOM-Mutation statt eines State-Umbaus (z. B. den
+            // Wrapper nach Abschluss durch naechsteAnsicht OHNE Wrapper zu
+            // ersetzen): ein struktureller Umbau wuerde React dazu bringen,
+            // den kompletten Teilbaum (samt OnboardingWizard/Hauptansicht)
+            // neu zu mounten (anderer Element-Typ an derselben Stelle -
+            // motion.div vs. Fragment/OnboardingWizard direkt), was einen
+            // sichtbaren Re-Mount ausloesen wuerde. Die ref bleibt dieselbe
+            // motion.div-Instanz ueber die gesamte Sitzung.
+            if (naechsteAnsichtRef.current) {
+              naechsteAnsichtRef.current.style.transform = ''
+            }
+          }}
         >
           {naechsteAnsicht}
         </motion.div>
       )}
 
       {/* eigenes AnimatePresence NUR um den Startbildschirm (nicht um die
-          gesamte Rendering-Weiche) - GENAU dieses Muster (Fade nur auf einer
-          bewusst schlanken, ausschliesslich fuer den Uebergang zustaendigen
-          motion.div) ist bereits an mehreren Stellen der App etabliert (z. B.
-          Titel-Crossfade in OnboardingWizard.jsx). fixed inset-0 + bg-bg +
-          hoher z-index, damit der Startbildschirm waehrend seines Ausblendens
-          weiterhin die GESAMTE App wie bisher verdeckt (unabhaengig von der
-          tatsaechlichen Hoehe von naechsteAnsicht darunter) und nicht durch
-          Layout-Fluss verschoben wird. */}
+          gesamte Rendering-Weiche) - GENAU dieses Muster (Uebergang nur auf
+          einer bewusst schlanken, ausschliesslich fuer den Uebergang
+          zustaendigen motion.div) ist bereits an mehreren Stellen der App
+          etabliert (z. B. Titel-Crossfade in OnboardingWizard.jsx). fixed
+          inset-0 + bg-bg + hoher z-index, damit der Startbildschirm waehrend
+          seines Rausschiebens weiterhin die GESAMTE App wie bisher verdeckt
+          (unabhaengig von der tatsaechlichen Hoehe von naechsteAnsicht
+          darunter) und nicht durch Layout-Fluss verschoben wird - dieses
+          Overlay wird nach seinem exit vollstaendig aus dem DOM entfernt
+          (AnimatePresence), ein liegen gebliebenes transform ist hier also
+          (anders als beim staendig bestehen bleibenden app-inhalt-Wrapper
+          oben) unproblematisch. */}
       <AnimatePresence>
         {zeigtStartbildschirm && (
           <motion.div
             key="startbildschirm"
             className="fixed inset-0 z-50 bg-bg"
-            exit={{ opacity: 0 }}
-            transition={transitionFuer(reduzierteBewegung, STARTBILDSCHIRM_UEBERGANG)}
+            exit={reduzierteBewegung ? { opacity: 0 } : { x: '-100%' }}
+            transition={reduzierteBewegung ? { duration: 0.15 } : STARTBILDSCHIRM_SWIPE}
           >
             <Startbildschirm onWeiter={() => setZeigtStartbildschirm(false)} />
           </motion.div>

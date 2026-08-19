@@ -1,6 +1,5 @@
 import { useEffect } from 'react'
 import { animate, motion, useMotionValue, useReducedMotion } from 'framer-motion'
-import AnimatedButton from './AnimatedButton'
 import { EXPO_OUT } from '../motionConfig'
 
 // Dauer/Timing der Logo-Eingangsanimation - siehe Kommentar an der
@@ -34,6 +33,33 @@ const GLOW_EINTRITT_TIMES = [0, 0.55, 1]
 const GLOW_RUHE_DAUER_S = 6
 const GLOW_RUHE_OPACITY = [0.12, 0.2, 0.12]
 const GLOW_RUHE_SCALE = [1, 1.06, 1]
+
+// Eigener, staerkerer Press-Effekt NUR fuer den "Los geht's"-Button - bewusst
+// NICHT der globale AnimatedButton-Press (scale: 0.97, siehe
+// AnimatedButton.jsx/motionConfig.js), der app-weit fuer die vielen kleinen
+// Buttons dezent bleiben soll. Dieser eine Button ist der einzige Tap auf
+// diesem ganzen Bildschirm und der Startschuss fuer den anschliessenden
+// Seiten-Swipe (siehe App.jsx) - er darf entsprechend mehr Gewicht haben,
+// deshalb ein lokaler motion.button statt AnimatedButton hier.
+//
+// HERO_BUTTON_PRESS (Eindruecken): eigene, KURZE Transition NUR fuer die
+// Hinbewegung (whileTap-Werte werden IMMER mit ihrer eigenen transition
+// animiert, unabhaengig vom transition-Prop des motion.button - siehe
+// framer-motion-Doku zu Gesture-Props) - ein knapper linearer/easeOut-Tween
+// statt eines Springs, damit das Eindruecken selbst kontrolliert wirkt (kein
+// Wabbeln WAEHREND der Finger noch auf dem Button liegt).
+//
+// HERO_BUTTON_RELEASE_SPRING (Loslassen): das eigentliche "knackige"
+// Zurueckfedern - greift automatisch beim Ende der Tap-Geste, weil framer-
+// motion dann zur naechsten aktiven Ziel-Groesse (hier: die transition-Prop
+// des motion.button selbst, siehe Verwendungsstelle) zurueckanimiert. Niedrige
+// Daempfung (damping 12 bei stiffness 480) fuer ein bewusst SICHTBARES,
+// aber kurzes Ueberschwingen leicht ueber 1.0, bevor es sich einpendelt -
+// genau das gewuenschte "hochwertige, satte" Gefuehl statt eines reinen
+// Einrastens ohne jedes Nachschwingen (das haette sich zu abrupt/hart statt
+// "knackig" angefuehlt).
+const HERO_BUTTON_PRESS = { scale: 0.92, transition: { duration: 0.12, ease: 'easeOut' } }
+const HERO_BUTTON_RELEASE_SPRING = { type: 'spring', stiffness: 480, damping: 12, mass: 0.6 }
 
 // Neuer erster Bildschirm beim App-Start (siehe App.jsx-Verwendungsstelle) -
 // ein Marken-Moment VOR Wizard/Hauptansicht. onWeiter fuehrt zu genau dem,
@@ -142,13 +168,23 @@ function Startbildschirm({ onWeiter }) {
             : { delay: BUTTON_VERZOEGERUNG_S, duration: BUTTON_DAUER_S, ease: EXPO_OUT }
         }
       >
-        <AnimatedButton
+        {/* motion.button statt AnimatedButton - siehe Kommentar zu
+            HERO_BUTTON_PRESS/HERO_BUTTON_RELEASE_SPRING oben zur Begruendung.
+            whileTap traegt seine eigene (kurze, kontrollierte) Transition;
+            das Zurueckfedern beim Loslassen nutzt automatisch die hier
+            gesetzte transition-Prop (der Spring) - kein Aufleuchten/Puls
+            (bewusst weggelassen, siehe Aufgabenstellung). Unter reduzierter
+            Bewegung komplett ohne whileTap: kein Press-Spring, reiner
+            Klick wie ein normales <button>. */}
+        <motion.button
           type="button"
           onClick={onWeiter}
+          whileTap={reduzierteBewegung ? undefined : HERO_BUTTON_PRESS}
+          transition={HERO_BUTTON_RELEASE_SPRING}
           className="rounded-full bg-secondary px-8 py-3 text-base font-medium text-card shadow-sm"
         >
           Los geht&rsquo;s
-        </AnimatedButton>
+        </motion.button>
       </motion.div>
     </div>
   )
