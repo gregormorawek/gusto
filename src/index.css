@@ -67,19 +67,7 @@ html {
      sichtbar (statt nur bei Bedarf) - die verfuegbare Breite kann sich
      dadurch nie mehr aendern, weil die Scrollbar nie mehr erscheint/
      verschwindet. Per Messung bestaetigt wirksam (siehe Bugfix "Schritt-
-     Wechsel-Animation wiederherstellen").
-
-     overflow-x: hidden - noetig fuer den Seiten-Swipe Startbildschirm ->
-     naechste Ansicht (siehe App.jsx-Rendering-Weiche): waehrend dieses
-     Uebergangs liegt die einschiebende naechste Ansicht per
-     transform:translateX() kurzzeitig eine ganze Viewport-Breite ausserhalb
-     des sichtbaren Bereichs - Transforms zaehlen in manchen Browsern zum
-     "scrollable overflow" des Dokuments und wuerden sonst kurzzeitig eine
-     horizontale Scrollbar/Seiten-Ruckeln erzeugen. Horizontales Scrollen ist
-     an keiner Stelle der App gewuenscht, diese Regel ist daher global
-     unbedenklich (kein neues Verhalten fuer alle Faelle ausserhalb des
-     Swipes). */
-  overflow-x: hidden;
+     Wechsel-Animation wiederherstellen"). */
   overflow-y: scroll;
 }
 

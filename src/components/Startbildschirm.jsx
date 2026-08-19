@@ -1,5 +1,6 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { animate, motion, useMotionValue, useReducedMotion } from 'framer-motion'
+import { IconArrowRight } from '@tabler/icons-react'
 import { EXPO_OUT } from '../motionConfig'
 
 // Dauer/Timing der Logo-Eingangsanimation - siehe Kommentar an der
@@ -61,6 +62,28 @@ const GLOW_RUHE_SCALE = [1, 1.06, 1]
 const HERO_BUTTON_PRESS = { scale: 0.92, transition: { duration: 0.12, ease: 'easeOut' } }
 const HERO_BUTTON_RELEASE_SPRING = { type: 'spring', stiffness: 480, damping: 12, mass: 0.6 }
 
+// Shimmer-Sweep auf dem "Los geht's"-Button: ein heller, leicht schraeger
+// Lichtstreif laeuft periodisch diagonal durch, mit einer ruhigen Pause
+// dazwischen (repeatDelay) statt eines hektischen Dauerloops - siehe
+// Aufgabenstellung "dezent halten, nicht wie ein aufdringlicher
+// Werbe-Effekt". Layer wird NUR ausserhalb reduzierter Bewegung ueberhaupt
+// gerendert (siehe Verwendungsstelle), nicht nur pausiert - "Button-Shimmer
+// aus (statisch)" verlangt einen wirklich unbewegten Button, kein
+// unsichtbar mitlaufendes Element.
+const SHIMMER_SWEEP_DAUER_S = 1.3
+const SHIMMER_PAUSE_S = 2.6
+
+// Ausblenden-Choreografie beim Tap (Teil B, ersetzt den frueheren
+// Seiten-Swipe aus Commit 4956561 - siehe App.jsx-Rendering-Weiche fuer die
+// anschliessende, LANGSAMERE Wizard-Einblendung): Logo, Halo und Button
+// faden gemeinsam aus, Logo/Button zusaetzlich mit einem minimalen
+// Nach-oben-Drift (translateY negativ). AUSBLEND_DAUER_S bewusst KUERZER
+// als die Einblend-Dauer der naechsten Ansicht (siehe dortige Konstante) -
+// genau diese Asymmetrie (schnelleres Ausblenden, bewusst langsameres
+// Einblenden) ist Teil der gewuenschten Choreografie.
+const AUSBLEND_DAUER_S = 0.65
+const AUSBLEND_DRIFT_PX = -16
+
 // Neuer erster Bildschirm beim App-Start (siehe App.jsx-Verwendungsstelle) -
 // ein Marken-Moment VOR Wizard/Hauptansicht. onWeiter fuehrt zu genau dem,
 // was App.jsx ohnehin als naechstes rendern wuerde (Wizard fuer neue Nutzer,
@@ -71,6 +94,13 @@ function Startbildschirm({ onWeiter }) {
   const reduzierteBewegung = useReducedMotion()
   const glowOpacity = useMotionValue(0)
   const glowScale = useMotionValue(1)
+
+  // Wird beim Tap auf "Los geht's" gesetzt und startet die Ausblenden-
+  // Choreografie (siehe AUSBLEND_DAUER_S-Kommentar oben) - danach ist der
+  // Button disabled (siehe Verwendungsstelle), damit ein zweiter Tap
+  // waehrend des Ausblendens nicht zwei ueberlappende Timer/onWeiter-Aufrufe
+  // ausloest.
+  const [wirdAusgeblendet, setWirdAusgeblendet] = useState(false)
 
   useEffect(() => {
     if (reduzierteBewegung) {
@@ -109,6 +139,55 @@ function Startbildschirm({ onWeiter }) {
     }
   }, [reduzierteBewegung, glowOpacity, glowScale])
 
+  // Ausblenden-Choreografie: startet erst NACH dem Tap (wirdAusgeblendet).
+  // Ein neuer animate()-Aufruf auf glowOpacity uebernimmt automatisch die
+  // Kontrolle ueber den MotionValue und stoppt damit implizit den laufenden
+  // Ruhe-Puls von oben (framer-motion erlaubt pro MotionValue immer nur
+  // GENAU eine aktive Animation) - kein manuelles Stoppen der dortigen
+  // Controls noetig. Der eigentliche Seitenwechsel (onWeiter, von App.jsx
+  // uebergeben) wird bewusst per eigenem Timer statt per
+  // animate(...).then()/onComplete ausgeloest: es gibt HIER mehrere
+  // gleichzeitig ausblendende Elemente (Logo, Halo, Button-Wrapper unten),
+  // ein einzelner Timer mit derselben Dauer ist robuster/einfacher
+  // nachvollziehbar als eine Abhaengigkeit von genau EINEM ihrer
+  // Animations-Abschluesse.
+  useEffect(() => {
+    if (!wirdAusgeblendet) return undefined
+
+    const dauerS = reduzierteBewegung ? 0.15 : AUSBLEND_DAUER_S
+    const glowControls = animate(glowOpacity, 0, {
+      duration: dauerS,
+      ease: reduzierteBewegung ? 'linear' : EXPO_OUT,
+    })
+    const timer = setTimeout(onWeiter, dauerS * 1000)
+
+    return () => {
+      glowControls.stop()
+      clearTimeout(timer)
+    }
+  }, [wirdAusgeblendet, reduzierteBewegung, glowOpacity, onWeiter])
+
+  // Ausblenden-Ziel/Transition fuer Logo und Button-Wrapper - beide teilen
+  // sich dieselbe Fade+Drift-Choreografie (siehe AUSBLEND_DAUER_S-Kommentar
+  // oben), daher hier EINMAL berechnet statt an beiden Verwendungsstellen
+  // dupliziert. Unter reduzierter Bewegung reines Fade ohne y-Versatz
+  // (siehe Aufgabenstellung "Uebergang wird zu einem direkten/kurzen Fade
+  // ohne Drift"). scale:1 explizit gesetzt (nicht einfach weggelassen!) -
+  // beide Elemente haben in ihrem jeweiligen "initial" einen scale-Wert
+  // ungleich 1 (Logo 1.1, Button-Wrapper 0.96, siehe deren initial-Props
+  // unten). Ohne diesen expliziten Wert faellt framer-motion beim Wechsel
+  // des animate-Ziels fuer eine dort NICHT genannte Prop auf deren
+  // initial-Wert zurueck statt den aktuellen Wert zu halten - das Logo/der
+  // Button waeren beim Ausblenden also zusaetzlich sichtbar (wieder)
+  // geschrumpft/gewachsen, ein unbeabsichtigter Nebeneffekt (per Playwright-
+  // Messung bestaetigt, bevor dieser Fix ergaenzt wurde).
+  const ausblendAnimate = reduzierteBewegung
+    ? { opacity: 0 }
+    : { opacity: 0, y: AUSBLEND_DRIFT_PX, scale: 1 }
+  const ausblendTransition = reduzierteBewegung
+    ? { duration: 0.15 }
+    : { duration: AUSBLEND_DAUER_S, ease: EXPO_OUT }
+
   return (
     <div className="relative flex min-h-dvh flex-col items-center justify-center overflow-hidden bg-bg px-6">
       {/* Halo-Glow: radialer Verlauf mit transparenter Mitte (0%), der erst
@@ -138,21 +217,25 @@ function Startbildschirm({ onWeiter }) {
             : { opacity: 0, scale: 1.1, filter: 'blur(8px)', letterSpacing: '0.14em' }
         }
         animate={
-          reduzierteBewegung
-            ? { opacity: 1 }
-            : { opacity: 1, scale: 1, filter: 'blur(0px)', letterSpacing: '0.01em' }
+          wirdAusgeblendet
+            ? ausblendAnimate
+            : reduzierteBewegung
+              ? { opacity: 1 }
+              : { opacity: 1, scale: 1, filter: 'blur(0px)', letterSpacing: '0.01em' }
         }
         transition={
-          reduzierteBewegung
-            ? { duration: 0.2 }
-            : {
-                duration: LOGO_DAUER_S,
-                ease: EXPO_OUT,
-                // Blur schliesst frueher ab als der Rest (siehe Konstanten-
-                // Kommentar oben) - deshalb eigener Eintrag statt der
-                // Top-Level-duration.
-                filter: { duration: LOGO_BLUR_DAUER_S, ease: EXPO_OUT },
-              }
+          wirdAusgeblendet
+            ? ausblendTransition
+            : reduzierteBewegung
+              ? { duration: 0.2 }
+              : {
+                  duration: LOGO_DAUER_S,
+                  ease: EXPO_OUT,
+                  // Blur schliesst frueher ab als der Rest (siehe Konstanten-
+                  // Kommentar oben) - deshalb eigener Eintrag statt der
+                  // Top-Level-duration.
+                  filter: { duration: LOGO_BLUR_DAUER_S, ease: EXPO_OUT },
+                }
         }
       >
         gusto
@@ -161,11 +244,19 @@ function Startbildschirm({ onWeiter }) {
       <motion.div
         className="relative mt-10"
         initial={reduzierteBewegung ? { opacity: 0 } : { opacity: 0, y: 10, scale: 0.96 }}
-        animate={reduzierteBewegung ? { opacity: 1 } : { opacity: 1, y: 0, scale: 1 }}
+        animate={
+          wirdAusgeblendet
+            ? ausblendAnimate
+            : reduzierteBewegung
+              ? { opacity: 1 }
+              : { opacity: 1, y: 0, scale: 1 }
+        }
         transition={
-          reduzierteBewegung
-            ? { duration: 0.2 }
-            : { delay: BUTTON_VERZOEGERUNG_S, duration: BUTTON_DAUER_S, ease: EXPO_OUT }
+          wirdAusgeblendet
+            ? ausblendTransition
+            : reduzierteBewegung
+              ? { duration: 0.2 }
+              : { delay: BUTTON_VERZOEGERUNG_S, duration: BUTTON_DAUER_S, ease: EXPO_OUT }
         }
       >
         {/* motion.button statt AnimatedButton - siehe Kommentar zu
@@ -175,15 +266,48 @@ function Startbildschirm({ onWeiter }) {
             gesetzte transition-Prop (der Spring) - kein Aufleuchten/Puls
             (bewusst weggelassen, siehe Aufgabenstellung). Unter reduzierter
             Bewegung komplett ohne whileTap: kein Press-Spring, reiner
-            Klick wie ein normales <button>. */}
+            Klick wie ein normales <button>. disabled waehrend
+            wirdAusgeblendet - siehe Kommentar an dessen useState oben.
+            relative+overflow-hidden traegt den Shimmer-Layer (siehe unten);
+            der weiche Olive-Schatten kommt per style/color-mix statt einer
+            Tailwind-Standardfarbe (siehe CLAUDE.md-Vertrag). */}
         <motion.button
           type="button"
-          onClick={onWeiter}
+          onClick={() => setWirdAusgeblendet(true)}
+          disabled={wirdAusgeblendet}
           whileTap={reduzierteBewegung ? undefined : HERO_BUTTON_PRESS}
           transition={HERO_BUTTON_RELEASE_SPRING}
-          className="rounded-full bg-secondary px-8 py-3 text-base font-medium text-card shadow-sm"
+          className="relative overflow-hidden rounded-full bg-secondary px-10 py-4 text-base font-medium text-card"
+          style={{
+            boxShadow: '0 14px 34px -12px color-mix(in srgb, var(--color-secondary) 55%, transparent)',
+          }}
         >
-          Los geht&rsquo;s
+          {/* Shimmer-Sweep: schraeger Lichtstreif, der periodisch (mit
+              Pause dazwischen, siehe SHIMMER_PAUSE_S) einmal durchs Button
+              wandert. NUR ausserhalb reduzierter Bewegung gerendert (nicht
+              nur pausiert) - siehe Kommentar an SHIMMER_SWEEP_DAUER_S oben.
+              overflow-hidden am Button (siehe className oben) schneidet den
+              Streif sauber an dessen abgerundetem Rand ab. */}
+          {!reduzierteBewegung && (
+            <motion.span
+              aria-hidden="true"
+              className="pointer-events-none absolute inset-y-0 left-0 w-1/4 -skew-x-12 bg-gradient-to-r from-transparent via-card/35 to-transparent"
+              animate={{ x: ['-150%', '450%'] }}
+              transition={{
+                duration: SHIMMER_SWEEP_DAUER_S,
+                ease: 'easeInOut',
+                repeat: Infinity,
+                repeatDelay: SHIMMER_PAUSE_S,
+              }}
+            />
+          )}
+          {/* z-10, damit Text+Icon ueber dem Shimmer-Layer liegen (der ohne
+              eigenes z-index sonst je nach DOM-Reihenfolge/Compositing
+              durchscheinen koennte). */}
+          <span className="relative z-10 inline-flex items-center gap-2">
+            Los geht&rsquo;s
+            <IconArrowRight size={20} stroke={2} aria-hidden="true" />
+          </span>
         </motion.button>
       </motion.div>
     </div>
