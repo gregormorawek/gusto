@@ -16,6 +16,7 @@ import { supabase } from './supabase'
 import { useTastaturAusgleich } from './useTastaturAusgleich'
 import { gefiltertePoolFuer, vierterSlotOptionenFuer } from './zutatenFilter'
 import { gefiltertePoolFuerRezepte, alleAktivenMahlzeitenWuerfeln } from './rezepteFilter'
+import { bilderImHintergrundVorladen } from './bildVorladen'
 import {
   aufPortionSkalieren,
   TAGES_ANTEIL,
@@ -950,6 +951,51 @@ function App() {
 
     zutatenLaden()
   }, [])
+
+  // Laedt die Rezeptbilder (~30 kuratierte Rezepte) im Hintergrund vor, damit
+  // sie beim tatsaechlichen Anzeigen (erster Rezepte-Tab-Besuch, Wuerfeln)
+  // schon im Browser-Cache liegen - RezeptBild (RezeptKarte.jsx) startet
+  // dann sofort bei voller Deckkraft statt den Skeleton-Platzhalter zu
+  // zeigen (siehe dortiger img.complete-Check in RezeptBild). Bugfix-
+  // Hintergrund: der Skeleton aus commit 8817121 verhindert zwar die
+  // FALSCHE "kein Rezept"-Meldung, das Bild selbst braucht aber weiterhin
+  // eine Sekunde, wenn es beim ersten Erscheinen noch nie geladen wurde.
+  //
+  // Zeitpunkt bewusst NICHT "sofort beim App-Start" (waehrend rezepte noch
+  // leer ist, kaeme ohnehin nichts zum Vorladen zusammen) UND NICHT bevor
+  // der Startbildschirm fertig ist (zeigtStartbildschirm) - der Marken-
+  // Moment beim App-Start soll nicht mit ~30 Bild-Requests um Bandbreite/
+  // Hauptthread konkurrieren. Sobald BEIDE Bedingungen erfuellt sind (Daten
+  // da UND Startbildschirm weg), sind wir entweder im Wizard (neuer Nutzer -
+  // dort vergehen noch mehrere Interaktionsschritte bis "Alles bereit!")
+  // oder direkt in der Haupt-Ansicht (wiederkehrender Nutzer) - in BEIDEN
+  // Faellen bleibt genug Zeit, bevor der Rezepte-Tab ueberhaupt angefasst wird.
+  //
+  // bilderVorgeladenRef verhindert ein zweites Anstossen (z. B. durch React
+  // StrictModes doppelten Effekt-Aufruf in der Entwicklung, oder falls dieser
+  // Effekt aus einem anderen Grund erneut liefe) - das Vorladen soll pro
+  // Sitzung nur EINMAL starten.
+  const bilderVorgeladenRef = useRef(false)
+  useEffect(() => {
+    if (bilderVorgeladenRef.current || rezepte.length === 0 || zeigtStartbildschirm) {
+      return
+    }
+    bilderVorgeladenRef.current = true
+
+    // Priorisierung: das Bild, das beim Oeffnen des Rezepte-Tabs SOFORT
+    // sichtbar waere (bereits synchron in zutatenLaden oben ausgewuerfelt,
+    // siehe rezepteAktuellesRezept/rezepteProMahlzeitState-Kommentar weiter
+    // oben), zuerst - deckt den im Auftrag genannten "Alles bereit!" ->
+    // Rezepte-Fall sofort ab. Danach der Rest aller Rezepte in
+    // Datenbank-Reihenfolge, im Hintergrund "troepfelnd" (siehe
+    // bildVorladen.js).
+    const prioritaet = [
+      rezepteAktuellesRezept?.bild_url,
+      ...Object.values(rezepteProMahlzeitState).map((eintrag) => eintrag?.rezept?.bild_url),
+    ]
+    const rest = rezepte.map((r) => r.bild_url)
+    bilderImHintergrundVorladen([...prioritaet, ...rest], 2)
+  }, [rezepte, zeigtStartbildschirm, rezepteAktuellesRezept, rezepteProMahlzeitState])
 
   // Waehlt fuer jede Kategorie eine neue zufaellige Zutat aus dem Pool des
   // aktuellen Mahlzeit-Filters aus und schreibt sie in den jeweiligen State.
