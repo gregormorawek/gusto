@@ -60,6 +60,10 @@ function schrittVarianten(reduzierteBewegung) {
 // unten bei Auswahl), aber zweizeilig statt einzeiliger Icon+Label-Pille -
 // AuswahlChip selbst unterstuetzt keine zweite Zeile, daher hier lokal
 // nachgebaut statt die geteilte Komponente eigens dafuer zu erweitern.
+// Schatten-Y-Versatz bewusst 0 (symmetrischer Inset-Schatten) - siehe
+// ausfuehrlicher Kommentar an containerKlassen in AuswahlChip.jsx zur
+// Herleitung (behebt die optische obere/untere-Padding-Asymmetrie bei
+// zweizeiligem Inhalt).
 function OptionZeile({ aktiv, label, erklaerung, onClick }) {
   return (
     <AnimatedButton
@@ -67,7 +71,7 @@ function OptionZeile({ aktiv, label, erklaerung, onClick }) {
       onClick={onClick}
       className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-[transform,box-shadow,border-color] duration-150 ease-out motion-reduce:transition-none ${
         aktiv
-          ? 'translate-y-0.5 border-primary bg-primary/20 shadow-[inset_0_2px_5px_0_rgba(62,46,34,0.35)]'
+          ? 'translate-y-0.5 border-primary bg-primary/20 shadow-[inset_0_0_6px_0_rgba(62,46,34,0.35)]'
           : 'border-text-muted/30 bg-card shadow-sm hover:border-primary/50'
       }`}
     >
@@ -94,7 +98,7 @@ function GeschlechtKarte({ Icon, label, aktiv, onClick }) {
       onClick={onClick}
       className={`flex flex-1 flex-col items-center gap-2 rounded-2xl border px-4 py-6 transition-[transform,box-shadow,border-color] duration-150 ease-out motion-reduce:transition-none ${
         aktiv
-          ? 'translate-y-0.5 border-primary bg-primary/20 shadow-[inset_0_2px_5px_0_rgba(62,46,34,0.35)]'
+          ? 'translate-y-0.5 border-primary bg-primary/20 shadow-[inset_0_0_6px_0_rgba(62,46,34,0.35)]'
           : 'border-text-muted/30 bg-card shadow-sm hover:border-primary/50'
       }`}
     >

@@ -37,6 +37,22 @@ const RAND_UND_SCHATTEN =
 // Default) fuer ein deutliches "gedruecktes" Gefuehl, translate-y-0.5 (2px)
 // statt translate-y-px (1px) fuer einen wahrnehmbaren, aber nicht
 // uebertriebenen Versatz.
+//
+// Schatten-Y-Versatz bewusst 0 (nicht z. B. 2px wie in einer frueheren
+// Version) - GEFUNDENE URSACHE eines gemeldeten "ungleiches Padding oben/
+// unten bei zweizeiligen Options-Zeilen"-Bugs (siehe OptionZeile in
+// Kalorienrechner.jsx, die denselben Schatten-Wert verwendet): per
+// getBoundingClientRect()-Messung (Label-oben-Abstand vs. Erklaerzeile-
+// unten-Abstand, aktiv vs. inaktiv) nachgewiesen, dass das tatsaechliche
+// Padding in JEDEM Zustand exakt identisch ist (13px oben UND unten) - der
+// Bug war rein optisch: ein Y-Versatz auf einem INSET-Schatten konzentriert
+// die Verdunkelung einseitig am oberen Innenrand (weicher Verlauf oben,
+// harte Kante unten), wodurch der untere Abstand trotz identischer Zahlen
+// visuell enger wirkte. Ein symmetrischer Schatten (Y-Versatz 0, dafuer
+// etwas groesserer Blur-Radius 6px statt 5px als Ausgleich fuer die
+// wegfallende Versatz-Tiefe) verdunkelt alle vier Innenraender gleich stark
+// und behebt die Asymmetrie, OHNE den "eingedrueckt"-Effekt selbst
+// (Rand+Hintergrund+translate-y-0.5+Schatten in Kombination) zu veraendern.
 function containerKlassen({ aktiv, groesse, deaktiviert }) {
   const form =
     groesse === 'gross'
@@ -45,7 +61,7 @@ function containerKlassen({ aktiv, groesse, deaktiviert }) {
         ? 'w-full gap-2.5 rounded-full px-4 py-1'
         : 'gap-1.5 rounded-full px-3 py-1.5'
   const rand = aktiv
-    ? 'border-primary bg-primary/20 shadow-[inset_0_2px_5px_0_rgba(62,46,34,0.35)] translate-y-0.5'
+    ? 'border-primary bg-primary/20 shadow-[inset_0_0_6px_0_rgba(62,46,34,0.35)] translate-y-0.5'
     : 'border-text-muted/30 bg-card shadow-sm hover:border-primary/50'
   const deaktivierung = deaktiviert ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
   return `relative flex items-center ${form} border ${rand} ${deaktivierung} ${RAND_UND_SCHATTEN}`
