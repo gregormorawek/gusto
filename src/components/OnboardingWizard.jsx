@@ -1,12 +1,13 @@
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { IconBook2, IconDice5 } from '@tabler/icons-react'
+import { IconBook2, IconChevronRight, IconDice5 } from '@tabler/icons-react'
 import ZielEinstellungen from './ZielEinstellungen'
 import MahlzeitFilter from './MahlzeitFilter'
 import DiaetFilter from './DiaetFilter'
 import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
 import WizardTageskarte from './WizardTageskarte'
 import AnimatedButton from './AnimatedButton'
+import DampfSchuesselIllustration from './DampfSchuesselIllustration'
 import { kalorienZielGueltig } from '../kalorienZiel'
 import { EXPO_OUT, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 
@@ -560,29 +561,46 @@ function OnboardingWizard({
 
               {schritt === 4 && (
                 <>
-                  <div className="flex flex-col gap-4 sm:flex-row">
+                  <DampfSchuesselIllustration
+                    reduzierteBewegung={reduzierteBewegung}
+                    className="mx-auto mb-5 h-auto w-[130px]"
+                  />
+
+                  <div className="flex flex-col gap-3">
                     <AnimatedButton
                       type="button"
                       onClick={() => onAbschluss('haupt')}
-                      className="flex flex-1 flex-col items-start gap-2 rounded-2xl border border-secondary/20 bg-card p-6 text-left shadow-sm"
+                      className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-secondary/20 bg-card py-5 pl-6 pr-4 text-left shadow-sm"
                     >
-                      <IconDice5 size={32} stroke={1.75} className="text-primary" />
-                      <h2 className="font-display text-xl font-semibold text-text">Würfeln</h2>
-                      <p className="text-sm text-text-muted">
-                        Eine einzelne Zutaten-Kombination für deine nächste Mahlzeit auswürfeln.
-                      </p>
+                      <span className="absolute inset-y-0 left-0 w-1.5 bg-primary" aria-hidden="true" />
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
+                        <IconDice5 size={26} stroke={1.75} className="text-primary" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <h2 className="font-display text-lg font-semibold text-text">Würfeln</h2>
+                        <p className="mt-0.5 text-sm text-text-muted">
+                          Eine einzelne Zutaten-Kombination für deine nächste Mahlzeit auswürfeln.
+                        </p>
+                      </span>
+                      <IconChevronRight size={20} stroke={1.75} className="shrink-0 text-text-muted" />
                     </AnimatedButton>
 
                     <AnimatedButton
                       type="button"
                       onClick={() => onAbschluss('rezepte')}
-                      className="flex flex-1 flex-col items-start gap-2 rounded-2xl border border-secondary/20 bg-card p-6 text-left shadow-sm"
+                      className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-secondary/20 bg-card py-5 pl-6 pr-4 text-left shadow-sm"
                     >
-                      <IconBook2 size={32} stroke={1.75} className="text-primary" />
-                      <h2 className="font-display text-xl font-semibold text-text">Rezepte</h2>
-                      <p className="text-sm text-text-muted">
-                        Fertige, kuratierte Rezept-Ideen zum Durchstöbern.
-                      </p>
+                      <span className="absolute inset-y-0 left-0 w-1.5 bg-secondary" aria-hidden="true" />
+                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary/10">
+                        <IconBook2 size={26} stroke={1.75} className="text-secondary" />
+                      </span>
+                      <span className="min-w-0 flex-1">
+                        <h2 className="font-display text-lg font-semibold text-text">Rezepte</h2>
+                        <p className="mt-0.5 text-sm text-text-muted">
+                          Fertige, kuratierte Rezept-Ideen zum Durchstöbern.
+                        </p>
+                      </span>
+                      <IconChevronRight size={20} stroke={1.75} className="shrink-0 text-text-muted" />
                     </AnimatedButton>
                   </div>
 
