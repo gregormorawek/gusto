@@ -1,5 +1,6 @@
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { IconBan, IconCalendar, IconClock } from '@tabler/icons-react'
+import { IconBan, IconCalendar, IconChevronRight, IconClock, IconTarget } from '@tabler/icons-react'
+import AnimatedButton from './AnimatedButton'
 import AuswahlChip from './AuswahlChip'
 import { HOEHEN_UEBERGANG_EASING, HOEHEN_UEBERGANG_MS, motionPropsFuer } from '../motionConfig'
 import { useBeobachteteHoehe } from '../useBeobachteteHoehe'
@@ -51,19 +52,46 @@ function fadeProps(reduzierteBewegung) {
   })
 }
 
-function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAendern }) {
+// Dezente Einstiegs-Box zum optionalen Kalorienrechner-Wizard (siehe
+// Kalorienrechner.jsx) - olivfarben (statt der terrakottafarbenen
+// Kalorienziel-Chips darueber) getönt, damit sie sich klar als
+// EIGENSTAENDIGER, zusaetzlicher Einstieg von der eigentlichen Auswahl
+// absetzt statt wie eine vierte Option darin zu wirken. Bewusst ausserhalb
+// des Hoehen-animierten Wrappers oben platziert (siehe dortiger
+// ResizeObserver-Kommentar) - sie ist IMMER sichtbar (unabhaengig von
+// ziel.typ), müsste sonst in die Hoehen-Messung mit einbezogen werden.
+function KalorienrechnerCallout({ onOeffnen }) {
+  return (
+    <AnimatedButton
+      type="button"
+      onClick={onOeffnen}
+      className="mt-2 flex w-full items-center gap-3 rounded-xl border border-secondary/25 bg-secondary/10 px-3 py-1.5 text-left transition-colors duration-150 hover:bg-secondary/15"
+    >
+      <span className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-secondary/20 text-secondary">
+        <IconTarget size={20} stroke={1.75} />
+      </span>
+      <span className="min-w-0 flex-1">
+        <span className="block font-display text-sm font-semibold text-text">Ziel berechnen</span>
+        <span className="block text-xs text-text-muted">Wenige Fragen zu dir</span>
+      </span>
+      <IconChevronRight size={18} stroke={1.75} className="shrink-0 text-secondary" />
+    </AnimatedButton>
+  )
+}
+
+function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAendern, onKalorienrechnerOeffnen }) {
   const reduzierteBewegung = useReducedMotion()
   const [inhaltRef, hoehe] = useBeobachteteHoehe()
 
   return (
-    <section className="mx-4 mt-4 rounded-lg border border-secondary/20 bg-card p-4 shadow-sm">
+    <section className="mx-4 mt-3 rounded-lg border border-secondary/20 bg-card p-3 shadow-sm">
       <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Kalorienziel</h2>
 
       {/* Chips gestapelt statt umbrechend (Redesign "Chips volle Breite") -
           groesse="breit" (siehe AuswahlChip.jsx) stretcht jeden Chip auf die
           volle Kachel-Breite statt wie zuvor auf Inhalts-Breite zu schrumpfen
           und unsauber (2 nebeneinander, 1 allein) umzubrechen. */}
-      <div className="mt-2 flex flex-col gap-1.5">
+      <div className="mt-1.5 flex flex-col gap-1">
         {ZIEL_OPTIONEN.map(({ typ, label, Icon }) => (
           <AuswahlChip
             key={typ}
@@ -97,7 +125,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
         <div ref={inhaltRef} className="flow-root">
           <AnimatePresence>
             {ziel.typ !== 'kein' && (
-              <motion.div key="kalorien-eingabe" {...fadeProps(reduzierteBewegung)} className="mt-3">
+              <motion.div key="kalorien-eingabe" {...fadeProps(reduzierteBewegung)} className="mt-2">
                 {/* Label ueber dem Feld statt daneben (Redesign) - Min/Max
                     als zwei gleich breite Spalten (grid-cols-2), damit sie
                     IMMER nebeneinander in einer Reihe bleiben statt (wie
@@ -116,7 +144,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                         value={ziel.kalorien.min}
                         onChange={(e) => onKalorienAendern('min', e.target.value)}
                         placeholder={ziel.typ === 'proTag' ? 'z. B. 1800' : 'z. B. 500'}
-                        className="w-full rounded-md border border-text-muted/30 py-1.5 pl-2 pr-10 text-text tabular-nums"
+                        className="w-full rounded-md border border-text-muted/30 py-1 pl-2 pr-10 text-text tabular-nums"
                       />
                       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted">
                         kcal
@@ -132,7 +160,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                         value={ziel.kalorien.max}
                         onChange={(e) => onKalorienAendern('max', e.target.value)}
                         placeholder={ziel.typ === 'proTag' ? 'z. B. 2200' : 'z. B. 700'}
-                        className="w-full rounded-md border border-text-muted/30 py-1.5 pl-2 pr-10 text-text tabular-nums"
+                        className="w-full rounded-md border border-text-muted/30 py-1 pl-2 pr-10 text-text tabular-nums"
                       />
                       <span className="pointer-events-none absolute right-2 top-1/2 -translate-y-1/2 text-xs text-text-muted">
                         kcal
@@ -140,7 +168,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                     </span>
                   </label>
                 </div>
-                <p className="mt-1.5 text-xs text-text-muted">
+                <p className="mt-1 text-xs text-text-muted">
                   {ziel.typ === 'proMahlzeit' ? 'pro Mahlzeit' : 'pro Tag'}
                 </p>
               </motion.div>
@@ -149,7 +177,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
 
           <AnimatePresence>
             {ziel.typ === 'proTag' && (
-              <motion.div key="makro-eingabe" {...fadeProps(reduzierteBewegung)} className="mt-3">
+              <motion.div key="makro-eingabe" {...fadeProps(reduzierteBewegung)} className="mt-2">
                 <p className="text-xs text-text-muted">Makro-Gesamtziel für den Tag (optional):</p>
                 {/* grid-cols-3 statt flex-wrap - GENAU drei gleich breite
                     Spalten nebeneinander (Redesign), damit "Fett" nicht mehr
@@ -158,7 +186,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                     INNERHALB (siehe Kommentar an der Kalorien-Eingabe oben
                     zur Begruendung) - "Kohlenh." statt "Kohlenhydrate" als
                     Label, siehe MAKRO_FELDER-Kommentar oben. */}
-                <div className="mt-1.5 grid grid-cols-3 gap-2">
+                <div className="mt-1 grid grid-cols-3 gap-2">
                   {MAKRO_FELDER.map(({ kategorie, label }) => (
                     <label key={kategorie} className="block">
                       <span className="text-xs text-text-muted">{label}</span>
@@ -169,7 +197,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                           value={ziel.makro[kategorie]}
                           onChange={(e) => onMakroAendern(kategorie, e.target.value)}
                           placeholder="–"
-                          className="w-full rounded-md border border-text-muted/30 py-1.5 pl-2 pr-5 text-text tabular-nums"
+                          className="w-full rounded-md border border-text-muted/30 py-1 pl-2 pr-5 text-text tabular-nums"
                         />
                         <span className="pointer-events-none absolute right-1.5 top-1/2 -translate-y-1/2 text-xs text-text-muted">
                           g
@@ -183,6 +211,8 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
           </AnimatePresence>
         </div>
       </div>
+
+      <KalorienrechnerCallout onOeffnen={onKalorienrechnerOeffnen} />
     </section>
   )
 }

@@ -8,6 +8,7 @@ import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
 import WizardTageskarte from './WizardTageskarte'
 import AnimatedButton from './AnimatedButton'
 import DampfSchuesselIllustration from './DampfSchuesselIllustration'
+import Kalorienrechner from './Kalorienrechner'
 import { kalorienZielGueltig } from '../kalorienZiel'
 import { EXPO_OUT, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
 
@@ -93,6 +94,19 @@ function OnboardingWizard({
   // Frage hereinkommen soll.
   const [richtung, setRichtung] = useState(1)
   const reduzierteBewegung = useReducedMotion()
+
+  // Ob der optionale Kalorienrechner-Wizard (Kalorienrechner.jsx) gerade
+  // ueber Schritt 1 geoeffnet ist. BEWUSST hier auf OnboardingWizard-Ebene
+  // statt lokal in ZielEinstellungen.jsx, damit Kalorienrechner (fixed
+  // inset-0) als GESCHWISTER der schritt-1-Content-Motion.div gerendert
+  // werden kann, nicht als deren Nachfahre - andernfalls wuerde das dortige
+  // per Framer Motion gesetzte inline transform (x-Slide beim
+  // Schritt-Wechsel, siehe schrittVarianten oben) einen neuen Containing-
+  // Block-Kontext fuer alle fixed-Nachfahren erzeugen und den Rechner damit
+  // NICHT mehr am tatsaechlichen Viewport, sondern an dieser Motion.div
+  // positionieren (siehe identisches Problem/geloest fuer KochModus/
+  // EinstellungenPanel in App.jsx, dortiger naechsteAnsichtRef-Kommentar).
+  const [kalorienrechnerOffen, setKalorienrechnerOffen] = useState(false)
 
   const zielGueltig = kalorienZielGueltig(ziel)
   const diaetGueltig = diaeten.length > 0
@@ -486,6 +500,7 @@ function OnboardingWizard({
                     onTypAendern={onTypAendern}
                     onKalorienAendern={onKalorienAendern}
                     onMakroAendern={onMakroAendern}
+                    onKalorienrechnerOeffnen={() => setKalorienrechnerOffen(true)}
                   />
                   {!zielGueltig && ziel.typ && ziel.typ !== 'kein' && (
                     <p className="mx-4 mt-2 text-xs text-primary">
@@ -730,6 +745,10 @@ function OnboardingWizard({
           </>
         )}
       </div>
+
+      {/* Ausserhalb aller x-transform-animierten Motion.divs gerendert -
+          siehe kalorienrechnerOffen-Kommentar oben zur Begruendung. */}
+      <Kalorienrechner offen={kalorienrechnerOffen} onSchliessen={() => setKalorienrechnerOffen(false)} />
     </div>
   )
 }
