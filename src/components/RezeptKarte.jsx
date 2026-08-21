@@ -32,6 +32,14 @@ const BILD_PRELOAD_TIMEOUT_MS = 1500
 // sofort bei voller Deckkraft, ganz ohne sichtbares Aufblitzen. Nur falls
 // das Preload-Timeout gegriffen hat (Bild beim Kartenwechsel noch nicht
 // fertig), faengt der Fade-in das nachtraegliche Erscheinen sanft ab.
+// relative Wrapper-Hoehe (h-28/sm:h-56) statt nur am img - reserviert den
+// Bild-Platz schon VOR dem Laden, das pulsierende Platzhalter-div (Bugfix
+// "Rezepte-Tab-Ladezustand") liegt per absolute inset-0 exakt darunter und
+// verschwindet erst, wenn geladen true wird. motion-reduce:animate-none
+// (dieselbe Tailwind-Konvention wie TagesplanSkeleton in App.jsx) statt
+// eines useReducedMotion()-Hooks - RezeptBild kennt reduzierteBewegung
+// bisher nicht und braucht dafuer keinen zusaetzlichen Prop, prefers-
+// reduced-motion laesst sich rein per CSS abfangen.
 function RezeptBild({ url, alt, onError }) {
   const [geladen, setGeladen] = useState(false)
   const bildRef = useRef(null)
@@ -43,16 +51,61 @@ function RezeptBild({ url, alt, onError }) {
   }, [])
 
   return (
-    <img
-      ref={bildRef}
-      src={url}
-      alt={alt}
-      onLoad={() => setGeladen(true)}
-      onError={onError}
-      className={`h-28 w-full rounded-2xl object-cover transition-opacity duration-200 motion-reduce:transition-none sm:h-56 ${
-        geladen ? 'opacity-100' : 'opacity-0'
-      }`}
-    />
+    <div className="relative h-28 w-full sm:h-56">
+      {!geladen && (
+        <div
+          className="absolute inset-0 animate-pulse rounded-2xl bg-secondary/10 motion-reduce:animate-none"
+          aria-hidden="true"
+        />
+      )}
+      <img
+        ref={bildRef}
+        src={url}
+        alt={alt}
+        onLoad={() => setGeladen(true)}
+        onError={onError}
+        className={`absolute inset-0 h-full w-full rounded-2xl object-cover transition-opacity duration-200 motion-reduce:transition-none ${
+          geladen ? 'opacity-100' : 'opacity-0'
+        }`}
+      />
+    </div>
+  )
+}
+
+// Ganzkarten-Skeleton, NUR sichtbar solange rezepteGeladen false ist (siehe
+// rezepteGeladen-Prop unten) - unterscheidet den echten Ladezustand ("Daten
+// noch nicht da") vom echten Leer-Zustand ("Daten da, aber 0 Treffer fuer
+// diese Filterkombination", siehe "kein Rezept"-Text weiter unten). Bildet
+// grob dieselbe Form wie die fertige Karte nach (Bild, Titel, Beschreibung,
+// 4 Zutaten-Slots im 2x2-Grid, Summe-Box, Button-Zeile), damit beim
+// Nachladen NICHTS in der Hoehe springt - exakt dieselbe Konvention wie
+// TagesplanSkeleton in App.jsx (animate-pulse motion-reduce:animate-none,
+// aria-hidden, bg-text-muted/15 o.ae. Platzhalter-Blöcke).
+function RezeptKarteSkeleton() {
+  return (
+    <div className="animate-pulse motion-reduce:animate-none" aria-hidden="true">
+      <div className="mx-4 mt-2 rounded-[14px] bg-card p-3 shadow-sm">
+        <div className="h-28 w-full rounded-2xl bg-secondary/10 sm:h-56" />
+        <div className="mt-2 h-5 w-2/3 rounded bg-text-muted/15" />
+        <div className="mt-1.5 h-4 w-full rounded bg-text-muted/10" />
+      </div>
+
+      <div className="mt-2 grid grid-cols-2 gap-2 px-4">
+        {[0, 1, 2, 3].map((i) => (
+          <div key={i} className="h-16 rounded-lg border border-secondary/20 bg-card p-2 shadow-sm">
+            <div className="h-3 w-12 rounded bg-secondary/25" />
+            <div className="mt-1.5 h-3.5 w-3/4 rounded bg-text-muted/15" />
+          </div>
+        ))}
+      </div>
+
+      <div className="mx-4 mt-2 h-16 rounded-lg border border-secondary/20 bg-secondary/10 p-2 shadow-sm">
+        <div className="h-3 w-14 rounded bg-text-muted/15" />
+        <div className="mt-1.5 h-6 w-24 rounded bg-text-muted/20" />
+      </div>
+
+      <div className="mx-4 mb-2 mt-1 h-10 rounded-lg bg-primary/20" />
+    </div>
   )
 }
 
@@ -71,6 +124,7 @@ function RezeptBild({ url, alt, onError }) {
 // 390px-ohne-Scrollen-Vorgabe) - die Einzel-Ansicht laesst die Prop weg und
 // bleibt dadurch unveraendert bei einem einzelnen, vollbreiten Button.
 function RezeptKarte({
+  rezepteGeladen = true,
   rezept,
   zutatenNachId,
   ziel,
@@ -139,7 +193,9 @@ function RezeptKarte({
 
   return (
     <>
-      {karte ? (
+      {!rezepteGeladen ? (
+        <RezeptKarteSkeleton />
+      ) : karte ? (
         <>
           {/* grid statt block: waehrend der Crossfade-Ueberlappung liegen
               altes UND neues motion.div per col-start-1/row-start-1 in

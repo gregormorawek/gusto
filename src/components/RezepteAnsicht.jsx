@@ -1,10 +1,9 @@
-import { useEffect, useState } from 'react'
 import MahlzeitFilter from './MahlzeitFilter'
 import SuessDeftigFilter from './SuessDeftigFilter'
 import AnimatedButton from './AnimatedButton'
 import RezeptKarte from './RezeptKarte'
-import { MAHLZEITEN, standardMahlzeit } from '../mahlzeiten'
-import { gefiltertePoolFuerRezepte, zufaelligesElement } from '../rezepteFilter'
+import { aktiveMahlzeitenFuer } from '../mahlzeiten'
+import { gefiltertePoolFuerRezepte } from '../rezepteFilter'
 import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
 
 // Reine Weiche zwischen den beiden Betriebsarten der Rezepte-Ansicht: bei
@@ -19,25 +18,60 @@ import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
 // Die Diaet-Auswahl bleibt ueber das Zahnrad-Icon (EinstellungenPanel)
 // erreichbar - diaeten selbst bleibt als Wert weiterhin Pflicht-Prop (fuer
 // die Pool-Filterung), nur der Aendern-Callback wird hier nicht mehr gebraucht.
+//
+// WICHTIG (Bugfix "Rezepte-Tab-Flackern"): Diese Komponente haelt bewusst
+// KEINEN eigenen "welches Rezept ist gerade ausgewaehlt"-State mehr (mahlzeit/
+// eigenschaft/aktuellesRezept/proMahlzeitState kommen komplett als Props von
+// App.jsx). Grund: App.jsx rendert RezepteAnsicht per echtem Conditional-
+// Rendering ({ansicht === 'rezepte' ? <RezepteAnsicht/> : ...}) - bei jedem
+// Tab-Wechsel wird sie also unmountet und beim naechsten Oeffnen NEU
+// gemountet. Lokaler State waere dabei jedes Mal auf seinen Initialwert
+// zurueckgefallen (null/{}) und erst per Folge-Effekt NACH dem ersten Paint
+// neu befuellt worden - in genau dieser Luecke zeigte RezeptKarte.jsx
+// faelschlich "Fuer diese Filterkombination gibt es noch kein Rezept.",
+// obwohl rezepte laengst geladen war (nur die lokale Auswahl noch nicht neu
+// gewuerfelt). Mit dem State/den Handlern eine Ebene hoeher in App.jsx bleibt
+// die Auswahl ueber Tab-Wechsel hinweg erhalten - siehe dortiger Kommentar
+// bei rezepteMahlzeit/rezepteAktuellesRezept fuer die vollstaendige Herleitung.
 function RezepteAnsicht({
+  rezepteGeladen,
   rezepte,
   zutatenNachId,
   diaeten,
   ziel,
   makroZiele,
   tagesplanMahlzeiten,
+  mahlzeit,
+  onMahlzeitAendern,
+  eigenschaft,
+  onEigenschaftAendern,
+  aktuellesRezept,
+  onWuerfeln,
+  aktiveMahlzeitTab,
+  onAktiveMahlzeitTabAendern,
+  proMahlzeitState,
+  onEigenschaftFuerMahlzeitAendern,
+  onMahlzeitTabWuerfeln,
+  onGanzenTagNeuPlanen,
   onMahlzeitenAnpassen,
   onKochModusOeffnen,
 }) {
   if (ziel.typ === 'proTag') {
     return (
       <RezepteTagesplan
+        rezepteGeladen={rezepteGeladen}
         rezepte={rezepte}
         zutatenNachId={zutatenNachId}
         diaeten={diaeten}
         ziel={ziel}
         makroZiele={makroZiele}
         tagesplanMahlzeiten={tagesplanMahlzeiten}
+        aktiveMahlzeitTab={aktiveMahlzeitTab}
+        onAktiveMahlzeitTabAendern={onAktiveMahlzeitTabAendern}
+        proMahlzeitState={proMahlzeitState}
+        onEigenschaftAendern={onEigenschaftFuerMahlzeitAendern}
+        onWuerfeln={onMahlzeitTabWuerfeln}
+        onGanzenTagNeuPlanen={onGanzenTagNeuPlanen}
         onMahlzeitenAnpassen={onMahlzeitenAnpassen}
         onKochModusOeffnen={onKochModusOeffnen}
       />
@@ -46,84 +80,55 @@ function RezepteAnsicht({
 
   return (
     <RezepteEinzelansicht
+      rezepteGeladen={rezepteGeladen}
       rezepte={rezepte}
       zutatenNachId={zutatenNachId}
       diaeten={diaeten}
       ziel={ziel}
       makroZiele={makroZiele}
+      mahlzeit={mahlzeit}
+      onMahlzeitAendern={onMahlzeitAendern}
+      eigenschaft={eigenschaft}
+      onEigenschaftAendern={onEigenschaftAendern}
+      aktuellesRezept={aktuellesRezept}
+      onWuerfeln={onWuerfeln}
       onKochModusOeffnen={onKochModusOeffnen}
     />
   )
 }
 
-// mahlzeit und eigenschaft sind BEWUSST eigener, lokaler State (nicht der
-// globale State der Einzel-Ansicht) - die bestehenden App.jsx-Handler fuer
-// diese beiden Filter wuerfeln sofort auch die Einzel-Ansicht-Slots neu, was
-// hier nicht passieren darf, nur weil man in der Rezepte-Ansicht einen
-// anderen Filter waehlt. diaeten dagegen ist bewusst GETEILTER State (Prop
-// von App.jsx) - Ernaehrungsform ist eine App-weite Praeferenz, dieselbe
-// Instanz wie in der Einzel-Ansicht/im Einstellungen-Panel. ziel/makroZiele
-// sind ebenfalls geteilter State - dieselben Kalorien-/Makro-Ziele wie in
-// den Einstellungen, damit die Portionszahlen in RezeptKarte live darauf
-// reagieren.
-function RezepteEinzelansicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiele, onKochModusOeffnen }) {
-  const [mahlzeit, setMahlzeit] = useState(standardMahlzeit)
-  const [eigenschaft, setEigenschaft] = useState('')
-  const [aktuellesRezept, setAktuellesRezept] = useState(null)
-
+function RezepteEinzelansicht({
+  rezepteGeladen,
+  rezepte,
+  zutatenNachId,
+  diaeten,
+  ziel,
+  makroZiele,
+  mahlzeit,
+  onMahlzeitAendern,
+  eigenschaft,
+  onEigenschaftAendern,
+  aktuellesRezept,
+  onWuerfeln,
+  onKochModusOeffnen,
+}) {
   const pool = gefiltertePoolFuerRezepte(rezepte, mahlzeit, diaeten, eigenschaft)
-
-  // Waehlt bei jeder Aenderung des (geteilten) Diaet-Filters ein neues
-  // passendes Rezept, UND einmalig, sobald die Rezepte fertig geladen sind
-  // (rezepte wechselt dann von [] auf die echten Eintraege). mahlzeit und
-  // eigenschaft loesen die Neuauswahl stattdessen direkt in ihren eigenen
-  // Aendern-Handlern unten aus (analog zum bestehenden Muster in App.jsx),
-  // deshalb absichtlich NICHT in dieser Abhaengigkeitsliste.
-  useEffect(() => {
-    const aktuellerPool = gefiltertePoolFuerRezepte(rezepte, mahlzeit, diaeten, eigenschaft)
-    setAktuellesRezept(aktuellerPool.length > 0 ? zufaelligesElement(aktuellerPool) : null)
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diaeten, rezepte])
-
-  function mahlzeitAendern(neueMahlzeit) {
-    if (neueMahlzeit === mahlzeit) {
-      return
-    }
-    const neuerPool = gefiltertePoolFuerRezepte(rezepte, neueMahlzeit, diaeten, eigenschaft)
-    setMahlzeit(neueMahlzeit)
-    setAktuellesRezept(neuerPool.length > 0 ? zufaelligesElement(neuerPool) : null)
-  }
-
-  function eigenschaftAendern(neueEigenschaft) {
-    if (neueEigenschaft === eigenschaft) {
-      return
-    }
-    const neuerPool = gefiltertePoolFuerRezepte(rezepte, mahlzeit, diaeten, neueEigenschaft)
-    setEigenschaft(neueEigenschaft)
-    setAktuellesRezept(neuerPool.length > 0 ? zufaelligesElement(neuerPool) : null)
-  }
-
-  // "Anderes Rezept wuerfeln": kompletter Kombinations-Wechsel innerhalb des
-  // aktuellen Pools - kein Einzel-Slot-Reroll, das gibt es hier bewusst
-  // nicht (wuerde die feste, garantiert passende Rezept-Kombination aufloesen).
-  function rezeptWuerfeln() {
-    setAktuellesRezept(pool.length > 0 ? zufaelligesElement(pool) : null)
-  }
 
   return (
     <>
-      <MahlzeitFilter aktuell={mahlzeit} onAendern={mahlzeitAendern} />
+      <MahlzeitFilter aktuell={mahlzeit} onAendern={onMahlzeitAendern} />
 
       {(mahlzeit === 'fruehstueck' || mahlzeit === 'snack') && (
-        <SuessDeftigFilter aktuell={eigenschaft} onAendern={eigenschaftAendern} />
+        <SuessDeftigFilter aktuell={eigenschaft} onAendern={onEigenschaftAendern} />
       )}
 
       <RezeptKarte
+        rezepteGeladen={rezepteGeladen}
         rezept={aktuellesRezept}
         zutatenNachId={zutatenNachId}
         ziel={ziel}
         makroZiele={makroZiele}
-        onWuerfeln={rezeptWuerfeln}
+        onWuerfeln={onWuerfeln}
         wuerfelnDeaktiviert={pool.length === 0}
         onKochModusOeffnen={onKochModusOeffnen}
       />
@@ -131,116 +136,35 @@ function RezepteEinzelansicht({ rezepte, zutatenNachId, diaeten, ziel, makroZiel
   )
 }
 
-// Feste Anzeige-Reihenfolge der Mahlzeit-Tabs (Fruehstueck -> Mittag ->
-// Abend -> Snack), eingeschraenkt auf die laut Einstellungen aktivierten
-// Mahlzeiten (tagesplanMahlzeiten, dieselbe Quelle wie der Tagesplan im
-// "Planen"-Tab) - dieselbe Ableitung wie MAHLZEIT_REIHENFOLGE in App.jsx,
-// hier lokal nachgebaut statt einen Export aus App.jsx zu ziehen, da
-// MAHLZEITEN (der eigentliche Ordnungs-Ursprung) ohnehin schon importiert wird.
-function aktiveMahlzeitenFuer(tagesplanMahlzeiten) {
-  return MAHLZEITEN.filter(({ slug }) => tagesplanMahlzeiten.includes(slug))
-}
-
-// Wuerfelt fuer ALLE aktuell aktiven Mahlzeiten ein neues Rezept, unter
-// Beibehaltung des jeweiligen Suess/Deftig-Filters (vorherigerStand) -
-// Mahlzeiten OHNE bisherigen Eintrag (erstmaliges Laden, neu aktivierte
-// Mahlzeit) starten mit '' (Alles). Reine Funktion, die einen kompletten
-// neuen proMahlzeitState liefert - wird sowohl vom Auto-Wuerfel-Effekt als
-// auch vom "Ganzen Tag neu planen"-Button verwendet (setProMahlzeitState
-// akzeptiert eine Updater-Funktion mit genau dieser Signatur).
-function alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten) {
-  return (vorherigerStand) => {
-    const neuerStand = {}
-    for (const { slug } of aktiveMahlzeitenListe) {
-      const eigenschaftFuerMahlzeit = vorherigerStand[slug]?.eigenschaft ?? ''
-      const pool = gefiltertePoolFuerRezepte(rezepte, slug, diaeten, eigenschaftFuerMahlzeit)
-      neuerStand[slug] = { eigenschaft: eigenschaftFuerMahlzeit, rezept: pool.length > 0 ? zufaelligesElement(pool) : null }
-    }
-    return neuerStand
-  }
-}
-
 // Rezepte-Tagesplan: Tab-Leiste ueber den aktiven Mahlzeiten, darunter EXAKT
 // dieselbe RezeptKarte wie in der Einzel-Ansicht - nur mit dem Rezept der
-// gerade aktiven Tab-Mahlzeit. Jede Mahlzeit behaelt ihr eigenes gewuerfeltes
-// Rezept UND ihren eigenen Suess/Deftig-Filter unabhaengig im Hintergrund
-// (proMahlzeitState), damit ein reiner Tab-Wechsel (setAktiveMahlzeit) nie
-// etwas verwirft - der Auto-Wuerfel-Effekt unten haengt bewusst NICHT von
-// aktiveMahlzeit ab.
+// gerade aktiven Tab-Mahlzeit. aktiveMahlzeitTab kommt bereits als
+// "effektiver" Wert von App.jsx (faengt dort den Fall ab, dass die zuletzt
+// gewaehlte Mahlzeit ueber "Mahlzeiten anpassen" deaktiviert wurde - siehe
+// dortiger Kommentar), muss hier also nicht mehr selbst korrigiert werden.
 function RezepteTagesplan({
+  rezepteGeladen,
   rezepte,
   zutatenNachId,
   diaeten,
   ziel,
   makroZiele,
   tagesplanMahlzeiten,
+  aktiveMahlzeitTab,
+  onAktiveMahlzeitTabAendern,
+  proMahlzeitState,
+  onEigenschaftAendern,
+  onWuerfeln,
+  onGanzenTagNeuPlanen,
   onMahlzeitenAnpassen,
   onKochModusOeffnen,
 }) {
   const aktiveMahlzeitenListe = aktiveMahlzeitenFuer(tagesplanMahlzeiten)
 
-  const [aktiveMahlzeit, setAktiveMahlzeit] = useState(
-    () => aktiveMahlzeitenFuer(tagesplanMahlzeiten)[0]?.slug ?? 'mittag'
-  )
-  // { [mahlzeitTyp]: { eigenschaft, rezept } }
-  const [proMahlzeitState, setProMahlzeitState] = useState({})
-
-  // Wuerfelt ALLE aktiven Mahlzeiten neu, sobald sich die Diaet-Auswahl, die
-  // Menge der aktiven Mahlzeiten (Mahlzeiten anpassen) oder die geladenen
-  // Rezepte aendern - bewusst NICHT abhaengig von aktiveMahlzeit, ein reiner
-  // Tab-Wechsel darf hier nichts auslösen.
-  useEffect(() => {
-    setProMahlzeitState(alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten))
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [diaeten, tagesplanMahlzeiten, rezepte])
-
-  // Faengt den Fall ab, dass die gerade sichtbare Mahlzeit ueber
-  // "Mahlzeiten anpassen" deaktiviert wurde, waehrend man auf ihrem Tab war -
-  // dann auf die erste verbleibende aktive Mahlzeit ausweichen.
-  useEffect(() => {
-    if (aktiveMahlzeitenListe.length > 0 && !aktiveMahlzeitenListe.some(({ slug }) => slug === aktiveMahlzeit)) {
-      setAktiveMahlzeit(aktiveMahlzeitenListe[0].slug)
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [tagesplanMahlzeiten])
-
-  function eigenschaftAendern(neueEigenschaft) {
-    setProMahlzeitState((aktuell) => {
-      if ((aktuell[aktiveMahlzeit]?.eigenschaft ?? '') === neueEigenschaft) {
-        return aktuell
-      }
-      const pool = gefiltertePoolFuerRezepte(rezepte, aktiveMahlzeit, diaeten, neueEigenschaft)
-      return {
-        ...aktuell,
-        [aktiveMahlzeit]: { eigenschaft: neueEigenschaft, rezept: pool.length > 0 ? zufaelligesElement(pool) : null },
-      }
-    })
-  }
-
-  // "Anderes Rezept wuerfeln": trifft NUR die gerade im Tab sichtbare
-  // Mahlzeit, alle anderen behalten ihr Rezept.
-  function aktuelleMahlzeitWuerfeln() {
-    setProMahlzeitState((aktuell) => {
-      const eigenschaftFuerMahlzeit = aktuell[aktiveMahlzeit]?.eigenschaft ?? ''
-      const pool = gefiltertePoolFuerRezepte(rezepte, aktiveMahlzeit, diaeten, eigenschaftFuerMahlzeit)
-      return {
-        ...aktuell,
-        [aktiveMahlzeit]: { eigenschaft: eigenschaftFuerMahlzeit, rezept: pool.length > 0 ? zufaelligesElement(pool) : null },
-      }
-    })
-  }
-
-  // "Ganzen Tag neu planen": wuerfelt alle aktiven Mahlzeiten im Hintergrund
-  // neu, auch die gerade nicht sichtbaren - analog zum bestehenden Button im
-  // "Planen"-Tab (tagPlanen in App.jsx).
-  function ganzenTagNeuPlanen() {
-    setProMahlzeitState(alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten))
-  }
-
-  const aktuellerEintrag = proMahlzeitState[aktiveMahlzeit]
+  const aktuellerEintrag = proMahlzeitState[aktiveMahlzeitTab]
   const aktuellesRezept = aktuellerEintrag?.rezept ?? null
   const aktuelleEigenschaft = aktuellerEintrag?.eigenschaft ?? ''
-  const aktuellerPool = gefiltertePoolFuerRezepte(rezepte, aktiveMahlzeit, diaeten, aktuelleEigenschaft)
+  const aktuellerPool = gefiltertePoolFuerRezepte(rezepte, aktiveMahlzeitTab, diaeten, aktuelleEigenschaft)
 
   // Kompakte Tages-Makrosumme ueber ALLE aktiven Mahlzeiten - reiner
   // Render-Wert (kein State), reagiert dadurch automatisch auf jede
@@ -282,25 +206,26 @@ function RezepteTagesplan({
       </div>
 
       <div className="mt-2">
-        <MahlzeitFilter aktuell={aktiveMahlzeit} onAendern={setAktiveMahlzeit} mahlzeiten={aktiveMahlzeitenListe} />
+        <MahlzeitFilter aktuell={aktiveMahlzeitTab} onAendern={onAktiveMahlzeitTabAendern} mahlzeiten={aktiveMahlzeitenListe} />
       </div>
 
-      {(aktiveMahlzeit === 'fruehstueck' || aktiveMahlzeit === 'snack') && (
-        <SuessDeftigFilter aktuell={aktuelleEigenschaft} onAendern={eigenschaftAendern} />
+      {(aktiveMahlzeitTab === 'fruehstueck' || aktiveMahlzeitTab === 'snack') && (
+        <SuessDeftigFilter aktuell={aktuelleEigenschaft} onAendern={onEigenschaftAendern} />
       )}
 
       <RezeptKarte
+        rezepteGeladen={rezepteGeladen}
         rezept={aktuellesRezept}
         zutatenNachId={zutatenNachId}
         ziel={ziel}
         makroZiele={makroZiele}
-        onWuerfeln={aktuelleMahlzeitWuerfeln}
+        onWuerfeln={onWuerfeln}
         wuerfelnDeaktiviert={aktuellerPool.length === 0}
         onKochModusOeffnen={onKochModusOeffnen}
         zusatzAktion={
           <AnimatedButton
             type="button"
-            onClick={ganzenTagNeuPlanen}
+            onClick={onGanzenTagNeuPlanen}
             className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm text-card"
           >
             Ganzen Tag neu planen

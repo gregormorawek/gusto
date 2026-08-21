@@ -31,3 +31,15 @@ export function standardMahlzeit(datum = new Date()) {
   if (stunde >= 18 && stunde < 22) return 'abend'
   return 'snack'
 }
+
+// Feste Anzeige-Reihenfolge der Mahlzeit-Tabs (Fruehstueck -> Mittag ->
+// Abend -> Snack), eingeschraenkt auf die laut Einstellungen aktivierten
+// Mahlzeiten (tagesplanMahlzeiten). Urspruenglich privat in
+// RezepteAnsicht.jsx, jetzt hier geteilt: App.jsx braucht dieselbe Ableitung
+// jetzt ebenfalls, seit die Rezepte-Tagesplan-Auswahl (welche Mahlzeit-Tabs
+// existieren) beim "Mahlzeiten anpassen" eine Ebene hoeher (in App.jsx)
+// neu gewuerfelt wird, statt nur lokal in einem Effekt der (bei Tab-Wechsel
+// unmountenden) RezepteAnsicht.jsx.
+export function aktiveMahlzeitenFuer(tagesplanMahlzeiten) {
+  return MAHLZEITEN.filter(({ slug }) => tagesplanMahlzeiten.includes(slug))
+}

@@ -11,10 +11,11 @@ import Startbildschirm from './components/Startbildschirm'
 import EinstellungenPanel from './components/EinstellungenPanel'
 import KochModus from './components/KochModus'
 import AnimatedButton from './components/AnimatedButton'
-import { MAHLZEITEN, standardMahlzeit } from './mahlzeiten'
+import { MAHLZEITEN, standardMahlzeit, aktiveMahlzeitenFuer } from './mahlzeiten'
 import { supabase } from './supabase'
 import { useTastaturAusgleich } from './useTastaturAusgleich'
 import { gefiltertePoolFuer, vierterSlotOptionenFuer } from './zutatenFilter'
+import { gefiltertePoolFuerRezepte, alleAktivenMahlzeitenWuerfeln } from './rezepteFilter'
 import {
   aufPortionSkalieren,
   TAGES_ANTEIL,
@@ -724,6 +725,38 @@ function App() {
     localStorage.setItem(TAGESPLAN_MAHLZEITEN_LOCALSTORAGE_KEY, JSON.stringify(tagesplanMahlzeiten))
   }, [tagesplanMahlzeiten])
 
+  // Rezepte-Tab-Auswahl (Einzel- UND Tagesplan-Variante) - BEWUSST hier auf
+  // App-Ebene gehalten statt lokal in RezepteAnsicht.jsx, wie es bis vor
+  // diesem Fix der Fall war. Bugfix-Hintergrund: RezepteAnsicht wird beim
+  // Tab-Wechsel ("Planen" <-> "Rezepte", siehe Rendering-Weiche unten) per
+  // echtem Conditional-Rendering komplett unmountet/neu gemountet. Lokaler
+  // State startete dadurch bei JEDEM Oeffnen des Rezepte-Tabs wieder bei
+  // null/{} und wurde erst per useEffect NACH dem ersten Paint neu befuellt -
+  // in der Luecke dazwischen zeigte RezeptKarte.jsx faelschlich "Fuer diese
+  // Filterkombination gibt es noch kein Rezept.", obwohl die Daten laengst
+  // da waren (nur der lokale Auswahl-State noch nicht neu gewuerfelt).
+  // Zusaetzlich musste RezeptKarte.jsx danach noch das (evtl. neu
+  // ausgewuerfelte, anderes) Rezeptbild frisch vorladen (siehe dortiger
+  // BILD_PRELOAD_TIMEOUT_MS-Kommentar) - macht die sichtbare Luecke auf
+  // einer echten Verbindung ca. 1 Sekunde lang statt nur einen Frame.
+  // Mit dem State hier oben bleibt die Auswahl ueber Tab-Wechsel hinweg
+  // erhalten (kein Neu-Wuerfeln, kein erneutes Bild-Vorladen fuer ein
+  // Rezept, das man Sekunden zuvor schon gesehen hat) - analog zu
+  // diaeten/ziel/makroZiele/tagesplanMahlzeiten oben, die aus demselben
+  // Grund schon auf dieser Ebene liegen. Die Erst-Befuellung passiert im
+  // zutatenLaden-Effekt weiter unten, im selben Zug wie setRezepte(...) -
+  // Diaet-/Mahlzeiten-AENDERUNGEN loesen die Neu-Wuerfelung direkt in den
+  // jeweiligen Handlern aus (diaetenAendern, tagesplanMahlzeitenAendern
+  // weiter unten), bewusst NICHT ueber einen an RezepteAnsicht gebundenen
+  // useEffect - der wuerde bei jedem Remount (= jedem Tab-Wechsel) erneut
+  // feuern und genau das Caching wieder aufheben, das dieser Fix bezweckt.
+  const [rezepteMahlzeit, setRezepteMahlzeit] = useState(standardMahlzeit)
+  const [rezepteEigenschaft, setRezepteEigenschaft] = useState('')
+  const [rezepteAktuellesRezept, setRezepteAktuellesRezept] = useState(null)
+  const [rezepteAktiveMahlzeitTab, setRezepteAktiveMahlzeitTab] = useState(null)
+  // { [mahlzeitTyp]: { eigenschaft, rezept } }
+  const [rezepteProMahlzeitState, setRezepteProMahlzeitState] = useState({})
+
   // Makro-Ziele (Protein/Carbs/Fett in Gramm) PRO MAHLZEIT-TYP:
   // { [mahlzeitTyp]: { protein, carbs, fett } }. Wird von der Einzel-Ansicht
   // (fuer den aktuellen Mahlzeit-Filter) UND vom Tagesplan (fuer alle vier
@@ -881,7 +914,24 @@ function App() {
       setGemueseOptionen(gemueseListe)
       setObstOptionen(obstListe)
       setZutatenNachId(Object.fromEntries(data.map((z) => [z.id, z])))
-      setRezepte(rezepteErgebnis.data ?? [])
+      const rezepteDaten = rezepteErgebnis.data ?? []
+      setRezepte(rezepteDaten)
+
+      // Direkt eine erste Auswahl fuer den Rezepte-Tab wuerfeln (Einzel- UND
+      // Tagesplan-Variante), passend zum aktuellen Mahlzeit-Filter bzw. den
+      // aktiven Tagesplan-Mahlzeiten - analog zur Erst-Auswahl der Haupt-
+      // Ansicht direkt darunter, UND der eigentliche Grund, warum
+      // rezepteAktuellesRezept/rezepteProMahlzeitState (siehe Kommentar dort)
+      // ueberhaupt bereits VOR dem ersten Rendern der Rezepte-Ansicht einen
+      // echten Wert haben, statt erst per Folge-Effekt in RezepteAnsicht.jsx
+      // selbst - genau das war die Ursache des Flackerns. Verwendet bewusst
+      // rezepteDaten direkt (nicht den rezepte-State, der ist in diesem
+      // Funktionsdurchlauf noch nicht aktualisiert).
+      const ersterRezeptePool = gefiltertePoolFuerRezepte(rezepteDaten, rezepteMahlzeit, diaeten, rezepteEigenschaft)
+      setRezepteAktuellesRezept(ersterRezeptePool.length > 0 ? zufaelligesElement(ersterRezeptePool) : null)
+      setRezepteProMahlzeitState(
+        alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenFuer(tagesplanMahlzeiten), rezepteDaten, diaeten)({})
+      )
 
       // Direkt eine erste zufaellige Auswahl setzen, sobald die Daten da sind,
       // passend zum aktuell (per Uhrzeit) vorausgewaehlten Mahlzeit-Filter.
@@ -1107,6 +1157,15 @@ function App() {
     if (tagesplan) {
       tagesplanNeuSetzen(tagesplanErzeugen(neueDiaeten, tagesplanMahlzeiten, suessDeftig))
     }
+
+    // Rezepte-Tab (Einzel- UND Tagesplan-Variante) ebenfalls neu wuerfeln -
+    // unconditional (nicht nur wenn der Rezepte-Tab gerade sichtbar ist,
+    // analog zum Tagesplan oben), damit die Auswahl beim naechsten Oeffnen
+    // schon zur neuen Diaet-Auswahl passt, statt veraltet im Cache zu
+    // haengen (siehe rezepteAktuellesRezept-Kommentar weiter oben).
+    const neuerRezeptePool = gefiltertePoolFuerRezepte(rezepte, rezepteMahlzeit, neueDiaeten, rezepteEigenschaft)
+    setRezepteAktuellesRezept(neuerRezeptePool.length > 0 ? zufaelligesElement(neuerRezeptePool) : null)
+    setRezepteProMahlzeitState(alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenFuer(tagesplanMahlzeiten), rezepte, neueDiaeten))
   }
 
   // Wird von TagesplanMahlzeitenFilter aufgerufen, wenn der User eine
@@ -1132,6 +1191,96 @@ function App() {
     if (tagesplan) {
       tagesplanNeuSetzen(tagesplanErzeugen(diaeten, neueMahlzeiten, suessDeftig))
     }
+
+    // Rezepte-Tagesplan-Variante ebenfalls neu wuerfeln - die aktiven
+    // Mahlzeit-Tabs dort richten sich nach genau demselben
+    // tagesplanMahlzeiten-Wert (siehe RezepteAnsicht.jsx/aktiveMahlzeitenFuer).
+    setRezepteProMahlzeitState(alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenFuer(neueMahlzeiten), rezepte, diaeten))
+  }
+
+  // --- Rezepte-Tab: Einzel-Ansicht (siehe rezepteMahlzeit/rezepteEigenschaft/
+  // rezepteAktuellesRezept-Kommentar weiter oben zum Bugfix-Hintergrund).
+  // Bewusst eigene, von mahlzeitAendern/suessDeftigAendern (Haupt-Ansicht)
+  // GETRENNTE Handler - ein Filterwechsel im Rezepte-Tab darf nicht die
+  // Haupt-Ansicht-Slots mit neu wuerfeln, und umgekehrt.
+
+  function rezepteMahlzeitAendern(neueMahlzeit) {
+    if (neueMahlzeit === rezepteMahlzeit) {
+      return
+    }
+    const neuerPool = gefiltertePoolFuerRezepte(rezepte, neueMahlzeit, diaeten, rezepteEigenschaft)
+    setRezepteMahlzeit(neueMahlzeit)
+    setRezepteAktuellesRezept(neuerPool.length > 0 ? zufaelligesElement(neuerPool) : null)
+  }
+
+  function rezepteEigenschaftAendern(neueEigenschaft) {
+    if (neueEigenschaft === rezepteEigenschaft) {
+      return
+    }
+    const neuerPool = gefiltertePoolFuerRezepte(rezepte, rezepteMahlzeit, diaeten, neueEigenschaft)
+    setRezepteEigenschaft(neueEigenschaft)
+    setRezepteAktuellesRezept(neuerPool.length > 0 ? zufaelligesElement(neuerPool) : null)
+  }
+
+  // "Anderes Rezept wuerfeln" (Einzel-Ansicht) - kompletter Kombinations-
+  // Wechsel innerhalb des aktuellen Pools, kein Einzel-Slot-Reroll.
+  function rezeptWuerfeln() {
+    const pool = gefiltertePoolFuerRezepte(rezepte, rezepteMahlzeit, diaeten, rezepteEigenschaft)
+    setRezepteAktuellesRezept(pool.length > 0 ? zufaelligesElement(pool) : null)
+  }
+
+  // --- Rezepte-Tab: Tagesplan-Variante ---
+
+  // Effektiv aktiver Mahlzeit-Tab: rezepteAktiveMahlzeitTab ODER, falls noch
+  // nie explizit gesetzt bzw. die zuletzt gewaehlte Mahlzeit inzwischen ueber
+  // "Mahlzeiten anpassen" deaktiviert wurde, die erste noch aktive Mahlzeit.
+  // Bewusst als abgeleiteter Wert bei JEDEM Rendern neu berechnet (statt wie
+  // vorher per useEffect nachtraeglich korrigiert) - so bleibt der State
+  // rezepteAktiveMahlzeitTab robust gegen den Fall "gerade sichtbare
+  // Mahlzeit wurde deaktiviert", OHNE dass dafuer ein eigener Effekt noetig
+  // waere, der beim Tab-Remount erneut anspringen wuerde.
+  const rezepteAktiveMahlzeitenListe = aktiveMahlzeitenFuer(tagesplanMahlzeiten)
+  const rezepteEffektivAktiveMahlzeitTab =
+    rezepteAktiveMahlzeitTab && rezepteAktiveMahlzeitenListe.some(({ slug }) => slug === rezepteAktiveMahlzeitTab)
+      ? rezepteAktiveMahlzeitTab
+      : rezepteAktiveMahlzeitenListe[0]?.slug ?? 'mittag'
+
+  function rezepteEigenschaftFuerMahlzeitAendern(neueEigenschaft) {
+    setRezepteProMahlzeitState((aktuell) => {
+      if ((aktuell[rezepteEffektivAktiveMahlzeitTab]?.eigenschaft ?? '') === neueEigenschaft) {
+        return aktuell
+      }
+      const pool = gefiltertePoolFuerRezepte(rezepte, rezepteEffektivAktiveMahlzeitTab, diaeten, neueEigenschaft)
+      return {
+        ...aktuell,
+        [rezepteEffektivAktiveMahlzeitTab]: {
+          eigenschaft: neueEigenschaft,
+          rezept: pool.length > 0 ? zufaelligesElement(pool) : null,
+        },
+      }
+    })
+  }
+
+  // "Anderes Rezept wuerfeln" (Rezepte-Tagesplan) - trifft NUR die gerade im
+  // Tab sichtbare Mahlzeit, alle anderen behalten ihr Rezept.
+  function rezepteMahlzeitTabWuerfeln() {
+    setRezepteProMahlzeitState((aktuell) => {
+      const eigenschaftFuerMahlzeit = aktuell[rezepteEffektivAktiveMahlzeitTab]?.eigenschaft ?? ''
+      const pool = gefiltertePoolFuerRezepte(rezepte, rezepteEffektivAktiveMahlzeitTab, diaeten, eigenschaftFuerMahlzeit)
+      return {
+        ...aktuell,
+        [rezepteEffektivAktiveMahlzeitTab]: {
+          eigenschaft: eigenschaftFuerMahlzeit,
+          rezept: pool.length > 0 ? zufaelligesElement(pool) : null,
+        },
+      }
+    })
+  }
+
+  // "Ganzen Tag neu planen" (Rezepte-Tagesplan) - wuerfelt alle aktiven
+  // Mahlzeiten im Hintergrund neu, auch die gerade nicht sichtbaren.
+  function rezepteGanzenTagNeuPlanen() {
+    setRezepteProMahlzeitState(alleAktivenMahlzeitenWuerfeln(rezepteAktiveMahlzeitenListe, rezepte, diaeten))
   }
 
   // Wird von ZielEinstellungen aufgerufen, wenn der User einen anderen
@@ -1514,12 +1663,25 @@ function App() {
 
         {ansicht === 'rezepte' ? (
           <RezepteAnsicht
+            rezepteGeladen={!laedt}
             rezepte={rezepte}
             zutatenNachId={zutatenNachId}
             diaeten={diaeten}
             ziel={ziel}
             makroZiele={makroZiele}
             tagesplanMahlzeiten={tagesplanMahlzeiten}
+            mahlzeit={rezepteMahlzeit}
+            onMahlzeitAendern={rezepteMahlzeitAendern}
+            eigenschaft={rezepteEigenschaft}
+            onEigenschaftAendern={rezepteEigenschaftAendern}
+            aktuellesRezept={rezepteAktuellesRezept}
+            onWuerfeln={rezeptWuerfeln}
+            aktiveMahlzeitTab={rezepteEffektivAktiveMahlzeitTab}
+            onAktiveMahlzeitTabAendern={setRezepteAktiveMahlzeitTab}
+            proMahlzeitState={rezepteProMahlzeitState}
+            onEigenschaftFuerMahlzeitAendern={rezepteEigenschaftFuerMahlzeitAendern}
+            onMahlzeitTabWuerfeln={rezepteMahlzeitTabWuerfeln}
+            onGanzenTagNeuPlanen={rezepteGanzenTagNeuPlanen}
             onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
             onKochModusOeffnen={kochModusOeffnen}
           />

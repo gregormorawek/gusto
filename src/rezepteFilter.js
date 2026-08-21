@@ -49,3 +49,23 @@ export function gefiltertePoolFuerRezepte(liste, mahlzeitWert, diaetenWert, eige
   }
   return nachDiaet.filter((r) => (r.eigenschaft ?? '') === eigenschaftWert)
 }
+
+// Wuerfelt fuer ALLE aktuell aktiven Mahlzeiten (Rezepte-Tagesplan) ein
+// neues Rezept, unter Beibehaltung des jeweiligen Suess/Deftig-Filters
+// (vorherigerStand) - Mahlzeiten OHNE bisherigen Eintrag (erstmaliges Laden,
+// neu aktivierte Mahlzeit) starten mit '' (Alles). Reine Funktion, die einen
+// kompletten neuen proMahlzeitState liefert. Urspruenglich privat in
+// RezepteAnsicht.jsx, jetzt hier geteilt und von App.jsx aufgerufen (statt
+// per Effekt in der bei Tab-Wechsel unmountenden RezepteAnsicht.jsx) - siehe
+// App.jsx-Kommentar zur Bugfix-Begruendung ("Rezepte-Tab-Flackern").
+export function alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten) {
+  return (vorherigerStand) => {
+    const neuerStand = {}
+    for (const { slug } of aktiveMahlzeitenListe) {
+      const eigenschaftFuerMahlzeit = vorherigerStand[slug]?.eigenschaft ?? ''
+      const pool = gefiltertePoolFuerRezepte(rezepte, slug, diaeten, eigenschaftFuerMahlzeit)
+      neuerStand[slug] = { eigenschaft: eigenschaftFuerMahlzeit, rezept: pool.length > 0 ? zufaelligesElement(pool) : null }
+    }
+    return neuerStand
+  }
+}
