@@ -1,3 +1,4 @@
+import { useEffect, useRef } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { IconBan, IconCalendar, IconChevronRight, IconClock, IconTarget } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
@@ -79,9 +80,32 @@ function KalorienrechnerCallout({ onOeffnen }) {
   )
 }
 
-function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAendern, onKalorienrechnerOeffnen }) {
+function ZielEinstellungen({
+  ziel,
+  onTypAendern,
+  onKalorienAendern,
+  onMakroAendern,
+  onKalorienrechnerOeffnen,
+  minFeldFokusZaehler,
+}) {
   const reduzierteBewegung = useReducedMotion()
   const [inhaltRef, hoehe] = useBeobachteteHoehe()
+
+  // Fokussiert (und markiert) das Min-Feld, wenn der "Selbst anpassen"-Pfad
+  // des Kalorienrechners (siehe OnboardingWizard.jsx) minFeldFokusZaehler
+  // hochzaehlt - der Rechner traegt die Werte VORHER schon per onTypAendern/
+  // onKalorienAendern ein, dieser Effekt laeuft also NACH dem Wechsel auf
+  // typ "proTag", zu dem Zeitpunkt existiert das Min-Feld unten (siehe
+  // AnimatePresence) bereits im DOM. minFeldFokusZaehler ist optional (nur
+  // vom Onboarding-Wizard gesetzt, siehe dortiger Kommentar) - beim
+  // Einstellungen-Panel bleibt es undefined und der Effekt bleibt inaktiv.
+  const minInputRef = useRef(null)
+  useEffect(() => {
+    if (minFeldFokusZaehler) {
+      minInputRef.current?.focus()
+      minInputRef.current?.select()
+    }
+  }, [minFeldFokusZaehler])
 
   return (
     <section className="mx-4 mt-3 rounded-lg border border-secondary/20 bg-card p-3 shadow-sm">
@@ -139,6 +163,7 @@ function ZielEinstellungen({ ziel, onTypAendern, onKalorienAendern, onMakroAende
                     <span className="text-xs font-medium text-text-muted">Min</span>
                     <span className="relative mt-1 block">
                       <input
+                        ref={minInputRef}
                         type="number"
                         min="0"
                         value={ziel.kalorien.min}

@@ -108,6 +108,36 @@ function OnboardingWizard({
   // EinstellungenPanel in App.jsx, dortiger naechsteAnsichtRef-Kommentar).
   const [kalorienrechnerOffen, setKalorienrechnerOffen] = useState(false)
 
+  // Zaehler statt Boolean: wird bei JEDEM "Selbst anpassen"-Tap hochgezaehlt
+  // (siehe kalorienrechnerUebernehmen unten) und unveraendert als Prop an
+  // ZielEinstellungen durchgereicht. Ein Boolean wuerde bei zwei
+  // aufeinanderfolgenden "Selbst anpassen"-Taps (Rechner erneut oeffnen,
+  // wieder "Selbst anpassen") beim zweiten Mal nicht von true auf true
+  // wechseln - der useEffect in ZielEinstellungen, der daran das Min-Feld
+  // fokussiert, wuerde dann nicht erneut feuern. Ein monoton steigender Wert
+  // aendert sich dagegen garantiert bei jedem Tap.
+  const [minFeldFokusZaehler, setMinFeldFokusZaehler] = useState(0)
+
+  // Uebernimmt das Ergebnis des Kalorienrechners (siehe Kalorienrechner.jsx)
+  // in genau die Setter, die Schritt 1 (ZielEinstellungen) ohnehin schon
+  // bekommt - kein eigenes/neues State-System. Setzt IMMER auf "proTag" (der
+  // Rechner ist nur dafuer da), schliesst danach den Rechner, und erhoeht bei
+  // fokussieren:true zusaetzlich den Fokus-Zaehler fuer das Min-Feld (siehe
+  // oben) - fuer den "Werte uebernehmen"-Pfad passiert das nicht, dort
+  // reicht das stumme Eintragen.
+  function kalorienrechnerUebernehmen(ergebnis, { fokussieren }) {
+    onTypAendern('proTag')
+    onKalorienAendern('min', String(ergebnis.minKalorien))
+    onKalorienAendern('max', String(ergebnis.maxKalorien))
+    onMakroAendern('protein', String(ergebnis.proteinG))
+    onMakroAendern('carbs', String(ergebnis.kohlenhydrateG))
+    onMakroAendern('fett', String(ergebnis.fettG))
+    setKalorienrechnerOffen(false)
+    if (fokussieren) {
+      setMinFeldFokusZaehler((n) => n + 1)
+    }
+  }
+
   const zielGueltig = kalorienZielGueltig(ziel)
   const diaetGueltig = diaeten.length > 0
   const proTag = ziel.typ === 'proTag'
@@ -501,6 +531,7 @@ function OnboardingWizard({
                     onKalorienAendern={onKalorienAendern}
                     onMakroAendern={onMakroAendern}
                     onKalorienrechnerOeffnen={() => setKalorienrechnerOffen(true)}
+                    minFeldFokusZaehler={minFeldFokusZaehler}
                   />
                   {!zielGueltig && ziel.typ && ziel.typ !== 'kein' && (
                     <p className="mx-4 mt-2 text-xs text-primary">
@@ -748,7 +779,11 @@ function OnboardingWizard({
 
       {/* Ausserhalb aller x-transform-animierten Motion.divs gerendert -
           siehe kalorienrechnerOffen-Kommentar oben zur Begruendung. */}
-      <Kalorienrechner offen={kalorienrechnerOffen} onSchliessen={() => setKalorienrechnerOffen(false)} />
+      <Kalorienrechner
+        offen={kalorienrechnerOffen}
+        onSchliessen={() => setKalorienrechnerOffen(false)}
+        onUebernehmen={kalorienrechnerUebernehmen}
+      />
     </div>
   )
 }

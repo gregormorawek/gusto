@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { IconCheck, IconGenderFemale, IconGenderMale } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import RadPicker from './RadPicker'
-import { AKTIVITAETEN, ZIELE } from '../kalorienBerechnung'
+import { AKTIVITAETEN, ZIELE, berechneKalorienZiel } from '../kalorienBerechnung'
 import { EXPO_OUT, motionPropsFuer } from '../motionConfig'
 
 const ANZAHL_FRAGEN = 6
@@ -112,12 +112,30 @@ function GeschlechtKarte({ Icon, label, aktiv, onClick }) {
   )
 }
 
+// Kleine Makro-Kachel fuer den Ergebnis-Screen (Protein/Kohlenhydrate/Fett).
+// Bewusst NICHT die bestehende SlotKarte (RezeptKarte.jsx) wiederverwendet -
+// die ist auf einen konkreten Zutaten-Slot zugeschnitten (Name/Portion/
+// Reroll/Ziel-Editierbarkeit/Live-Suche) und wuerde hier nur ihren Titel-
+// und Wert-Teil nutzen, der Rest bliebe totes Props-Feld. Stattdessen eine
+// eigene, radikal einfache Kachel mit demselben Typo-Vokabular (uppercase
+// Tan-Label + Fraunces-Wert) - bg-bg (Creme) statt bg-card, damit die drei
+// Kacheln sich sichtbar von der umgebenden weissen Ergebnis-Karte absetzen,
+// ohne einen neuen Farb-Token einzufuehren.
+function ErgebnisMakroKachel({ label, wertG }) {
+  return (
+    <div className="rounded-lg bg-bg px-2 py-2 text-center">
+      <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{label}</p>
+      <p className="mt-0.5 font-display text-lg font-semibold text-text">{wertG} g</p>
+    </div>
+  )
+}
+
 // Der eigentliche Inhalt der Rechner-Strecke - ausgelagert aus
 // Kalorienrechner (siehe ganz unten), damit der gesamte Frage-/Antwort-State
 // bei JEDEM Oeffnen als FRISCHE Hooks-Instanz entsteht (analog zu
 // KochModusSheet in KochModus.jsx: dieser Teil wird von AnimatePresence bei
 // offen=false komplett unmounted, kein manuelles Reset-Handling noetig).
-function KalorienrechnerInhalt({ onSchliessen }) {
+function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
   const reduzierteBewegung = useReducedMotion()
   const [schritt, setSchritt] = useState(1)
   // richtung merkt sich, ob der letzte Wechsel ein Weiter (+1) oder ein
@@ -140,16 +158,6 @@ function KalorienrechnerInhalt({ onSchliessen }) {
 
   function weiter() {
     setRichtung(1)
-    if (schritt === ANZAHL_FRAGEN) {
-      // TODO (Prompt 2): fuehrt zum Ergebnis-Screen, der berechneKalorienZiel
-      // (aus kalorienBerechnung.js) mit "antworten" aufruft, die berechneten
-      // Werte zeigt UND per Uebernahme-Button in ZielEinstellungen eintraegt.
-      // Die Strecke endet bewusst vorerst mit einem Platzhalter-Screen
-      // (Aufgabenstellung: "in diesem Prompt also noch keine Werte in die
-      // Kalorienziel-Felder eintragen").
-      setSchritt(ANZAHL_FRAGEN + 1)
-      return
-    }
     setSchritt((s) => s + 1)
   }
 
@@ -166,6 +174,12 @@ function KalorienrechnerInhalt({ onSchliessen }) {
     (schritt !== 1 || antworten.geschlecht) &&
     (schritt !== 5 || antworten.aktivitaet) &&
     (schritt !== 6 || antworten.ziel)
+
+  // Nur berechnet, sobald der Ergebnis-Screen tatsaechlich erreicht ist (alle
+  // 6 Antworten stehen dann fest, kannWeiter erzwingt das bereits vorher pro
+  // Schritt) - reine Funktion, daher unproblematisch, sie bei jedem Render
+  // dieses Screens neu aufzurufen statt sie zu memoisieren.
+  const ergebnis = schritt > ANZAHL_FRAGEN ? berechneKalorienZiel(antworten) : null
 
   return (
     // fixed inset-0 statt eines Bottom-Sheets (anders als KochModus.jsx) -
@@ -379,11 +393,17 @@ function KalorienrechnerInhalt({ onSchliessen }) {
                 </div>
               </motion.div>
             ) : (
-              // Platzhalter-Screen fuer den (in Prompt 2 folgenden)
-              // Ergebnis-Screen - siehe TODO-Kommentar in weiter() oben.
+              // Ergebnis-Screen - zeigt berechneKalorienZiel(antworten)
+              // (oben als "ergebnis" bereitgestellt). Bewusst KEIN eigener
+              // Einblend-/Hochzaehl-Effekt auf der grossen Kalorienzahl
+              // selbst (statisch gerendert statt z. B. AnimierteZahl) - die
+              // Aufgabenstellung will hier explizit keine Zahl-Animation,
+              // unabhaengig von reduzierter Bewegung. Der Screen-Wechsel
+              // selbst (Slide+Fade) laeuft trotzdem wie bei den Fragen davor
+              // ueber schrittVarianten, fuer einen konsistenten Uebergang.
               <motion.div
-                key="platzhalter"
-                className="col-start-1 row-start-1 flex h-full flex-col items-center justify-center text-center"
+                key="ergebnis"
+                className="col-start-1 row-start-1 flex h-full min-h-0 flex-col overflow-hidden"
                 custom={richtung}
                 variants={schrittVarianten(reduzierteBewegung)}
                 initial="eintritt"
@@ -391,10 +411,42 @@ function KalorienrechnerInhalt({ onSchliessen }) {
                 exit="austritt"
                 transition={reduzierteBewegung ? { duration: 0.15 } : { duration: 0.32, ease: EXPO_OUT }}
               >
-                <h1 className="font-display text-3xl font-semibold text-text sm:text-4xl">Fast fertig!</h1>
-                <p className="mt-2 max-w-xs text-sm text-text-muted">
-                  Der Ergebnis-Screen mit deinem berechneten Kalorien- und Makroziel folgt in Kürze.
-                </p>
+                <p className="text-xs font-semibold uppercase tracking-widest text-text-muted">Dein Ergebnis</p>
+                <h1 className="mt-1 font-display text-3xl font-semibold text-text sm:text-4xl">
+                  Das empfehlen wir dir
+                </h1>
+
+                {/* Derselbe "py-2 als Schatten-Puffer"-Kniff wie bei den
+                    OptionZeile-Containern oben (schritt 5/6) - die Karte
+                    darunter hat einen shadow-sm, der sonst am unteren Rand
+                    dieses min-h-0-Bereichs abgeschnitten wuerde. */}
+                <div className="mt-4 flex min-h-0 flex-1 flex-col justify-center gap-2 overflow-y-auto py-2">
+                  <div className="rounded-2xl bg-card p-4 shadow-sm">
+                    <p>
+                      <span className="font-display text-5xl font-semibold text-text">{ergebnis.zielKalorien}</span>{' '}
+                      <span className="text-sm text-text-muted">kcal pro Tag</span>
+                    </p>
+                    <p className="mt-1 text-xs text-text-muted">
+                      Spanne: {ergebnis.minKalorien} – {ergebnis.maxKalorien} kcal
+                    </p>
+
+                    <div className="mt-3 grid grid-cols-3 gap-2">
+                      <ErgebnisMakroKachel label="Protein" wertG={ergebnis.proteinG} />
+                      <ErgebnisMakroKachel label="Kohlenh." wertG={ergebnis.kohlenhydrateG} />
+                      <ErgebnisMakroKachel label="Fett" wertG={ergebnis.fettG} />
+                    </div>
+                  </div>
+
+                  {ergebnis.wurdeAngehoben && (
+                    <p className="text-xs text-text-muted">
+                      Wir haben dein Ziel auf einen gesunden Mindestwert angepasst.
+                    </p>
+                  )}
+
+                  <p className="text-xs text-text-muted">
+                    Diese Werte sind eine Orientierung, kein medizinischer Rat.
+                  </p>
+                </div>
               </motion.div>
             )}
           </AnimatePresence>
@@ -412,13 +464,26 @@ function KalorienrechnerInhalt({ onSchliessen }) {
             {schritt === ANZAHL_FRAGEN ? 'Ziel berechnen' : 'Weiter'}
           </AnimatedButton>
         ) : (
-          <AnimatedButton
-            type="button"
-            onClick={onSchliessen}
-            className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm"
-          >
-            Schließen
-          </AnimatedButton>
+          // "Selbst anpassen" ruft onUebernehmen mit fokussieren:true auf -
+          // uebernimmt dieselben Werte, signalisiert dem Aufrufer (Schritt 1)
+          // aber zusaetzlich, das Min-Feld danach zu fokussieren, statt die
+          // Werte nur stumm einzutragen.
+          <div className="flex flex-col items-center gap-2">
+            <AnimatedButton
+              type="button"
+              onClick={() => onUebernehmen(ergebnis, { fokussieren: false })}
+              className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm"
+            >
+              Werte übernehmen
+            </AnimatedButton>
+            <AnimatedButton
+              type="button"
+              onClick={() => onUebernehmen(ergebnis, { fokussieren: true })}
+              className="text-sm font-medium text-text-muted hover:text-primary"
+            >
+              Selbst anpassen
+            </AnimatedButton>
+          </div>
         )}
       </div>
     </motion.div>
@@ -426,11 +491,22 @@ function KalorienrechnerInhalt({ onSchliessen }) {
 }
 
 // Aeussere Huelle - haelt den Rechner nur gemountet, waehrend offen=true,
-// analog zum AnimatePresence-Wrapper in KochModus.jsx. offen/onSchliessen
-// kommen von ZielEinstellungen.jsx (dort ein einfacher useState, siehe
-// dortiger Kommentar) - kein neues App-weites Routing/State noetig.
-function Kalorienrechner({ offen, onSchliessen }) {
-  return <AnimatePresence>{offen && <KalorienrechnerInhalt onSchliessen={onSchliessen} />}</AnimatePresence>
+// analog zum AnimatePresence-Wrapper in KochModus.jsx. offen/onSchliessen/
+// onUebernehmen kommen von OnboardingWizard.jsx (dort ein einfacher
+// useState fuer offen, siehe dortiger Kommentar zur bewussten Platzierung
+// als Geschwister der Schritt-1-Motion.div) - kein neues App-weites
+// Routing/State noetig, onUebernehmen nutzt dieselben Setter, die
+// OnboardingWizard ohnehin schon an ZielEinstellungen durchreicht.
+// onUebernehmen(ergebnis, { fokussieren }) wird sowohl von "Werte
+// uebernehmen" als auch von "Selbst anpassen" aufgerufen (siehe
+// KalorienrechnerInhalt-Footer oben) - fokussieren unterscheidet nur, ob der
+// Aufrufer danach zusaetzlich das Min-Feld fokussieren soll.
+function Kalorienrechner({ offen, onSchliessen, onUebernehmen }) {
+  return (
+    <AnimatePresence>
+      {offen && <KalorienrechnerInhalt onSchliessen={onSchliessen} onUebernehmen={onUebernehmen} />}
+    </AnimatePresence>
+  )
 }
 
 export default Kalorienrechner
