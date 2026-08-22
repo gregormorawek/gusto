@@ -217,7 +217,41 @@ function KalorienrechnerInhalt({ onSchliessen }) {
             {schritt <= ANZAHL_FRAGEN ? (
               <motion.div
                 key={schritt}
-                className="col-start-1 row-start-1 flex h-full flex-col"
+                // overflow-hidden + min-h-0 HIER - GEFUNDENE URSACHE des
+                // "erster/letzter Chip wird vom Header/Footer verdeckt"-Bugs
+                // (Aufgabenstellung "sticky Header/Footer überdecken ersten/
+                // letzten Chip"): dieses Grid-Item hat h-full (100% seiner
+                // Grid-Zelle, siehe gridStack-Kommentar unten), OHNE
+                // overflow-hidden bleibt sein automatisches min-height:auto
+                // (CSS-Sizing-Spec) aber INHALTSBASIERT statt auf 0
+                // ueberschrieben zu werden - bei Inhalt, der laenger ist als
+                // die Zelle (z. B. 4 Aktivitaets-Chips bei knappem Viewport),
+                // GEWINNT dieses min-height:auto gegen h-full und die Box
+                // waechst ueber ihre Grid-Zelle hinaus (per Messung
+                // nachgewiesen: 388px statt der zugeteilten 348px bei
+                // 375x560). Die ueberschuessigen ~40px werden vom AEUSSEREN
+                // "grid h-full ... overflow-hidden"-Stack zwar unsichtbar
+                // abgeschnitten, aber eben NICHT dort, wo man es erwartet -
+                // der Schnitt liegt an der Grid-Zellen-Kante, die knapp ueber
+                // dem Footer sitzt, wodurch der LETZTE Chip dort verschwindet.
+                // GENAUSO WICHTIG: weil diese Box nie auf ihre echte
+                // Zielhoehe gezwungen wurde, wurde auch der weiter unten
+                // verschachtelte "overflow-y-auto"-Chip-Container nie
+                // korrekt hoehenbegrenzt - er blieb einfach so gross wie sein
+                // Inhalt, konnte also gar NICHT scrollen (der ueberschuessige
+                // Teil war schlicht unerreichbar, nicht nur voruebergehend
+                // verdeckt). overflow-hidden hier ueberschreibt das
+                // automatische min-height wie spezifiziert auf 0, h-full
+                // greift dadurch wieder als HARTE Obergrenze - min-h-0
+                // zusaetzlich als dieselbe Absicherung fuer den darunter
+                // liegenden Flex-Kontext (analog zum etablierten Muster in
+                // OnboardingWizard.jsx, dessen "min-h-0 flex-1 ...
+                // overflow-hidden"-Frage-Bereich denselben Zweck erfuellt -
+                // dort aber ohne diese zusaetzliche Titel+Inhalt-flex-col-
+                // Verschachtelung, die dieser Screen durch das Kombinieren
+                // von Titel/Untertext UND Frage-Inhalt in EINEM
+                // Crossfade-Block neu einfuehrt).
+                className="col-start-1 row-start-1 flex h-full min-h-0 flex-col overflow-hidden"
                 custom={richtung}
                 variants={schrittVarianten(reduzierteBewegung)}
                 initial="eintritt"
@@ -231,7 +265,14 @@ function KalorienrechnerInhalt({ onSchliessen }) {
                 <h1 className="mt-1 font-display text-3xl font-semibold text-text sm:text-4xl">{TITEL[schritt]}</h1>
                 <p className="mt-2 text-sm text-text-muted">{UNTERTEXT[schritt]}</p>
 
-                <div className="mt-6 flex flex-1 flex-col justify-center overflow-hidden">
+                {/* min-h-0 zusaetzlich zum bestehenden overflow-hidden - siehe
+                    ausfuehrlicher Kommentar am Eltern-motion.div oben zur
+                    Herleitung des Bugs: dieselbe Absicherung (automatisches
+                    min-height auf 0 statt content-basiert) jetzt auch in
+                    DIESEM Flex-Kontext, damit dieser Bereich bei knappem
+                    Platz tatsaechlich auf die verfuegbare Rest-Hoehe
+                    schrumpft, statt sie zu ueberschreiten. */}
+                <div className="mt-6 flex min-h-0 flex-1 flex-col justify-center overflow-hidden">
                   {schritt === 1 && (
                     <div className="flex gap-3">
                       <GeschlechtKarte
