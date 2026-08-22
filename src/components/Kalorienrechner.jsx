@@ -327,7 +327,24 @@ function KalorienrechnerInhalt({ onSchliessen }) {
                   )}
 
                   {schritt === 5 && (
-                    <div className="flex flex-col gap-2 overflow-y-auto">
+                    // py-2 (8px) oben+unten - GEMESSENER Freiraum-Bedarf fuer
+                    // den Schatten des ersten/letzten Chips (siehe Kommentar
+                    // an OptionZeile oben): per getBoundingClientRect() +
+                    // computed box-shadow nachgewiesen, dass der inaktive
+                    // shadow-sm bis zu 4px nach unten / 2px nach oben ausser-
+                    // halb der Chip-Box ausblutet, UND dass translate-y-0.5
+                    // (2px) im aktiven Zustand den letzten Chip selbst 2px
+                    // ueber die vorherige Boxhoehe hinausschiebt (Chromium
+                    // zaehlt das zur scrollHeight, obwohl es die eigentliche
+                    // Layout-Hoehe nicht veraendert) - OHNE diesen Puffer
+                    // schneidet das overflow-y-auto dieses Containers genau
+                    // an dieser Kante hart ab. 8px deckt beide Faelle mit
+                    // Marge ab. overflow-y-auto bleibt als Sicherheitsnetz
+                    // erhalten (z.B. groessere System-Schriftgroesse) - der
+                    // uebergeordnete "justify-center"-Flex-Bereich hat bei
+                    // 375x700 (engster getesteter Fall) ausreichend Frei-
+                    // raum (~100px), sodass es im Alltag nicht greift.
+                    <div className="flex flex-col gap-2 overflow-y-auto py-2">
                       {AKTIVITAETEN.map((option) => (
                         <OptionZeile
                           key={option.id}
@@ -341,7 +358,13 @@ function KalorienrechnerInhalt({ onSchliessen }) {
                   )}
 
                   {schritt === 6 && (
-                    <div className="flex flex-col gap-2 overflow-y-auto">
+                    // py-2 - derselbe Schatten-Freiraum wie beim Aktivitaets-
+                    // Container (schritt 5) oben, aus denselben Messungen
+                    // hergeleitet (identische OptionZeile-Komponente/
+                    // Schatten-Werte). Weniger Optionen (3 statt 4) heisst
+                    // NICHT weniger Puffer-Bedarf - der Schatten haengt an
+                    // JEDEM einzelnen Chip, nicht an der Gesamtzahl.
+                    <div className="flex flex-col gap-2 overflow-y-auto py-2">
                       {ZIELE.map((option) => (
                         <OptionZeile
                           key={option.id}
