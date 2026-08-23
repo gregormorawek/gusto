@@ -136,15 +136,19 @@ input[type='number'] {
    uebersteuert - Alpha 0.5 + blur(22px) liess dahinterliegenden Inhalt
    komplett unkenntlich verschwimmen statt nur "als Form/Farbe erkennbar,
    aber nicht lesbar" (Liquid-Glass-Ziel). Alpha auf 0.6 angehoben (Bereich
-   0.58-0.65) und Blur auf 13px reduziert (Bereich 12-14px) - deutlich
-   dezenterer Weichzeichner, der Formen/Farben durchscheinen laesst statt
-   sie zu verschlucken. */
+   0.58-0.65) und Blur auf 13px reduziert (Bereich 12-14px).
+
+   KALIBRIERUNG (3. Polish-Runde): 0.6/13px war laut Feedback immer noch zu
+   blickdicht/zu stark verwischt. Alpha weiter auf 0.45 gesenkt (Bereich
+   0.42-0.48) und Blur auf 7px reduziert (Bereich 6-8px) - Farben/grobe
+   Formen dahinter kommen jetzt deutlich staerker durch, waehrend Text
+   weiterhin unlesbar bleibt. */
 .tab-leiste {
-  background: rgba(255, 253, 248, 0.6);
+  background: rgba(255, 253, 248, 0.45);
   border: 1px solid rgba(255, 253, 248, 0.7);
   box-shadow: 0 8px 32px rgba(62, 46, 34, 0.15);
-  backdrop-filter: blur(13px);
-  -webkit-backdrop-filter: blur(13px);
+  backdrop-filter: blur(7px);
+  -webkit-backdrop-filter: blur(7px);
   isolation: isolate;
   will-change: backdrop-filter;
 }
