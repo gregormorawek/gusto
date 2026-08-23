@@ -83,25 +83,42 @@ function TabLeiste({ aktiverTab, onTabWaehlen }) {
                 // handelt, und animiert automatisch (FLIP) von der alten zur
                 // neuen Position/Groesse - deshalb keine manuelle Positions-
                 // Berechnung (z. B. ueber den Tab-Index) noetig.
+                // Bewusst ein HELLER Cream-Hauch (bg-card, --color-card
+                // #FFFDF8) statt Terracotta: auf dem seit der letzten
+                // Kalibrierung dunkleren Tan-Pillen-Hintergrund (siehe
+                // .tab-leiste in index.css) las sich ein dunkleres
+                // Terracotta-Oval kaum noch vom Hintergrund ab - "heller =
+                // aktiv" hebt sich auf einem dunkleren Grund zuverlaessiger
+                // ab als "noch dunkler = aktiv".
                 <motion.span
                   layoutId="tab-aktive-pille"
-                  className="absolute inset-0 rounded-full bg-primary/[0.22]"
+                  className="absolute inset-0 rounded-full bg-card/30"
                   transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
                 />
               )}
               {/* relative z-10: garantiert, dass das Icon-Glyph ÜBER der
                   (ebenfalls positionierten) Pille gemalt wird, unabhaengig
                   von CSS-Male-Reihenfolge-Feinheiten zwischen position:
-                  absolute- und position:relative-Geschwistern. */}
+                  absolute- und position:relative-Geschwistern.
+                  Aktiv: reines Cream/Weiss (text-card) statt Terracotta -
+                  auf dem Tan-Pillen-Hintergrund sticht das deutlich staerker
+                  hervor (derselbe "helles Icon auf dunklem Grund"-Look wie
+                  bei vielen nativen dunklen Tab-Bars, z. B. Yazio). Inaktiv:
+                  text-card/55 (helles Cream bei reduzierter Deckkraft) statt
+                  des vorherigen dunklen Espresso-Tons (text-text/40) - auf
+                  dem Tan-Grund wirkte dunkel-auf-dunkel zu kontrastarm/
+                  schwer lesbar; hell-bei-niedriger-Deckkraft fuegt sich
+                  harmonischer ein und bleibt trotzdem klar vom aktiven
+                  Vollton unterscheidbar. */}
               <Icon
                 size={22}
                 stroke={1.75}
-                className={`relative z-10 transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/40'}`}
+                className={`relative z-10 transition-colors duration-150 ${aktiv ? 'text-card' : 'text-card/55'}`}
               />
             </span>
             <span
               className={`relative font-sans transition-colors duration-150 ${
-                aktiv ? 'text-[10px] font-semibold text-primary' : 'text-[9px] font-medium text-text/40'
+                aktiv ? 'text-[10px] font-semibold text-card' : 'text-[9px] font-medium text-card/55'
               }`}
             >
               {label}
