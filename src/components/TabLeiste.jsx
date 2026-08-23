@@ -83,16 +83,16 @@ function TabLeiste({ aktiverTab, onTabWaehlen }) {
                 // handelt, und animiert automatisch (FLIP) von der alten zur
                 // neuen Position/Groesse - deshalb keine manuelle Positions-
                 // Berechnung (z. B. ueber den Tab-Index) noetig.
-                // Bewusst ein HELLER Cream-Hauch (bg-card, --color-card
-                // #FFFDF8) statt Terracotta: auf dem seit der letzten
-                // Kalibrierung dunkleren Tan-Pillen-Hintergrund (siehe
-                // .tab-leiste in index.css) las sich ein dunkleres
-                // Terracotta-Oval kaum noch vom Hintergrund ab - "heller =
-                // aktiv" hebt sich auf einem dunkleren Grund zuverlaessiger
-                // ab als "noch dunkler = aktiv".
+                // Dezenter Cream-Aufheller (bg-card bei nur 20% Deckkraft) -
+                // reines Cream/Weiss war zwar auf dem Tan-Pillen-Hintergrund
+                // gut sichtbar, verschwand aber selbst als Icon/Label-Farbe
+                // auf hellem Cream-App-Hintergrund (siehe naechster
+                // Kommentar) - die Pille bleibt deshalb bewusst nur ein
+                // dezenter Aufheller HINTER dem Icon, nicht die Haupt-
+                // Kontrastquelle des aktiven Zustands.
                 <motion.span
                   layoutId="tab-aktive-pille"
-                  className="absolute inset-0 rounded-full bg-card/30"
+                  className="absolute inset-0 rounded-full bg-card/20"
                   transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
                 />
               )}
@@ -100,25 +100,23 @@ function TabLeiste({ aktiverTab, onTabWaehlen }) {
                   (ebenfalls positionierten) Pille gemalt wird, unabhaengig
                   von CSS-Male-Reihenfolge-Feinheiten zwischen position:
                   absolute- und position:relative-Geschwistern.
-                  Aktiv: reines Cream/Weiss (text-card) statt Terracotta -
-                  auf dem Tan-Pillen-Hintergrund sticht das deutlich staerker
-                  hervor (derselbe "helles Icon auf dunklem Grund"-Look wie
-                  bei vielen nativen dunklen Tab-Bars, z. B. Yazio). Inaktiv:
-                  text-card/55 (helles Cream bei reduzierter Deckkraft) statt
-                  des vorherigen dunklen Espresso-Tons (text-text/40) - auf
-                  dem Tan-Grund wirkte dunkel-auf-dunkel zu kontrastarm/
-                  schwer lesbar; hell-bei-niedriger-Deckkraft fuegt sich
-                  harmonischer ein und bleibt trotzdem klar vom aktiven
-                  Vollton unterscheidbar. */}
+                  Aktiv: Terracotta (text-primary) statt reinem Cream/Weiss -
+                  Cream/Weiss sah auf dem dunkleren Tan-Pillen-Hintergrund gut
+                  aus, verschwand aber, sobald die Bar (bzw. ihr durchscheinender
+                  Hintergrund) ueber hellem Cream-App-Content lag - Terracotta
+                  funktioniert auf BEIDEN Situationen. Inaktiv: text-text/55
+                  (mittleres Espresso, --color-text #3E2E22 bei 55% Deckkraft) -
+                  weder auf Tan- noch auf Cream-Hintergrund zu kontrastarm,
+                  bleibt aber klar gedaempfter als der aktive Terracotta-Ton. */}
               <Icon
                 size={22}
                 stroke={1.75}
-                className={`relative z-10 transition-colors duration-150 ${aktiv ? 'text-card' : 'text-card/55'}`}
+                className={`relative z-10 transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/55'}`}
               />
             </span>
             <span
               className={`relative font-sans transition-colors duration-150 ${
-                aktiv ? 'text-[10px] font-semibold text-card' : 'text-[9px] font-medium text-card/55'
+                aktiv ? 'text-[10px] font-semibold text-primary' : 'text-[9px] font-medium text-text/55'
               }`}
             >
               {label}
