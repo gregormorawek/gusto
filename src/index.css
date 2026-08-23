@@ -118,11 +118,30 @@ input[type='number'] {
    entsprechen exakt dem --color-card-Token (#FFFDF8) mit Transparenz, siehe
    Design-Vertrag in CLAUDE.md - keine neue Farbe, nur derselbe Ton
    halbtransparent. box-shadow bewusst warm-braun getoent (--color-text-Basis)
-   statt neutralem Schwarz, damit der Schatten zur Markenpalette passt. */
+   statt neutralem Schwarz, damit der Schatten zur Markenpalette passt.
+
+   DIAGNOSE (Polish-Runde, Blur/Transparenz zunaechst kaum sichtbar): kein
+   Rendering-Bug - backdrop-filter griff bereits, per getComputedStyle
+   bestaetigt. Der eigentliche Grund war schlicht der Alpha-Wert: der
+   Seitenhintergrund (--color-bg, #F7F1E6) und dieses Cream (#FFFDF8) liegen
+   farblich so nah beieinander, dass 0.75 Deckkraft praktisch nicht von
+   vollstaendig blickdicht zu unterscheiden war - der Blur selbst war also
+   die ganze Zeit da, nur ohne farblichen Kontrast unsichtbar. Alpha auf 0.5
+   gesenkt (deutlich mehr Durchscheinen, va. sichtbar sobald bunter/farbiger
+   Inhalt wie ein Rezeptbild dahinter liegt) und dafuer die Kontur (border)
+   angehoben, damit die Pille trotz mehr Transparenz weiterhin eine klare,
+   "gläserne" Kante behaelt. isolation:isolate + will-change: backdrop-filter
+   zwingen das Element auf eine eigene Compositor-Ebene - keine funktionale
+   Notwendigkeit hier (kein Bug behoben), aber haertet den Blur robust gegen
+   kuenftige CSS-Aenderungen an Elternelementen (z. B. ein spaeter
+   hinzugefuegtes transform/filter dort wuerde sonst denselben
+   Stacking-Context "kapern"). */
 .tab-leiste {
-  background: rgba(255, 253, 248, 0.75);
-  border: 0.5px solid rgba(255, 253, 248, 0.85);
-  box-shadow: 0 10px 30px rgba(62, 46, 34, 0.16);
-  backdrop-filter: blur(20px);
-  -webkit-backdrop-filter: blur(20px);
+  background: rgba(255, 253, 248, 0.5);
+  border: 1px solid rgba(255, 253, 248, 0.7);
+  box-shadow: 0 8px 32px rgba(62, 46, 34, 0.15);
+  backdrop-filter: blur(22px);
+  -webkit-backdrop-filter: blur(22px);
+  isolation: isolate;
+  will-change: backdrop-filter;
 }

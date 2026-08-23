@@ -1,5 +1,7 @@
 import { IconBook2, IconDice5, IconSettings, IconShoppingCart } from '@tabler/icons-react'
+import { motion, useReducedMotion } from 'framer-motion'
 import AnimatedButton from './AnimatedButton'
+import { EXPO_OUT } from '../motionConfig'
 
 // Die vier Tabs der schwebenden Bottom-Navigation, in Anzeige-Reihenfolge.
 // key entspricht bei 'haupt'/'rezepte'/'einkaufsliste' 1:1 dem bestehenden
@@ -23,7 +25,24 @@ const TABS = [
 // UNTER allen bestehenden fixed inset-0-Overlays (KochModus z-40/z-50,
 // Kalorienrechner z-40, EinstellungenPanel z-50), damit die Bar beim
 // Oeffnen eines dieser Overlays vollstaendig darunter verschwindet.
+// Dauer/Easing des Gleitens der aktiven Hervorhebungs-Pille zwischen zwei
+// Tabs (siehe layoutId weiter unten) - EXPO_OUT (siehe motionConfig.js) ist
+// dort eigentlich fuer den grossen Startbildschirm-Marken-Moment gedacht,
+// passt aber auch hier: schneller Start, sehr sanftes Abbremsen, genau das
+// "gleitende", native Anfuehlen nativer iOS-Tab-Bars statt eines linearen
+// Wischs.
+const TAB_PILLE_UEBERGANG = { duration: 0.28, ease: EXPO_OUT }
+
 function TabLeiste({ aktiverTab, onTabWaehlen }) {
+  // Reduzierte Bewegung: die Pille soll NICHT mehr gleiten, sondern direkt
+  // am neuen Tab erscheinen - framer-motions layoutId-Animation (siehe
+  // unten) wird dafuer per transition={{ duration: 0 }} auf "kein
+  // Uebergang" gestellt. Der Icon/Label-Farbwechsel bleibt in JEDEM Fall
+  // bestehen (reine CSS transition-colors, siehe Icon/Label unten) - das ist
+  // bewusst kein raeumlicher Bewegungseffekt, sondern nur eine Farbaenderung,
+  // und bleibt laut Aufgabenstellung auch unter reduzierter Bewegung erhalten.
+  const reduzierteBewegung = useReducedMotion()
+
   return (
     <nav
       className="tab-leiste fixed inset-x-3 z-30 flex h-[60px] items-stretch justify-around rounded-[22px]"
@@ -38,21 +57,34 @@ function TabLeiste({ aktiverTab, onTabWaehlen }) {
             type="button"
             onClick={() => onTabWaehlen(key)}
             aria-current={aktiv ? 'page' : undefined}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5"
+            className="relative flex flex-1 flex-col items-center justify-center gap-0.5"
           >
-            <span
-              className={
-                aktiv
-                  ? 'flex h-8 w-12 items-center justify-center rounded-full bg-primary/15'
-                  : 'flex h-8 w-12 items-center justify-center rounded-full'
-              }
-            >
-              <Icon size={22} stroke={1.75} className={aktiv ? 'text-primary' : 'text-text/40'} />
+            {aktiv && (
+              // layoutId: EIN gemeinsames, "geteiltes" Element ueber alle vier
+              // Tabs hinweg - obwohl es bei jedem Tab-Wechsel technisch ein
+              // NEUER motion.span ist (nur beim jeweils aktiven Tab
+              // gerendert), erkennt framer-motion anhand der gleichen
+              // layoutId, dass es sich um dieselbe "Identitaet" handelt, und
+              // animiert automatisch (FLIP) von der alten zur neuen
+              // Position/Groesse - deshalb keine manuelle Positions-
+              // Berechnung (z. B. ueber den Tab-Index) noetig.
+              <motion.span
+                layoutId="tab-aktive-pille"
+                className="absolute h-8 w-12 rounded-full bg-primary/15"
+                transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
+              />
+            )}
+            <span className="relative flex h-8 w-12 items-center justify-center rounded-full">
+              <Icon
+                size={22}
+                stroke={1.75}
+                className={`transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/40'}`}
+              />
             </span>
             <span
-              className={
-                aktiv ? 'font-sans text-[10px] font-semibold text-primary' : 'font-sans text-[9px] font-medium text-text/40'
-              }
+              className={`relative font-sans transition-colors duration-150 ${
+                aktiv ? 'text-[10px] font-semibold text-primary' : 'text-[9px] font-medium text-text/40'
+              }`}
             >
               {label}
             </span>
