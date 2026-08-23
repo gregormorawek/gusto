@@ -110,3 +110,19 @@ input[type='number']::-webkit-outer-spin-button {
 input[type='number'] {
   -moz-appearance: textfield;
 }
+
+/* Schwebende Bottom-Tab-Bar (TabLeiste.jsx) im "Liquid Glass"-Stil (warmes,
+   halbtransparentes Cream + Blur, angelehnt an iOS/Yazio) - eigene Klasse
+   statt Tailwind-Arbitrary-Values, weil mehrere Vendor-Praefixe + mehrteilige
+   rgba-Werte in Utility-Klassen-Syntax kaum lesbar waeren. Die rgba-Werte
+   entsprechen exakt dem --color-card-Token (#FFFDF8) mit Transparenz, siehe
+   Design-Vertrag in CLAUDE.md - keine neue Farbe, nur derselbe Ton
+   halbtransparent. box-shadow bewusst warm-braun getoent (--color-text-Basis)
+   statt neutralem Schwarz, damit der Schatten zur Markenpalette passt. */
+.tab-leiste {
+  background: rgba(255, 253, 248, 0.75);
+  border: 0.5px solid rgba(255, 253, 248, 0.85);
+  box-shadow: 0 10px 30px rgba(62, 46, 34, 0.16);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+}

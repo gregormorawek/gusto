@@ -26,7 +26,14 @@
          Statusleiste scrollen) und ein Visual-Viewport-Backstop
          (useTastaturAusgleich.js), der nur bei tatsaechlich verbleibender
          Ueberdeckung sanft nachkorrigiert. -->
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content" />
+    <!-- viewport-fit=cover: noetig, damit env(safe-area-inset-bottom) (siehe
+         TabLeiste.jsx/.tab-leiste) auf iPhones mit Home-Indicator ueberhaupt
+         einen von 0 verschiedenen Wert liefert - ohne dieses Flag bleiben
+         Safe-Area-Insets laut Spezifikation immer 0. -->
+    <meta
+      name="viewport"
+      content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content, viewport-fit=cover"
+    />
     <title>gusto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

@@ -11,6 +11,8 @@ import Startbildschirm from './components/Startbildschirm'
 import EinstellungenPanel from './components/EinstellungenPanel'
 import KochModus from './components/KochModus'
 import AnimatedButton from './components/AnimatedButton'
+import TabLeiste from './components/TabLeiste'
+import EinkaufslisteAnsicht from './components/EinkaufslisteAnsicht'
 import { MAHLZEITEN, standardMahlzeit, aktiveMahlzeitenFuer } from './mahlzeiten'
 import { supabase } from './supabase'
 import { useTastaturAusgleich } from './useTastaturAusgleich'
@@ -640,8 +642,26 @@ function App() {
   const naechsteAnsichtRef = useRef(null)
 
   // Ob das Einstellungen-Panel (Kalorienziel + Ernaehrungsform, ausserhalb
-  // des Onboardings ueber das Zahnrad-Icon erreichbar) gerade offen ist.
+  // des Onboardings ueber den Einstellungen-Tab der TabLeiste erreichbar)
+  // gerade offen ist.
   const [einstellungenOffen, setEinstellungenOffen] = useState(false)
+
+  // Welcher Tab in der TabLeiste (siehe TabLeiste.jsx) optisch als aktiv
+  // markiert wird. 'einstellungen' ist bewusst KEIN eigener ansicht-Wert -
+  // das Antippen des Einstellungen-Tabs oeffnet nur das bestehende
+  // EinstellungenPanel-Overlay OBEN DRAUF (wie zuvor das Zahnrad), waehrend
+  // ansicht unveraendert bleibt. Dadurch zeigt die App nach dem Schliessen
+  // automatisch wieder den vorher aktiven Tab, ganz ohne einen eigenen
+  // "letzter Tab"-Merker.
+  const aktiverTabLeiste = einstellungenOffen ? 'einstellungen' : ansicht
+
+  function tabWaehlen(tab) {
+    if (tab === 'einstellungen') {
+      setEinstellungenOffen(true)
+      return
+    }
+    setAnsicht(tab)
+  }
 
   // Kochmodus-Sheet (siehe KochModus.jsx) - bewusst HIER auf Top-Level statt
   // lokal in RezeptKarte.jsx, damit es als "fixed inset-0"-Backdrop wirklich
@@ -1647,43 +1667,11 @@ function App() {
             spart vertikalen Platz app-weit. Bleibt NUR im OnboardingWizard
             erhalten (dort unveraendert, siehe WizardTageskarte.jsx u. a.) - der
             Wizard ist der einzige Ort, an dem der Marken-Einstieg noch gezeigt
-            wird. Das Einstellungen-Zahnrad teilt sich jetzt die Zeile mit der
-            Planen/Rezepte-Tab-Leiste (oben rechts) statt einer eigenen Zeile,
-            damit es weiterhin auf jeder Hauptseite erreichbar bleibt. */}
-        <div className="mb-4 flex items-center justify-between px-4 pt-4">
-          <div className="flex gap-2">
-            <AnimatedButton
-              type="button"
-              onClick={() => setAnsicht('haupt')}
-              className={
-                ansicht === 'haupt'
-                  ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
-                  : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
-              }
-            >
-              Planen
-            </AnimatedButton>
-            <AnimatedButton
-              type="button"
-              onClick={() => setAnsicht('rezepte')}
-              className={
-                ansicht === 'rezepte'
-                  ? 'rounded-full border border-primary bg-primary px-3 py-1 text-sm font-medium text-card transition-colors duration-200'
-                  : 'rounded-full border border-primary/30 bg-transparent px-3 py-1 text-sm font-medium text-primary transition-colors duration-200 hover:bg-primary/10'
-              }
-            >
-              Rezepte
-            </AnimatedButton>
-          </div>
-          <AnimatedButton
-            type="button"
-            onClick={() => setEinstellungenOffen(true)}
-            aria-label="Einstellungen öffnen"
-            className="text-2xl text-text-muted hover:text-primary"
-          >
-            ⚙
-          </AnimatedButton>
-        </div>
+            wird. Die frueher hier oben sitzende Planen/Rezepte-Tab-Leiste +
+            Einstellungen-Zahnrad ist durch die schwebende TabLeiste (siehe
+            TabLeiste.jsx) am unteren Rand ersetzt - siehe aktiverTabLeiste/
+            tabWaehlen weiter oben fuer die Anbindung. */}
+        <TabLeiste aktiverTab={aktiverTabLeiste} onTabWaehlen={tabWaehlen} />
 
         <EinstellungenPanel
           offen={einstellungenOffen}
@@ -1707,6 +1695,14 @@ function App() {
           onSchrittUmschalten={kochSchrittUmschalten}
         />
 
+        {/* pb-[...]: Platz fuer die schwebende TabLeiste (60px Hoehe + 12px
+            Bodenabstand + Safe-Area, siehe .tab-leiste in index.css), damit
+            sie den untersten Inhalt nicht dauerhaft ueberlagert. Nur um
+            diesen Content-Block herum (nicht um EinstellungenPanel/
+            KochModus oben) - die sind fixed inset-0-Overlays und decken den
+            Viewport ohnehin komplett ab, brauchen also kein eigenes
+            Bottom-Padding. */}
+        <div className="pb-[calc(96px_+_env(safe-area-inset-bottom))] pt-4">
         {ansicht === 'rezepte' ? (
           <RezepteAnsicht
             rezepteGeladen={!laedt}
@@ -1731,6 +1727,8 @@ function App() {
             onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
             onKochModusOeffnen={kochModusOeffnen}
           />
+        ) : ansicht === 'einkaufsliste' ? (
+          <EinkaufslisteAnsicht />
         ) : ziel.typ === 'proTag' ? (
           tagesplan ? (
             <TagesplanAnsicht
@@ -1834,6 +1832,7 @@ function App() {
             </AnimatedButton>
           </>
         )}
+        </div>
       </>
     )
   })()
