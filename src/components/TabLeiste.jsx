@@ -57,65 +57,53 @@ function TabLeiste({ aktiverTab, onTabWaehlen }) {
             type="button"
             onClick={() => onTabWaehlen(key)}
             aria-current={aktiv ? 'page' : undefined}
-            className="flex flex-1 flex-col items-center justify-center gap-0.5"
+            className="relative flex flex-1 flex-col items-center justify-center gap-0.5"
           >
-            {/* Die Hervorhebungs-Pille sitzt ABSICHTLICH INNERHALB dieses
-                h-8 w-12-Icon-Wrappers (inset-0, relativ zu DESSEN eigener
-                Box) statt als Geschwister auf Button-Ebene: eine Pille auf
-                Button-Ebene positioniert sich (ohne eigene top/left-Werte)
-                per CSS "static position" an der Stelle, an der sie OHNE
-                position:absolute im Flex-Fluss gelandet waere - bei einem
-                mehrzeiligen Button (Icon + Label darunter) ist das die
-                Mitte des GESAMTEN Inhalts (Icon+Gap+Label), NICHT die Mitte
-                des Icons allein. Ergebnis: das Icon sass sichtbar zu hoch
-                in der Pille (per getBoundingClientRect nachgewiesen: Pille
-                zentriert auf Button-Mitte, Icon ca. 8-9px hoeher). inset-0
-                relativ zu DIESEM Wrapper garantiert exakte Deckungsgleichheit
-                mit der Icon-Box, unabhaengig von der (je nach aktiv/inaktiv
-                unterschiedlich hohen) Label-Zeile darunter. */}
-            <span className="relative flex h-8 w-12 items-center justify-center rounded-full">
-              {aktiv && (
-                // layoutId: EIN gemeinsames, "geteiltes" Element ueber alle
-                // vier Tabs hinweg - obwohl es bei jedem Tab-Wechsel
-                // technisch ein NEUER motion.span ist (nur beim jeweils
-                // aktiven Tab gerendert), erkennt framer-motion anhand der
-                // gleichen layoutId, dass es sich um dieselbe "Identitaet"
-                // handelt, und animiert automatisch (FLIP) von der alten zur
-                // neuen Position/Groesse - deshalb keine manuelle Positions-
-                // Berechnung (z. B. ueber den Tab-Index) noetig.
-                // Dezenter Cream-Aufheller (bg-card bei nur 20% Deckkraft) -
-                // reines Cream/Weiss war zwar auf dem Tan-Pillen-Hintergrund
-                // gut sichtbar, verschwand aber selbst als Icon/Label-Farbe
-                // auf hellem Cream-App-Hintergrund (siehe naechster
-                // Kommentar) - die Pille bleibt deshalb bewusst nur ein
-                // dezenter Aufheller HINTER dem Icon, nicht die Haupt-
-                // Kontrastquelle des aktiven Zustands.
-                <motion.span
-                  layoutId="tab-aktive-pille"
-                  className="absolute inset-0 rounded-full bg-card/20"
-                  transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
-                />
-              )}
-              {/* relative z-10: garantiert, dass das Icon-Glyph ÜBER der
-                  (ebenfalls positionierten) Pille gemalt wird, unabhaengig
-                  von CSS-Male-Reihenfolge-Feinheiten zwischen position:
-                  absolute- und position:relative-Geschwistern.
-                  Aktiv: Terracotta (text-primary) statt reinem Cream/Weiss -
-                  Cream/Weiss sah auf dem dunkleren Tan-Pillen-Hintergrund gut
-                  aus, verschwand aber, sobald die Bar (bzw. ihr durchscheinender
-                  Hintergrund) ueber hellem Cream-App-Content lag - Terracotta
-                  funktioniert auf BEIDEN Situationen. Inaktiv: text-text/55
-                  (mittleres Espresso, --color-text #3E2E22 bei 55% Deckkraft) -
-                  weder auf Tan- noch auf Cream-Hintergrund zu kontrastarm,
-                  bleibt aber klar gedaempfter als der aktive Terracotta-Ton. */}
-              <Icon
-                size={22}
-                stroke={1.75}
-                className={`relative z-10 transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/55'}`}
+            {aktiv && (
+              // layoutId: EIN gemeinsames, "geteiltes" Element ueber alle
+              // vier Tabs hinweg - obwohl es bei jedem Tab-Wechsel technisch
+              // ein NEUER motion.span ist (nur beim jeweils aktiven Tab
+              // gerendert), erkennt framer-motion anhand der gleichen
+              // layoutId, dass es sich um dieselbe "Identitaet" handelt, und
+              // animiert automatisch (FLIP) von der alten zur neuen Position/
+              // Groesse - deshalb keine manuelle Positions-Berechnung noetig.
+              //
+              // WICHTIG: inset-0 ist hier bewusst relativ zum GESAMTEN Button
+              // (Icon+Gap+Label), nicht mehr nur zum Icon-Wrapper (fruehere
+              // Fassung) - Grund: auf farbigem Inhalt hinter der Bar (z. B.
+              // ein terracotta-farbener Button, siehe Bugreport) war zwar das
+              // Icon (innerhalb seines eigenen kleinen Pillen-Ovals) noch
+              // lesbar, das LABEL darunter sass aber komplett AUSSERHALB
+              // jeder Aufhellung direkt auf dem durchscheinenden Bar-
+              // Hintergrund und verschmolz dort mit terracotta-farbenem
+              // Inhalt (Terracotta-Text auf terracotta-durchscheinendem
+              // Grund). inset-0 auf Button-Ebene (mit explizitem inset-0
+              // statt der fruehmals fehlerhaften "static position" ohne
+              // top/left) deckt Icon UND Label gemeinsam ab, ohne die
+              // Zentrierungs-Regression von damals zu wiederholen.
+              <motion.span
+                layoutId="tab-aktive-pille"
+                className="absolute inset-0 rounded-2xl bg-card/38"
+                transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
               />
+            )}
+            {/* relative z-10: garantiert, dass Icon+Label ÜBER der
+                (ebenfalls positionierten) Pille gemalt werden, unabhaengig
+                von CSS-Male-Reihenfolge-Feinheiten zwischen position:
+                absolute- und position:relative-Geschwistern.
+                Aktiv: Terracotta (text-primary) - funktioniert zuverlaessig
+                auf der jetzt kraeftigeren Cream-Pille (38% statt 20%
+                Deckkraft), UNABHAENGIG davon, welche Farbe hinter der
+                durchscheinenden Bar selbst liegt (Cream/Tan/Oliv/Terracotta) -
+                die Pille sitzt ja jetzt IMMER dahinter. Inaktiv: text-text/55
+                (mittleres Espresso) - weder auf Tan- noch auf Cream-
+                Hintergrund zu kontrastarm, bleibt aber klar gedaempfter als
+                der aktive Terracotta-Ton. */}
+            <span className="relative z-10 flex h-8 w-12 items-center justify-center rounded-full">
+              <Icon size={22} stroke={1.75} className={`transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/55'}`} />
             </span>
             <span
-              className={`relative font-sans transition-colors duration-150 ${
+              className={`relative z-10 font-sans transition-colors duration-150 ${
                 aktiv ? 'text-[10px] font-semibold text-primary' : 'text-[9px] font-medium text-text/55'
               }`}
             >
