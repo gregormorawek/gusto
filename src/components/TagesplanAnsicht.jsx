@@ -1,4 +1,5 @@
 import { useEffect, useRef, useState } from 'react'
+import { IconShoppingCart } from '@tabler/icons-react'
 import TagesplanZutatZeile from './TagesplanZutatZeile'
 import TagesplanSucheOverlay from './TagesplanSucheOverlay'
 import AnimatedButton from './AnimatedButton'
@@ -54,6 +55,7 @@ function TagesplanAnsicht({
   suessDeftig,
   onMahlzeitenAnpassen,
   onNeuPlanen,
+  onZurEinkaufslisteHinzufuegen,
 }) {
   // Die Tagesuebersicht ist KEIN eigener State, sondern wird bei jedem
   // Rendern frisch aus den vier Mahlzeit-Eintraegen summiert.
@@ -211,6 +213,22 @@ function TagesplanAnsicht({
           </div>
         </div>
       ))}
+
+      {/* "Unter dem Tagesplan" (siehe Aufgabenstellung), volle Breite,
+          zurueckhaltender Outline-Stil (Oliv statt Terracotta) - dieselbe
+          Gewichtung wie der "Zur Einkaufsliste"-Button in RezeptKarte.jsx,
+          damit sich die Aktion app-weit gleich anfuehlt, egal ueber welchen
+          Tab man Zutaten sammelt. */}
+      <div className="mx-4 mb-4 mt-3">
+        <AnimatedButton
+          type="button"
+          onClick={() => onZurEinkaufslisteHinzufuegen(tagesplan)}
+          className="flex w-full items-center justify-center gap-2 rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-secondary"
+        >
+          <IconShoppingCart size={18} stroke={1.75} />
+          Tagesplan zur Einkaufsliste hinzufügen
+        </AnimatedButton>
+      </div>
 
       <TagesplanSucheOverlay slot={overlaySlotDaten()} onWaehlen={zutatImOverlayWaehlen} onSchliessen={() => setSucheSlot(null)} />
     </>

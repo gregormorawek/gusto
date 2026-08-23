@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { IconChefHat, IconPhotoOff } from '@tabler/icons-react'
+import { IconChefHat, IconPhotoOff, IconShoppingCart } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import DampfSchwaden from './DampfSchwaden'
 import SlotKarte from './SlotKarte'
@@ -133,6 +133,7 @@ function RezeptKarte({
   wuerfelnDeaktiviert,
   zusatzAktion,
   onKochModusOeffnen,
+  onZurEinkaufslisteHinzufuegen,
 }) {
   const reduzierteBewegung = useReducedMotion()
   // Merkt sich die zuletzt FEHLGESCHLAGENE bild_url (statt eines simplen
@@ -304,6 +305,27 @@ function RezeptKarte({
               </AnimatedButton>
             </div>
           )}
+
+          {/* "Zur Einkaufsliste": IMMER sichtbar (anders als "Jetzt kochen"
+              oben, das eine Kochanleitung voraussetzt) - Zutaten einkaufen
+              ist unabhaengig davon, ob es eine Schritt-fuer-Schritt-Anleitung
+              gibt. Bewusst zurueckhaltender als "Jetzt kochen" (Outline statt
+              Vollflaeche, Oliv statt Terracotta) - "Jetzt kochen" bleibt der
+              primaere naechste Schritt, dieser Button ein sekundaeres
+              Angebot. onZurEinkaufslisteHinzufuegen bekommt die bereits HIER
+              berechnete karte (siehe rezeptKarteBerechnen oben) - dieselben
+              4 Zutaten + Portionen, die auch in den SlotKarte-Kacheln
+              darueber angezeigt werden. */}
+          <div className="mx-4 mt-2">
+            <AnimatedButton
+              type="button"
+              onClick={() => onZurEinkaufslisteHinzufuegen(karte)}
+              className="flex w-full items-center justify-center gap-2 rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-secondary"
+            >
+              <IconShoppingCart size={18} stroke={1.75} />
+              Zur Einkaufsliste
+            </AnimatedButton>
+          </div>
         </>
       ) : (
         <p className="mx-4 mt-2 text-text-muted">Für diese Filterkombination gibt es noch kein Rezept.</p>

@@ -13,6 +13,16 @@ import KochModus from './components/KochModus'
 import AnimatedButton from './components/AnimatedButton'
 import TabLeiste from './components/TabLeiste'
 import EinkaufslisteAnsicht from './components/EinkaufslisteAnsicht'
+import Toast from './components/Toast'
+import {
+  einkaufslisteLaden,
+  EINKAUFSLISTE_LOCALSTORAGE_KEY,
+  zutatenHinzufuegen,
+  postenAbhaken,
+  abgehakteEntfernen,
+  zutatenAusRezeptKarte,
+  zutatenAusTagesplan,
+} from './einkaufsliste'
 import { MAHLZEITEN, standardMahlzeit, aktiveMahlzeitenFuer } from './mahlzeiten'
 import { supabase } from './supabase'
 import { useTastaturAusgleich } from './useTastaturAusgleich'
@@ -713,6 +723,62 @@ function App() {
       }
       return naechste
     })
+  }
+
+  // Einkaufsliste (siehe einkaufsliste.js fuer das Datenmodell/die reine
+  // Merge-Logik) - App-weiter State analog zu ziel/diaeten/makroZiele oben:
+  // lazy initializer laedt den zuletzt gespeicherten Stand aus dem
+  // localStorage, ein Effekt schreibt jede Aenderung sofort zurueck.
+  const [einkaufsliste, setEinkaufsliste] = useState(einkaufslisteLaden)
+
+  useEffect(() => {
+    localStorage.setItem(EINKAUFSLISTE_LOCALSTORAGE_KEY, JSON.stringify(einkaufsliste))
+  }, [einkaufsliste])
+
+  // Kurze, selbst verschwindende Bestaetigung (siehe Toast.jsx) fuer die
+  // beiden "zur Einkaufsliste hinzufuegen"-Einstiegspunkte (Rezepte-Tab,
+  // Tagesplan) - { text, id } statt nur text, damit eine zweite, IDENTISCHE
+  // Bestaetigung kurz hintereinander (z. B. zweimal "Zutaten hinzugefügt")
+  // trotzdem sichtbar neu einblendet, siehe Toast.jsx-Kommentar zum key.
+  const [toast, setToast] = useState(null)
+  const toastTimeoutRef = useRef(null)
+
+  // Raeumt einen noch laufenden Toast-Timer auf, wenn die Komponente
+  // (theoretisch) unmountet wird - reines Aufraeumen, verhindert ein
+  // setState nach Unmount, praktisch relevant vor allem bei Hot-Reload
+  // waehrend der Entwicklung.
+  useEffect(() => () => clearTimeout(toastTimeoutRef.current), [])
+
+  function toastZeigen(text) {
+    clearTimeout(toastTimeoutRef.current)
+    setToast({ text, id: Date.now() })
+    toastTimeoutRef.current = setTimeout(() => setToast(null), 2000)
+  }
+
+  // Von RezeptKarte.jsx aufgerufen ("Zur Einkaufsliste"-Button) - bekommt
+  // die dort bereits berechnete karte (4 Zutaten + tatsaechliche Portionen).
+  function rezeptZurEinkaufslisteHinzufuegen(karte) {
+    setEinkaufsliste((aktuell) => zutatenHinzufuegen(aktuell, zutatenAusRezeptKarte(karte)))
+    toastZeigen('Zutaten hinzugefügt')
+  }
+
+  // Von TagesplanAnsicht.jsx aufgerufen ("Tagesplan zur Einkaufsliste
+  // hinzufuegen") - bekommt den kompletten Tagesplan (alle Mahlzeiten).
+  function tagesplanZurEinkaufslisteHinzufuegen(tagesplanWert) {
+    setEinkaufsliste((aktuell) => zutatenHinzufuegen(aktuell, zutatenAusTagesplan(tagesplanWert)))
+    toastZeigen('Zutaten hinzugefügt')
+  }
+
+  function einkaufslistePostenAbhaken(schluessel) {
+    setEinkaufsliste((aktuell) => postenAbhaken(aktuell, schluessel))
+  }
+
+  function einkaufslisteAbgehakteEntfernen() {
+    setEinkaufsliste((aktuell) => abgehakteEntfernen(aktuell))
+  }
+
+  function einkaufslisteLeeren() {
+    setEinkaufsliste([])
   }
 
   // Wird vom Wizard aufgerufen, wenn der User auf Schritt 4 (Abschluss-
@@ -1673,6 +1739,8 @@ function App() {
             tabWaehlen weiter oben fuer die Anbindung. */}
         <TabLeiste aktiverTab={aktiverTabLeiste} onTabWaehlen={tabWaehlen} />
 
+        <Toast nachricht={toast} />
+
         <EinstellungenPanel
           offen={einstellungenOffen}
           onSchliessen={() => setEinstellungenOffen(false)}
@@ -1726,9 +1794,15 @@ function App() {
             onGanzenTagNeuPlanen={rezepteGanzenTagNeuPlanen}
             onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
             onKochModusOeffnen={kochModusOeffnen}
+            onZurEinkaufslisteHinzufuegen={rezeptZurEinkaufslisteHinzufuegen}
           />
         ) : ansicht === 'einkaufsliste' ? (
-          <EinkaufslisteAnsicht />
+          <EinkaufslisteAnsicht
+            liste={einkaufsliste}
+            onPostenAbhaken={einkaufslistePostenAbhaken}
+            onAbgehakteEntfernen={einkaufslisteAbgehakteEntfernen}
+            onListeLeeren={einkaufslisteLeeren}
+          />
         ) : ziel.typ === 'proTag' ? (
           tagesplan ? (
             <TagesplanAnsicht
@@ -1745,6 +1819,7 @@ function App() {
               suessDeftig={suessDeftig}
               onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
               onNeuPlanen={tagPlanen}
+              onZurEinkaufslisteHinzufuegen={tagesplanZurEinkaufslisteHinzufuegen}
             />
           ) : (
             // Kurzes Fenster zwischen "Pro Tag aktiv" und "Plan fertig

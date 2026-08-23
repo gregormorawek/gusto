@@ -55,6 +55,7 @@ function RezepteAnsicht({
   onGanzenTagNeuPlanen,
   onMahlzeitenAnpassen,
   onKochModusOeffnen,
+  onZurEinkaufslisteHinzufuegen,
 }) {
   if (ziel.typ === 'proTag') {
     return (
@@ -74,6 +75,7 @@ function RezepteAnsicht({
         onGanzenTagNeuPlanen={onGanzenTagNeuPlanen}
         onMahlzeitenAnpassen={onMahlzeitenAnpassen}
         onKochModusOeffnen={onKochModusOeffnen}
+        onZurEinkaufslisteHinzufuegen={onZurEinkaufslisteHinzufuegen}
       />
     )
   }
@@ -93,6 +95,7 @@ function RezepteAnsicht({
       aktuellesRezept={aktuellesRezept}
       onWuerfeln={onWuerfeln}
       onKochModusOeffnen={onKochModusOeffnen}
+      onZurEinkaufslisteHinzufuegen={onZurEinkaufslisteHinzufuegen}
     />
   )
 }
@@ -111,6 +114,7 @@ function RezepteEinzelansicht({
   aktuellesRezept,
   onWuerfeln,
   onKochModusOeffnen,
+  onZurEinkaufslisteHinzufuegen,
 }) {
   const pool = gefiltertePoolFuerRezepte(rezepte, mahlzeit, diaeten, eigenschaft)
 
@@ -131,6 +135,7 @@ function RezepteEinzelansicht({
         onWuerfeln={onWuerfeln}
         wuerfelnDeaktiviert={pool.length === 0}
         onKochModusOeffnen={onKochModusOeffnen}
+        onZurEinkaufslisteHinzufuegen={onZurEinkaufslisteHinzufuegen}
       />
     </>
   )
@@ -158,6 +163,7 @@ function RezepteTagesplan({
   onGanzenTagNeuPlanen,
   onMahlzeitenAnpassen,
   onKochModusOeffnen,
+  onZurEinkaufslisteHinzufuegen,
 }) {
   const aktiveMahlzeitenListe = aktiveMahlzeitenFuer(tagesplanMahlzeiten)
 
@@ -222,6 +228,7 @@ function RezepteTagesplan({
         onWuerfeln={onWuerfeln}
         wuerfelnDeaktiviert={aktuellerPool.length === 0}
         onKochModusOeffnen={onKochModusOeffnen}
+        onZurEinkaufslisteHinzufuegen={onZurEinkaufslisteHinzufuegen}
         zusatzAktion={
           <AnimatedButton
             type="button"
