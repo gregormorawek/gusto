@@ -85,7 +85,7 @@ function TabLeiste({ aktiverTab, onTabWaehlen }) {
                 // Berechnung (z. B. ueber den Tab-Index) noetig.
                 <motion.span
                   layoutId="tab-aktive-pille"
-                  className="absolute inset-0 rounded-full bg-primary/15"
+                  className="absolute inset-0 rounded-full bg-primary/[0.22]"
                   transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
                 />
               )}

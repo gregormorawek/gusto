@@ -142,13 +142,25 @@ input[type='number'] {
    blickdicht/zu stark verwischt. Alpha weiter auf 0.45 gesenkt (Bereich
    0.42-0.48) und Blur auf 7px reduziert (Bereich 6-8px) - Farben/grobe
    Formen dahinter kommen jetzt deutlich staerker durch, waehrend Text
-   weiterhin unlesbar bleibt. */
+   weiterhin unlesbar bleibt.
+
+   KALIBRIERUNG (4. Polish-Runde): der Grundton war weiterhin das Problem,
+   nicht (nur) Alpha/Blur - ein fast-weisses Cream auf dem hellen
+   Cream-App-Hintergrund (--color-bg, #F7F1E6) liefert praktisch KEINEN
+   Farbkontrast, egal wie transparent/verwischt. Grundton daher von Cream
+   (--color-card) auf Tan (--color-text-muted, #8A6B4A) umgestellt - dieser
+   Ton hebt sich vom hellen App-Hintergrund tatsaechlich ab, bleibt aber ein
+   bestehendes Marken-Token (keine neue Farbe). Zusaetzlich ein innerer
+   Lichtschein (inset box-shadow oben, simuliert eine glaenzende
+   Glas-Oberkante) fuer mehr wahrgenommene Tiefe. */
 .tab-leiste {
-  background: rgba(255, 253, 248, 0.45);
-  border: 1px solid rgba(255, 253, 248, 0.7);
-  box-shadow: 0 8px 32px rgba(62, 46, 34, 0.15);
-  backdrop-filter: blur(7px);
-  -webkit-backdrop-filter: blur(7px);
+  background: rgba(138, 107, 74, 0.28);
+  border: 0.5px solid rgba(255, 253, 248, 0.4);
+  box-shadow:
+    inset 0 0.5px 0 rgba(255, 253, 248, 0.35),
+    0 4px 20px rgba(62, 46, 34, 0.18);
+  backdrop-filter: blur(14px);
+  -webkit-backdrop-filter: blur(14px);
   isolation: isolate;
   will-change: backdrop-filter;
 }
