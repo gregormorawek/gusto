@@ -57,28 +57,46 @@ function TabLeiste({ aktiverTab, onTabWaehlen }) {
             type="button"
             onClick={() => onTabWaehlen(key)}
             aria-current={aktiv ? 'page' : undefined}
-            className="relative flex flex-1 flex-col items-center justify-center gap-0.5"
+            className="flex flex-1 flex-col items-center justify-center gap-0.5"
           >
-            {aktiv && (
-              // layoutId: EIN gemeinsames, "geteiltes" Element ueber alle vier
-              // Tabs hinweg - obwohl es bei jedem Tab-Wechsel technisch ein
-              // NEUER motion.span ist (nur beim jeweils aktiven Tab
-              // gerendert), erkennt framer-motion anhand der gleichen
-              // layoutId, dass es sich um dieselbe "Identitaet" handelt, und
-              // animiert automatisch (FLIP) von der alten zur neuen
-              // Position/Groesse - deshalb keine manuelle Positions-
-              // Berechnung (z. B. ueber den Tab-Index) noetig.
-              <motion.span
-                layoutId="tab-aktive-pille"
-                className="absolute h-8 w-12 rounded-full bg-primary/15"
-                transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
-              />
-            )}
+            {/* Die Hervorhebungs-Pille sitzt ABSICHTLICH INNERHALB dieses
+                h-8 w-12-Icon-Wrappers (inset-0, relativ zu DESSEN eigener
+                Box) statt als Geschwister auf Button-Ebene: eine Pille auf
+                Button-Ebene positioniert sich (ohne eigene top/left-Werte)
+                per CSS "static position" an der Stelle, an der sie OHNE
+                position:absolute im Flex-Fluss gelandet waere - bei einem
+                mehrzeiligen Button (Icon + Label darunter) ist das die
+                Mitte des GESAMTEN Inhalts (Icon+Gap+Label), NICHT die Mitte
+                des Icons allein. Ergebnis: das Icon sass sichtbar zu hoch
+                in der Pille (per getBoundingClientRect nachgewiesen: Pille
+                zentriert auf Button-Mitte, Icon ca. 8-9px hoeher). inset-0
+                relativ zu DIESEM Wrapper garantiert exakte Deckungsgleichheit
+                mit der Icon-Box, unabhaengig von der (je nach aktiv/inaktiv
+                unterschiedlich hohen) Label-Zeile darunter. */}
             <span className="relative flex h-8 w-12 items-center justify-center rounded-full">
+              {aktiv && (
+                // layoutId: EIN gemeinsames, "geteiltes" Element ueber alle
+                // vier Tabs hinweg - obwohl es bei jedem Tab-Wechsel
+                // technisch ein NEUER motion.span ist (nur beim jeweils
+                // aktiven Tab gerendert), erkennt framer-motion anhand der
+                // gleichen layoutId, dass es sich um dieselbe "Identitaet"
+                // handelt, und animiert automatisch (FLIP) von der alten zur
+                // neuen Position/Groesse - deshalb keine manuelle Positions-
+                // Berechnung (z. B. ueber den Tab-Index) noetig.
+                <motion.span
+                  layoutId="tab-aktive-pille"
+                  className="absolute inset-0 rounded-full bg-primary/15"
+                  transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
+                />
+              )}
+              {/* relative z-10: garantiert, dass das Icon-Glyph ÜBER der
+                  (ebenfalls positionierten) Pille gemalt wird, unabhaengig
+                  von CSS-Male-Reihenfolge-Feinheiten zwischen position:
+                  absolute- und position:relative-Geschwistern. */}
               <Icon
                 size={22}
                 stroke={1.75}
-                className={`transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/40'}`}
+                className={`relative z-10 transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/40'}`}
               />
             </span>
             <span

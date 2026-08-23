@@ -120,28 +120,31 @@ input[type='number'] {
    halbtransparent. box-shadow bewusst warm-braun getoent (--color-text-Basis)
    statt neutralem Schwarz, damit der Schatten zur Markenpalette passt.
 
-   DIAGNOSE (Polish-Runde, Blur/Transparenz zunaechst kaum sichtbar): kein
+   DIAGNOSE (1. Polish-Runde, Blur/Transparenz zunaechst kaum sichtbar): kein
    Rendering-Bug - backdrop-filter griff bereits, per getComputedStyle
    bestaetigt. Der eigentliche Grund war schlicht der Alpha-Wert: der
    Seitenhintergrund (--color-bg, #F7F1E6) und dieses Cream (#FFFDF8) liegen
    farblich so nah beieinander, dass 0.75 Deckkraft praktisch nicht von
-   vollstaendig blickdicht zu unterscheiden war - der Blur selbst war also
-   die ganze Zeit da, nur ohne farblichen Kontrast unsichtbar. Alpha auf 0.5
-   gesenkt (deutlich mehr Durchscheinen, va. sichtbar sobald bunter/farbiger
-   Inhalt wie ein Rezeptbild dahinter liegt) und dafuer die Kontur (border)
-   angehoben, damit die Pille trotz mehr Transparenz weiterhin eine klare,
-   "gläserne" Kante behaelt. isolation:isolate + will-change: backdrop-filter
-   zwingen das Element auf eine eigene Compositor-Ebene - keine funktionale
-   Notwendigkeit hier (kein Bug behoben), aber haertet den Blur robust gegen
-   kuenftige CSS-Aenderungen an Elternelementen (z. B. ein spaeter
-   hinzugefuegtes transform/filter dort wuerde sonst denselben
-   Stacking-Context "kapern"). */
+   vollstaendig blickdicht zu unterscheiden war. isolation:isolate +
+   will-change: backdrop-filter zwingen das Element auf eine eigene
+   Compositor-Ebene - keine funktionale Notwendigkeit (kein Bug behoben),
+   haertet den Blur aber robust gegen kuenftige CSS-Aenderungen an
+   Elternelementen (z. B. ein spaeter hinzugefuegtes transform/filter dort
+   wuerde sonst denselben Stacking-Context "kapern").
+
+   KALIBRIERUNG (2. Polish-Runde): die 1. Runde hat in die andere Richtung
+   uebersteuert - Alpha 0.5 + blur(22px) liess dahinterliegenden Inhalt
+   komplett unkenntlich verschwimmen statt nur "als Form/Farbe erkennbar,
+   aber nicht lesbar" (Liquid-Glass-Ziel). Alpha auf 0.6 angehoben (Bereich
+   0.58-0.65) und Blur auf 13px reduziert (Bereich 12-14px) - deutlich
+   dezenterer Weichzeichner, der Formen/Farben durchscheinen laesst statt
+   sie zu verschlucken. */
 .tab-leiste {
-  background: rgba(255, 253, 248, 0.5);
+  background: rgba(255, 253, 248, 0.6);
   border: 1px solid rgba(255, 253, 248, 0.7);
   box-shadow: 0 8px 32px rgba(62, 46, 34, 0.15);
-  backdrop-filter: blur(22px);
-  -webkit-backdrop-filter: blur(22px);
+  backdrop-filter: blur(13px);
+  -webkit-backdrop-filter: blur(13px);
   isolation: isolate;
   will-change: backdrop-filter;
 }
