@@ -61,6 +61,21 @@ function SektionTitel({ children }) {
 // Terracotta-bei-aktiv-Sprache wie AuswahlChip, aber als echter Schalter
 // statt als Chip (hier gibt es nur EINE binaere Einstellung, keine Auswahl
 // aus mehreren Optionen).
+//
+// GEFUNDENE URSACHE eines Bugs, bei dem der Knob im AUS-Zustand bereits
+// rechts sass (und im AN-Zustand noch weiter nach rechts aus dem Toggle
+// herausrutschte): der Knob hatte bewusst nur "top-0.5", aber KEIN
+// explizites "left" - ohne links UND rechts gesetzten Wert loeste der
+// Browser die statische Position hier auf "rechtsbuendig" auf (per Messung
+// bestaetigt: computed left=24px auf einem 48px breiten Track = Knob schon
+// im Ruhezustand am rechten Rand), die translate-x-Werte kamen dann
+// zusaetzlich ON TOP dieser bereits-rechts-Position drauf. "left-0.5" fixiert
+// jetzt explizit den linken Basis-Zustand (2px Innenabstand), translate-x
+// bewegt den Knob von DORT aus - AUS keine Verschiebung, AN um 20px nach
+// rechts (48px Track - 24px Knob - 2*2px Innenabstand = 20px Restweg,
+// exakt translate-x-5). overflow-hidden auf dem Track verhindert zusaetzlich,
+// dass der Knob (z. B. bei extremen Schriftgroessen-Skalierungen) je ueber
+// den Rand hinausrutschen kann.
 function ToggleZeile({ label, beschreibung, aktiv, onClick }) {
   return (
     <div className="flex items-center justify-between gap-3">
@@ -74,13 +89,13 @@ function ToggleZeile({ label, beschreibung, aktiv, onClick }) {
         aria-checked={aktiv}
         aria-label={label}
         onClick={onClick}
-        className={`relative h-7 w-12 shrink-0 rounded-full transition-colors duration-150 motion-reduce:transition-none ${
+        className={`relative h-7 w-12 shrink-0 overflow-hidden rounded-full transition-colors duration-150 motion-reduce:transition-none ${
           aktiv ? 'bg-primary' : 'bg-text-muted/20'
         }`}
       >
         <span
-          className={`absolute top-0.5 h-6 w-6 rounded-full bg-card shadow-sm transition-transform duration-150 motion-reduce:transition-none ${
-            aktiv ? 'translate-x-5' : 'translate-x-0.5'
+          className={`absolute left-0.5 top-0.5 h-6 w-6 rounded-full bg-card shadow-sm transition-transform duration-150 motion-reduce:transition-none ${
+            aktiv ? 'translate-x-5' : 'translate-x-0'
           }`}
         />
       </AnimatedButton>
