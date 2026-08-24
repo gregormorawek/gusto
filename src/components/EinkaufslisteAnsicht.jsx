@@ -5,17 +5,18 @@ import AnimatedButton from './AnimatedButton'
 import { postenSchluessel } from '../einkaufsliste'
 import { FADE_UEBERGANG, SPRING_REVEAL, motionPropsFuer, transitionFuer } from '../motionConfig'
 
-// Anzeige-Reihenfolge/-Label der 4 Abschnitte. Zutaten mit kategorie==='obst'
-// werden fuer die ANZEIGE dem Gemuese-Abschnitt zugeschlagen (derselbe "4.
-// Slot", der app-weit je nach Zutat als "Obst" oder "Gemüse" beschriftet
-// wird, siehe SlotKarte/TagesplanAnsicht) - rein eine Anzeige-Gruppierung,
-// das im Posten gespeicherte kategorie-Feld selbst bleibt UNVERAENDERT
-// 'obst' (siehe einkaufsliste.js-Kommentar zum geplanten Kategorie-Upgrade).
-const ABSCHNITT_REIHENFOLGE = ['protein', 'carbs', 'fett', 'gemuese']
-const ABSCHNITT_LABEL = { protein: 'Protein', carbs: 'Kohlenhydrate', fett: 'Fett', gemuese: 'Gemüse' }
-
-function anzeigeAbschnittFuer(kategorie) {
-  return kategorie === 'obst' ? 'gemuese' : kategorie
+// Anzeige-Reihenfolge/-Label der 5 supermarkt-orientierten Abschnitte (siehe
+// CLAUDE.md-Erledigt-Vermerk zum Kategorie-Upgrade). Basiert auf
+// posten.supermarktKategorie (1:1 aus Supabase-Spalte supermarkt_kategorie
+// der Zutat, siehe einkaufsliste.js) statt auf dem Naehrwert-kategorie-Feld,
+// das im Posten selbst unangetastet bleibt.
+const ABSCHNITT_REIHENFOLGE = ['fleisch_fisch', 'milch_eier', 'getreide', 'obst_gemuese', 'sonstiges']
+const ABSCHNITT_LABEL = {
+  fleisch_fisch: 'Fleisch & Fisch',
+  milch_eier: 'Milchprodukte & Eier',
+  getreide: 'Getreide & Backwaren',
+  obst_gemuese: 'Obst & Gemüse',
+  sonstiges: 'Sonstiges',
 }
 
 // Gruppiert die flache Liste nach Anzeige-Abschnitt (siehe oben). Innerhalb
@@ -26,10 +27,10 @@ function anzeigeAbschnittFuer(kategorie) {
 function nachAbschnittGruppiert(liste) {
   const gruppen = Object.fromEntries(ABSCHNITT_REIHENFOLGE.map((schluessel) => [schluessel, []]))
   for (const posten of liste) {
-    const abschnitt = gruppen[anzeigeAbschnittFuer(posten.kategorie)]
-    // Unbekannte kategorie-Werte (sollte nicht vorkommen, da kategorie
-    // direkt aus Supabase kommt) werden stillschweigend uebersprungen statt
-    // die Anzeige mit einem Crash zu blockieren.
+    const abschnitt = gruppen[posten.supermarktKategorie]
+    // Unbekannte supermarktKategorie-Werte (sollte nicht vorkommen, siehe
+    // einkaufslisteLaden()-Fallback auf 'sonstiges') werden stillschweigend
+    // uebersprungen statt die Anzeige mit einem Crash zu blockieren.
     abschnitt?.push(posten)
   }
   for (const schluessel of ABSCHNITT_REIHENFOLGE) {

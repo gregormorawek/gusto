@@ -962,7 +962,7 @@ function App() {
           // Zusaetzlich zu name und kategorie laden wir jetzt auch die
           // Naehrwert-Spalten und die Portionsgroesse (portion_g) mit,
           // damit wir spaeter eine Summe berechnen koennen.
-          .select('id, name, kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten, diaeten, eigenschaft')
+          .select('id, name, kategorie, supermarkt_kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten, diaeten, eigenschaft')
           .eq('aktiv', true),
         supabase
           .from('rezepte')
