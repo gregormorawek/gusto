@@ -82,7 +82,8 @@ function EinkaufslistenPosten({ posten, onAbhaken }) {
 // bewusst EIN echtes Overlay (anders als der Toast oben, siehe dortiger
 // Kommentar) - Loeschen der gesamten Liste ist nicht trivial rueckgaengig
 // zu machen und verdient eine explizite Rueckfrage. Selbes Backdrop-/Karten-
-// Muster wie EinstellungenPanel.jsx (fixed inset-0 bg-text/40 + zentrierte
+// Muster wie der "Kalorienziel neu berechnen?"-Dialog in
+// EinstellungenAnsicht.jsx (fixed inset-0 bg-text/40 + zentrierte
 // bg-card-Karte), hier aber vertikal zentriert statt oben (items-start),
 // da die Karte selbst winzig ist.
 function ListeLeerenBestaetigung({ offen, onAbbrechen, onBestaetigen }) {

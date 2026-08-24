@@ -4,11 +4,10 @@ import AnimatedButton from './AnimatedButton'
 import { EXPO_OUT } from '../motionConfig'
 
 // Die vier Tabs der schwebenden Bottom-Navigation, in Anzeige-Reihenfolge.
-// key entspricht bei 'haupt'/'rezepte'/'einkaufsliste' 1:1 dem bestehenden
-// ansicht-State in App.jsx - 'einstellungen' ist bewusst KEIN eigener
-// ansicht-Wert (siehe App.jsx/aktiverTabLeiste), sondern oeffnet weiterhin
-// nur das bestehende EinstellungenPanel-Overlay obendrauf, waehrend ansicht
-// unveraendert bleibt. IconDice5/IconBook2 sind dieselben Icons, die bereits
+// key entspricht 1:1 dem ansicht-State in App.jsx - 'einstellungen' zeigt
+// (wie 'rezepte'/'einkaufsliste') einen vollwertigen Screen
+// (EinstellungenAnsicht.jsx) statt eines Overlays, siehe App.jsx. IconDice5/
+// IconBook2 sind dieselben Icons, die bereits
 // im OnboardingWizard-Abschluss-Screen fuer "Wuerfeln"/"Rezepte" verwendet
 // werden (dortige Tap-Karten) - fuer eine konsistente Icon-Sprache app-weit.
 const TABS = [
@@ -23,8 +22,9 @@ const TABS = [
 // Tailwind-Arbitrary-Values, weil mehrere Vendor-Praefixe + mehrteilige
 // rgba-Werte in Utility-Klassen-Syntax kaum lesbar waeren). z-30: bewusst
 // UNTER allen bestehenden fixed inset-0-Overlays (KochModus z-40/z-50,
-// Kalorienrechner z-40, EinstellungenPanel z-50), damit die Bar beim
-// Oeffnen eines dieser Overlays vollstaendig darunter verschwindet.
+// Kalorienrechner z-40, der "Kalorienziel neu berechnen?"-Dialog in
+// EinstellungenAnsicht.jsx z-50), damit die Bar beim Oeffnen eines dieser
+// Overlays vollstaendig darunter verschwindet.
 // Dauer/Easing des Gleitens der aktiven Hervorhebungs-Pille zwischen zwei
 // Tabs (siehe layoutId weiter unten) - EXPO_OUT (siehe motionConfig.js) ist
 // dort eigentlich fuer den grossen Startbildschirm-Marken-Moment gedacht,

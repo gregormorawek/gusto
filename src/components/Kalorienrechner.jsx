@@ -3,7 +3,7 @@ import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { IconCheck, IconGenderFemale, IconGenderMale } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import RadPicker from './RadPicker'
-import { AKTIVITAETEN, ZIELE, berechneKalorienZiel } from '../kalorienBerechnung'
+import { AKTIVITAETEN, ZIELE, berechneKalorienZiel, koerperdatenSpeichern } from '../kalorienBerechnung'
 import { EXPO_OUT, motionPropsFuer } from '../motionConfig'
 
 const ANZAHL_FRAGEN = 6
@@ -60,11 +60,14 @@ function schrittVarianten(reduzierteBewegung) {
 // unten bei Auswahl), aber zweizeilig statt einzeiliger Icon+Label-Pille -
 // AuswahlChip selbst unterstuetzt keine zweite Zeile, daher hier lokal
 // nachgebaut statt die geteilte Komponente eigens dafuer zu erweitern.
+// Exportiert, damit EinstellungenAnsicht.jsx (Sektion "Meine Koerperdaten")
+// fuer Aktivitaet/Ziel exakt dieselbe Optik wiederverwendet statt sie ein
+// zweites Mal nachzubauen.
 // Schatten-Y-Versatz bewusst 0 (symmetrischer Inset-Schatten) - siehe
 // ausfuehrlicher Kommentar an containerKlassen in AuswahlChip.jsx zur
 // Herleitung (behebt die optische obere/untere-Padding-Asymmetrie bei
 // zweizeiligem Inhalt).
-function OptionZeile({ aktiv, label, erklaerung, onClick }) {
+export function OptionZeile({ aktiv, label, erklaerung, onClick }) {
   return (
     <AnimatedButton
       type="button"
@@ -90,8 +93,9 @@ function OptionZeile({ aktiv, label, erklaerung, onClick }) {
 
 // Grosse Auswahl-Karte fuer Screen 1 (Geschlecht) - zwei nebeneinander,
 // Icon-Kreis oben + Label darunter, derselbe Einsink-Zustand wie
-// OptionZeile/AuswahlChip fuer App-weite Konsistenz.
-function GeschlechtKarte({ Icon, label, aktiv, onClick }) {
+// OptionZeile/AuswahlChip fuer App-weite Konsistenz. Exportiert - siehe
+// OptionZeile-Kommentar oben zur Wiederverwendung in EinstellungenAnsicht.jsx.
+export function GeschlechtKarte({ Icon, label, aktiv, onClick }) {
   return (
     <AnimatedButton
       type="button"
@@ -468,17 +472,32 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
           // uebernimmt dieselben Werte, signalisiert dem Aufrufer (Schritt 1)
           // aber zusaetzlich, das Min-Feld danach zu fokussieren, statt die
           // Werte nur stumm einzutragen.
+          //
+          // Beide Buttons speichern zusaetzlich "antworten" (Geschlecht/
+          // Alter/Groesse/Gewicht/Aktivitaet/Ziel) als eigenstaendiges
+          // "Koerperdaten"-Profil im localStorage (siehe koerperdatenSpeichern
+          // in kalorienBerechnung.js) - UNABHAENGIG davon, ob dieser Rechner
+          // gerade aus dem Onboarding ODER aus EinstellungenAnsicht.jsx heraus
+          // geoeffnet wurde. Genau DAS macht die Sektion "Meine Koerperdaten"
+          // dort hinterher vorausgefuellt, ohne dass der Aufrufer (onUebernehmen)
+          // davon wissen muesste.
           <div className="flex flex-col items-center gap-2">
             <AnimatedButton
               type="button"
-              onClick={() => onUebernehmen(ergebnis, { fokussieren: false })}
+              onClick={() => {
+                koerperdatenSpeichern(antworten)
+                onUebernehmen(ergebnis, { fokussieren: false })
+              }}
               className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm"
             >
               Werte übernehmen
             </AnimatedButton>
             <AnimatedButton
               type="button"
-              onClick={() => onUebernehmen(ergebnis, { fokussieren: true })}
+              onClick={() => {
+                koerperdatenSpeichern(antworten)
+                onUebernehmen(ergebnis, { fokussieren: true })
+              }}
               className="text-sm font-medium text-text-muted hover:text-primary"
             >
               Selbst anpassen

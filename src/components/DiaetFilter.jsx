@@ -29,7 +29,7 @@ const DIAETEN = [
 // Chips gestapelt statt umbrechend + groesse="breit" (Redesign, siehe
 // ZielEinstellungen.jsx fuer dieselbe Aenderung an den Kalorienziel-Chips) -
 // analog dortiger Begruendung ("brechen unsauber um"). KEIN eigenes px-4
-// mehr: beide Aufrufer (OnboardingWizard.jsx Schritt 3, EinstellungenPanel)
+// mehr: beide Aufrufer (OnboardingWizard.jsx Schritt 3, EinstellungenAnsicht.jsx)
 // betten diese Komponente bereits in eine eigene gepolsterte Karte ein - das
 // fruehere zusaetzliche px-4 hier erzeugte dadurch doppeltes Padding, die
 // (jetzt volle Breite einnehmenden) Chips wirkten gegenueber der

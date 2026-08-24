@@ -104,8 +104,8 @@ function OnboardingWizard({
   // Schritt-Wechsel, siehe schrittVarianten oben) einen neuen Containing-
   // Block-Kontext fuer alle fixed-Nachfahren erzeugen und den Rechner damit
   // NICHT mehr am tatsaechlichen Viewport, sondern an dieser Motion.div
-  // positionieren (siehe identisches Problem/geloest fuer KochModus/
-  // EinstellungenPanel in App.jsx, dortiger naechsteAnsichtRef-Kommentar).
+  // positionieren (siehe identisches Problem/geloest fuer KochModus in
+  // App.jsx, dortiger naechsteAnsichtRef-Kommentar).
   const [kalorienrechnerOffen, setKalorienrechnerOffen] = useState(false)
 
   // Zaehler statt Boolean: wird bei JEDEM "Selbst anpassen"-Tap hochgezaehlt

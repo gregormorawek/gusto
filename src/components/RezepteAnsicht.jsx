@@ -15,7 +15,7 @@ import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
 // KEIN inline DiaetFilter mehr in dieser Ansicht (weder Einzel- noch
 // Tagesplan-Variante) - war der groesste verbleibende Platzfresser (72px,
 // 2 Zeilen wegen Zeilenumbruch) auf dem Weg zur 390px-ohne-Scrollen-Vorgabe.
-// Die Diaet-Auswahl bleibt ueber das Zahnrad-Icon (EinstellungenPanel)
+// Die Diaet-Auswahl bleibt ueber den Einstellungen-Tab (EinstellungenAnsicht.jsx)
 // erreichbar - diaeten selbst bleibt als Wert weiterhin Pflicht-Prop (fuer
 // die Pool-Filterung), nur der Aendern-Callback wird hier nicht mehr gebraucht.
 //

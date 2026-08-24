@@ -10,7 +10,8 @@ import { suchtextGefiltert } from '../zutatenFilter'
 // desselben Slots (siehe TagesplanAnsicht.jsx) erscheint dieses Suchfeld
 // stattdessen als Overlay ueber der ganzen kompakten Liste - inline wuerde in
 // der neuen, engen Zeilen-Optik die deterministische Hoehe wieder aufbrechen.
-// Gleiches Backdrop-Fade-Muster wie EinstellungenPanel.jsx, fuer App-weite
+// Gleiches Backdrop-Fade-Muster wie der "Kalorienziel neu berechnen?"-Dialog
+// in EinstellungenAnsicht.jsx, fuer App-weite
 // Konsistenz. slot ist { index, kategorie, titel, suchPool } | null (siehe
 // sucheSlot-State in TagesplanAnsicht.jsx) - offen/geschlossen wird darueber
 // gesteuert (kein eigener offen-Prop noetig).

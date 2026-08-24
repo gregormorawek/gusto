@@ -15,8 +15,9 @@ function istTextEingabe(element) {
 
 // Naechster tatsaechlich scrollender Vorfahre ab (aber exklusive) element -
 // i. d. R. der Body/document.scrollingElement, aber z. B. innerhalb von
-// KochModus (eigener overflow-y-auto-Inhaltsbereich) oder EinstellungenPanel
-// (Modal mit eigenem overflow-y-auto) ist es ein anderes Element. Ohne diese
+// KochModus (eigener overflow-y-auto-Inhaltsbereich) oder dem "Kalorienziel
+// neu berechnen?"-Dialog in EinstellungenAnsicht.jsx (Modal mit eigenem
+// overflow-y-auto) ist es ein anderes Element. Ohne diese
 // Suche wuerde ein pauschales window.scrollBy() in einem fixed positionierten
 // Sheet/Modal schlicht nichts bewirken.
 function naechsterScrollContainer(element) {

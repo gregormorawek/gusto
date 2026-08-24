@@ -8,7 +8,7 @@ import TagesplanAnsicht from './components/TagesplanAnsicht'
 import RezepteAnsicht from './components/RezepteAnsicht'
 import OnboardingWizard from './components/OnboardingWizard'
 import Startbildschirm from './components/Startbildschirm'
-import EinstellungenPanel from './components/EinstellungenPanel'
+import EinstellungenAnsicht from './components/EinstellungenAnsicht'
 import KochModus from './components/KochModus'
 import AnimatedButton from './components/AnimatedButton'
 import TabLeiste from './components/TabLeiste'
@@ -141,6 +141,45 @@ function diaetenLaden() {
     return Array.isArray(geparst) ? geparst : []
   } catch {
     return []
+  }
+}
+
+const KOCHSCHRITTE_PERSISTENT_LOCALSTORAGE_KEY = 'gusto-kochschritte-persistent'
+
+// Ob abgehakte Kochschritte (siehe KochModus.jsx) dauerhaft im localStorage
+// gespeichert werden sollen, statt nur fuer die aktuelle Sitzung zu gelten -
+// Toggle in EinstellungenAnsicht.jsx (Sektion "Kochassistent"). Default false
+// (= bisheriges Verhalten: reiner In-Memory-State, siehe erledigteSchritte
+// weiter unten).
+function kochschrittePersistentLaden() {
+  return localStorage.getItem(KOCHSCHRITTE_PERSISTENT_LOCALSTORAGE_KEY) === 'true'
+}
+
+const KOCHSCHRITTE_FORTSCHRITT_LOCALSTORAGE_KEY = 'gusto-kochschritte-fortschritt'
+
+// Laedt den zuletzt gespeicherten Kochschritte-Fortschritt (welches Rezept,
+// welche Schritt-Indizes) - ABER NUR, wenn kochschrittePersistentLaden()
+// gerade true liefert. Ist der Toggle aus, wird IMMER ein leerer Fortschritt
+// zurueckgegeben, selbst wenn noch ein alter Stand im localStorage liegt -
+// so bleibt "aus" garantiert gleichbedeutend mit dem bisherigen reinen
+// Sitzungs-Verhalten, unabhaengig davon, ob der Toggle zwischendurch schon
+// einmal an war.
+function kochschritteFortschrittLaden() {
+  if (!kochschrittePersistentLaden()) {
+    return { rezeptId: null, indices: new Set() }
+  }
+  try {
+    const gespeichert = localStorage.getItem(KOCHSCHRITTE_FORTSCHRITT_LOCALSTORAGE_KEY)
+    if (!gespeichert) {
+      return { rezeptId: null, indices: new Set() }
+    }
+    const geparst = JSON.parse(gespeichert)
+    return {
+      rezeptId: geparst.rezeptId ?? null,
+      indices: new Set(Array.isArray(geparst.indices) ? geparst.indices : []),
+    }
+  } catch {
+    return { rezeptId: null, indices: new Set() }
   }
 }
 
@@ -648,40 +687,28 @@ function App() {
   // Sitzung bestehen (kein AnimatePresence/Unmount noetig), ein liegen
   // gebliebenes transform wuerde sonst DAUERHAFT einen neuen Stacking/
   // Containing-Block-Kontext fuer alle darin verschachtelten fixed
-  // inset-0-Overlays (KochModus, EinstellungenPanel) erzeugen.
+  // inset-0-Overlays (KochModus, Kalorienrechner) erzeugen.
   const naechsteAnsichtRef = useRef(null)
 
-  // Ob das Einstellungen-Panel (Kalorienziel + Ernaehrungsform, ausserhalb
-  // des Onboardings ueber den Einstellungen-Tab der TabLeiste erreichbar)
-  // gerade offen ist.
-  const [einstellungenOffen, setEinstellungenOffen] = useState(false)
+  // Ob abgehakte Kochschritte dauerhaft gespeichert werden (siehe
+  // KOCHSCHRITTE_PERSISTENT_LOCALSTORAGE_KEY oben) - Toggle in
+  // EinstellungenAnsicht.jsx.
+  const [kochschrittePersistent, setKochschrittePersistent] = useState(kochschrittePersistentLaden)
 
-  // Welcher Tab in der TabLeiste (siehe TabLeiste.jsx) optisch als aktiv
-  // markiert wird. 'einstellungen' ist bewusst KEIN eigener ansicht-Wert -
-  // das Antippen des Einstellungen-Tabs oeffnet nur das bestehende
-  // EinstellungenPanel-Overlay OBEN DRAUF (wie zuvor das Zahnrad), waehrend
-  // ansicht unveraendert bleibt. Dadurch zeigt die App nach dem Schliessen
-  // automatisch wieder den vorher aktiven Tab, ganz ohne einen eigenen
-  // "letzter Tab"-Merker.
-  const aktiverTabLeiste = einstellungenOffen ? 'einstellungen' : ansicht
+  useEffect(() => {
+    localStorage.setItem(KOCHSCHRITTE_PERSISTENT_LOCALSTORAGE_KEY, String(kochschrittePersistent))
+  }, [kochschrittePersistent])
 
-  function tabWaehlen(tab) {
-    if (tab === 'einstellungen') {
-      setEinstellungenOffen(true)
-      return
-    }
-    setAnsicht(tab)
+  function kochschrittePersistentUmschalten() {
+    setKochschrittePersistent((aktuell) => !aktuell)
   }
 
   // Kochmodus-Sheet (siehe KochModus.jsx) - bewusst HIER auf Top-Level statt
   // lokal in RezeptKarte.jsx, damit es als "fixed inset-0"-Backdrop wirklich
   // DIE GESAMTE App-Navigation optisch verdeckt (Planen/Rezepte-Tabs,
-  // Tag-gesamt-Header, Mahlzeiten-Filter, Zahnrad) - von tief verschachtelt
-  // in RezepteAnsicht/RezeptKarte aus waere das zwar technisch per z-index
-  // auch moeglich, aber der State gehoert dann konzeptionell an dieselbe
-  // Stelle wie einstellungenOffen (ebenfalls ein App-weites Overlay).
-  // null | { rezept, karte } - karte ist ein reiner Momentaufnahme-Snapshot
-  // vom Oeffnen-Zeitpunkt (siehe KochModus.jsx-Kommentar dort).
+  // Tag-gesamt-Header, Mahlzeiten-Filter). null | { rezept, karte } - karte
+  // ist ein reiner Momentaufnahme-Snapshot vom Oeffnen-Zeitpunkt (siehe
+  // KochModus.jsx-Kommentar dort).
   const [kochModusEintrag, setKochModusEintrag] = useState(null)
 
   // Abhak-Status der Kochanleitung - siehe KochModus.jsx-Kommentar: lebt
@@ -691,19 +718,47 @@ function App() {
   // welchem Rezept das aktuelle Set gehoert - weicht die beim naechsten
   // Oeffnen uebergebene rezept.id davon ab (neu gewuerfelt ODER Filter-
   // Wechsel hat ein anderes Rezept ausgewaehlt), wird VOR dem Anzeigen
-  // zurueckgesetzt (siehe kochModusOeffnen unten). Ein zusaetzlicher Reset
-  // beim Verlassen des Rezepte-Tabs (siehe Effekt unten) sorgt dafuer, dass
-  // auch ein zufaellig identisches Rezept beim naechsten Besuch wieder bei
-  // 0 startet, statt alten Fortschritt "wiederzufinden".
-  const [erledigteSchritte, setErledigteSchritte] = useState(() => new Set())
-  const [erledigteSchritteRezeptId, setErledigteSchritteRezeptId] = useState(null)
+  // zurueckgesetzt (siehe kochModusOeffnen unten). Lazy initializer laedt bei
+  // aktivem kochschrittePersistent-Toggle den zuletzt gespeicherten Stand
+  // (siehe kochschritteFortschrittLaden oben) - sonst (Default) startet
+  // beides leer, exakt wie vor Einfuehrung dieses Toggles.
+  const [erledigteSchritte, setErledigteSchritte] = useState(() => kochschritteFortschrittLaden().indices)
+  const [erledigteSchritteRezeptId, setErledigteSchritteRezeptId] = useState(() => kochschritteFortschrittLaden().rezeptId)
 
+  // Schreibt den Fortschritt bei JEDER Aenderung zurueck - aber NUR, solange
+  // kochschrittePersistent aktiv ist (sonst bliebe ein veralteter Stand im
+  // localStorage liegen, der nach einem erneuten Einschalten faelschlich
+  // wieder auftauchen wuerde, siehe kochschritteFortschrittLaden oben). Das
+  // Umschalten selbst (kochschrittePersistent in den deps) sorgt dafuer, dass
+  // der AKTUELLE Sitzungs-Fortschritt sofort gespeichert wird, sobald der
+  // Toggle eingeschaltet wird - nicht erst bei der naechsten Abhak-Aktion.
   useEffect(() => {
+    if (!kochschrittePersistent) {
+      return
+    }
+    localStorage.setItem(
+      KOCHSCHRITTE_FORTSCHRITT_LOCALSTORAGE_KEY,
+      JSON.stringify({ rezeptId: erledigteSchritteRezeptId, indices: [...erledigteSchritte] })
+    )
+  }, [kochschrittePersistent, erledigteSchritte, erledigteSchritteRezeptId])
+
+  // Reset beim Verlassen des Rezepte-Tabs: sorgt dafuer, dass auch ein
+  // zufaellig identisches Rezept beim naechsten Besuch wieder bei 0 startet,
+  // statt alten Fortschritt "wiederzufinden" - ABER NUR, wenn
+  // kochschrittePersistent AUS ist. Bei aktivem Toggle ist genau das
+  // Gegenteil gewuenscht (Fortschritt soll Tab-/Sitzungs-Wechsel ueberleben),
+  // ein Reset hier wuerde die eben gespeicherten Daten sonst sofort wieder
+  // ueberschreiben (siehe Persistenz-Effekt oben, der bei JEDER Aenderung
+  // von erledigteSchritte greift).
+  useEffect(() => {
+    if (kochschrittePersistent) {
+      return
+    }
     if (ansicht !== 'rezepte') {
       setErledigteSchritte(new Set())
       setErledigteSchritteRezeptId(null)
     }
-  }, [ansicht])
+  }, [ansicht, kochschrittePersistent])
 
   function kochModusOeffnen(rezept, karte) {
     if (rezept.id !== erledigteSchritteRezeptId) {
@@ -1221,8 +1276,9 @@ function App() {
 
   // Wird vom SuessDeftigFilter aufgerufen - sowohl der Instanz in der
   // Einzel-Ansicht (nur bei mahlzeit === 'fruehstueck'/'snack' sichtbar) als
-  // auch der im EinstellungenPanel (dort immer sichtbar, unabhaengig vom
-  // aktuellen Screen - genau wie DiaetFilter). Einzelauswahl statt
+  // auch der im Einstellungen-Tab (EinstellungenAnsicht.jsx, dort immer
+  // sichtbar, unabhaengig vom aktuellen Screen - genau wie DiaetFilter).
+  // Einzelauswahl statt
   // Mehrfachauswahl wie bei diaetenAendern, da sich Suess/Deftig/Alles
   // gegenseitig ausschliessen. Wuerfelt danach sofort alle vier Kategorien
   // neu, passend zur neuen Auswahl. neuerWert wird direkt verwendet statt
@@ -1735,26 +1791,12 @@ function App() {
             Wizard ist der einzige Ort, an dem der Marken-Einstieg noch gezeigt
             wird. Die frueher hier oben sitzende Planen/Rezepte-Tab-Leiste +
             Einstellungen-Zahnrad ist durch die schwebende TabLeiste (siehe
-            TabLeiste.jsx) am unteren Rand ersetzt - siehe aktiverTabLeiste/
-            tabWaehlen weiter oben fuer die Anbindung. */}
-        <TabLeiste aktiverTab={aktiverTabLeiste} onTabWaehlen={tabWaehlen} />
+            TabLeiste.jsx) am unteren Rand ersetzt - 'einstellungen' ist dort
+            ein ganz normaler ansicht-Wert wie 'rezepte'/'einkaufsliste',
+            siehe Rendering-Weiche unten. */}
+        <TabLeiste aktiverTab={ansicht} onTabWaehlen={setAnsicht} />
 
         <Toast nachricht={toast} />
-
-        <EinstellungenPanel
-          offen={einstellungenOffen}
-          onSchliessen={() => setEinstellungenOffen(false)}
-          ziel={ziel}
-          onTypAendern={zielTypAendern}
-          onKalorienAendern={zielKalorienAendern}
-          onMakroAendern={zielMakroAendern}
-          diaeten={diaeten}
-          onDiaetenAendern={diaetenAendern}
-          suessDeftig={suessDeftig}
-          onSuessDeftigAendern={suessDeftigAendern}
-          tagesplanMahlzeiten={tagesplanMahlzeiten}
-          onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
-        />
 
         <KochModus
           eintrag={kochModusEintrag}
@@ -1766,12 +1808,26 @@ function App() {
         {/* pb-[...]: Platz fuer die schwebende TabLeiste (60px Hoehe + 12px
             Bodenabstand + Safe-Area, siehe .tab-leiste in index.css), damit
             sie den untersten Inhalt nicht dauerhaft ueberlagert. Nur um
-            diesen Content-Block herum (nicht um EinstellungenPanel/
-            KochModus oben) - die sind fixed inset-0-Overlays und decken den
-            Viewport ohnehin komplett ab, brauchen also kein eigenes
-            Bottom-Padding. */}
+            diesen Content-Block herum (nicht um KochModus oben) - das ist
+            ein fixed inset-0-Overlay und deckt den Viewport ohnehin komplett
+            ab, braucht also kein eigenes Bottom-Padding. */}
         <div className="pb-[calc(96px_+_env(safe-area-inset-bottom))] pt-4">
-        {ansicht === 'rezepte' ? (
+        {ansicht === 'einstellungen' ? (
+          <EinstellungenAnsicht
+            ziel={ziel}
+            onTypAendern={zielTypAendern}
+            onKalorienAendern={zielKalorienAendern}
+            onMakroAendern={zielMakroAendern}
+            diaeten={diaeten}
+            onDiaetenAendern={diaetenAendern}
+            suessDeftig={suessDeftig}
+            onSuessDeftigAendern={suessDeftigAendern}
+            tagesplanMahlzeiten={tagesplanMahlzeiten}
+            onTagesplanMahlzeitenAendern={tagesplanMahlzeitenAendern}
+            kochschrittePersistent={kochschrittePersistent}
+            onKochschrittePersistentUmschalten={kochschrittePersistentUmschalten}
+          />
+        ) : ansicht === 'rezepte' ? (
           <RezepteAnsicht
             rezepteGeladen={!laedt}
             rezepte={rezepte}
@@ -1792,7 +1848,7 @@ function App() {
             onEigenschaftFuerMahlzeitAendern={rezepteEigenschaftFuerMahlzeitAendern}
             onMahlzeitTabWuerfeln={rezepteMahlzeitTabWuerfeln}
             onGanzenTagNeuPlanen={rezepteGanzenTagNeuPlanen}
-            onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
+            onMahlzeitenAnpassen={() => setAnsicht('einstellungen')}
             onKochModusOeffnen={kochModusOeffnen}
             onZurEinkaufslisteHinzufuegen={rezeptZurEinkaufslisteHinzufuegen}
           />
@@ -1817,7 +1873,7 @@ function App() {
               obstOptionen={obstOptionen}
               diaeten={diaeten}
               suessDeftig={suessDeftig}
-              onMahlzeitenAnpassen={() => setEinstellungenOffen(true)}
+              onMahlzeitenAnpassen={() => setAnsicht('einstellungen')}
               onNeuPlanen={tagPlanen}
               onZurEinkaufslisteHinzufuegen={tagesplanZurEinkaufslisteHinzufuegen}
             />
@@ -1840,7 +1896,7 @@ function App() {
 
             <AnimatedButton
               type="button"
-              onClick={() => setEinstellungenOffen(true)}
+              onClick={() => setAnsicht('einstellungen')}
               className="mt-2 px-4 text-sm text-primary hover:underline"
             >
               Einstellungen anpassen
@@ -1950,7 +2006,7 @@ function App() {
             // liegen gebliebener (wenn auch optisch wirkungsloser)
             // transform-Wert wuerde sonst DAUERHAFT einen neuen
             // Containing-Block fuer alle darin verschachtelten fixed
-            // inset-0-Overlays (KochModus, EinstellungenPanel) erzeugen -
+            // inset-0-Overlays (KochModus, Kalorienrechner) erzeugen -
             // siehe Aufgabenstellung "Stacking-Kontext-Probleme". Direkte
             // DOM-Mutation statt eines State-Umbaus (z. B. den Wrapper nach
             // Abschluss durch naechsteAnsicht OHNE Wrapper zu ersetzen): ein

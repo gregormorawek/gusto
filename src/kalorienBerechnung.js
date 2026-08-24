@@ -113,3 +113,54 @@ export function berechneKalorienZiel({ geschlecht, alterJahre, groesseCm, gewich
     wurdeAngehoben,
   }
 }
+
+// Persistenz der 6 Kalorienrechner-Antworten (geschlecht/alterJahre/
+// groesseCm/gewichtKg/aktivitaet/ziel) als eigenstaendiges "Koerperdaten"-
+// Profil - UNABHAENGIG vom eigentlichen Kalorienziel (ziel-State in
+// App.jsx). Zwei Schreiber teilen sich denselben Key:
+// 1. Kalorienrechner.jsx speichert die Antworten automatisch beim Abschluss
+//    (sowohl im Onboarding als auch spaeter erneut aus den Einstellungen
+//    heraus aufgerufen) - siehe dortiger Kommentar an den Ergebnis-Buttons.
+// 2. EinstellungenAnsicht.jsx (Sektion "Meine Koerperdaten") liest/schreibt
+//    denselben Key direkt, damit die im Onboarding erfassten Werte dort
+//    vorausgefuellt sind UND spaetere manuelle Aenderungen wiederum fuer
+//    einen erneuten Kalorienrechner-Durchlauf vorausgefuellt waeren.
+const KOERPERDATEN_LOCALSTORAGE_KEY = 'gusto-koerperdaten'
+
+// null-Felder (geschlecht/aktivitaet/ziel) zeigen "noch nie eingegeben" an -
+// die entsprechenden Auswahl-Chips in EinstellungenAnsicht.jsx zeigen dann
+// einfach keine aktive Auswahl, exakt wie beim allerersten Kalorienrechner-
+// Durchlauf. alterJahre/groesseCm/gewichtKg brauchen dagegen (wegen
+// RadPicker, das immer einen konkreten startWert braucht) sinnvolle
+// Zahlen-Defaults - dieselben Start-Werte wie im Kalorienrechner-Wizard.
+export const KOERPERDATEN_STANDARD = {
+  geschlecht: null,
+  alterJahre: 30,
+  groesseCm: 170,
+  gewichtKg: 70,
+  aktivitaet: null,
+  ziel: null,
+}
+
+export function koerperdatenLaden() {
+  try {
+    const gespeichert = localStorage.getItem(KOERPERDATEN_LOCALSTORAGE_KEY)
+    if (!gespeichert) {
+      return KOERPERDATEN_STANDARD
+    }
+    return { ...KOERPERDATEN_STANDARD, ...JSON.parse(gespeichert) }
+  } catch {
+    return KOERPERDATEN_STANDARD
+  }
+}
+
+export function koerperdatenSpeichern(daten) {
+  localStorage.setItem(KOERPERDATEN_LOCALSTORAGE_KEY, JSON.stringify(daten))
+}
+
+// True, sobald alle 6 Felder gesetzt sind (also berechneKalorienZiel darauf
+// aufgerufen werden kann) - geschlecht/aktivitaet/ziel sind vor dem ersten
+// Ausfuellen null (siehe KOERPERDATEN_STANDARD oben).
+export function koerperdatenVollstaendig(daten) {
+  return Boolean(daten.geschlecht && daten.alterJahre && daten.groesseCm && daten.gewichtKg && daten.aktivitaet && daten.ziel)
+}
