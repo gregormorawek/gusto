@@ -60,12 +60,19 @@ function TagesplanZutatZeile({ titel, text, portion, onWuerfeln, zielWert, zielE
   const chip = KATEGORIE_CHIP[titel]
   const zielNichtErreichbar = zielWert && !zielErreichbar
 
+  // relative + overflow-hidden auf dem Button selbst (statt weiter oben am
+  // Mahlzeit- oder Seiten-Container): AnimatePresence mode="popLayout"
+  // weiter unten hebt die ausblendende alte Zutat per position: absolute aus
+  // dem Layout - ohne einen eigenen positionierten Vorfahren HIER wird ihr
+  // Containing Block sonst ein viel weiter oben liegendes Element, wodurch
+  // sie kurz als Ghost-Text z. B. ueber "Mahlzeiten anpassen" aufblitzt statt
+  // sauber innerhalb dieser Zeile abgeschnitten zu werden.
   return (
     <AnimatedButton
       type="button"
       onClick={onWuerfeln}
       aria-label={zielNichtErreichbar ? `${titel} neu würfeln (Ziel nicht ganz erreichbar)` : `${titel} neu würfeln`}
-      className="flex w-full items-center gap-2 border-b border-text-muted/10 py-1 text-left last:border-b-0"
+      className="relative flex w-full items-center gap-2 overflow-hidden border-b border-text-muted/10 py-1 text-left last:border-b-0"
     >
       <span className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full ${chip.bg}`}>
         <Icon size={14} stroke={2} className={chip.icon} aria-hidden="true" />
