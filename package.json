@@ -10,6 +10,11 @@
     "preview": "vite preview"
   },
   "dependencies": {
+    "@capacitor/core": "^8.5.0",
+    "@capacitor/ios": "^8.5.0",
+    "@capacitor/keyboard": "^8.0.5",
+    "@capacitor/splash-screen": "^8.0.2",
+    "@capacitor/status-bar": "^8.0.3",
     "@supabase/supabase-js": "^2.110.8",
     "@tabler/icons-react": "^3.46.0",
     "framer-motion": "^13.0.0",
@@ -17,6 +22,7 @@
     "react-dom": "^19.2.7"
   },
   "devDependencies": {
+    "@capacitor/cli": "^8.5.0",
     "@tailwindcss/vite": "^4.3.3",
     "@types/react": "^19.2.17",
     "@types/react-dom": "^19.2.3",

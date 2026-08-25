@@ -1,0 +1,11 @@
+{
+  "appId": "com.gusto.app",
+  "appName": "Gusto",
+  "webDir": "dist",
+  "server": {
+    "androidScheme": "https"
+  },
+  "ios": {
+    "contentInset": "automatic"
+  }
+}
