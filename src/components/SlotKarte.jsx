@@ -17,8 +17,10 @@ import { suchtextGefiltert } from '../zutatenFilter'
 // Ziel-Einstellungen als Tages-Gesamtziel gesetzt).
 //
 // sucheAnzeigen/suchPool/onZutatWaehlen gehoeren zusammen und sind optional:
-// Nach 3 Rerolls desselben Slots setzt der Aufrufer sucheAnzeigen auf true und
-// SlotKarte zeigt ein Live-Suchfeld, ueber das gezielt eine Zutat aus suchPool
+// Nach 3 Rerolls desselben Slots (danach, ob genutzt oder ignoriert, erst
+// wieder nach 5 weiteren - siehe naechsterRerollZaehlerStand in App.jsx)
+// setzt der Aufrufer sucheAnzeigen auf true und SlotKarte zeigt ein Live-
+// Suchfeld, ueber das gezielt eine Zutat aus suchPool
 // (der bereits nach Kategorie/Mahlzeit/Diaet/Suess-Deftig gefilterte Pool,
 // exakt derselbe wie beim Wuerfeln) ausgewaehlt werden kann. Die Namens-
 // Filterung selbst passiert lokal hier in der Komponente.

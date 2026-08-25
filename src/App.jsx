@@ -511,16 +511,49 @@ function makroZielFuerMahlzeitAusTagesziel(zielWert, mahlzeitWert, anteilUebersc
   }
 }
 
-// Startwert eines Reroll-Zaehler-Objekts: ein Zaehlerstand pro Kategorie,
-// alle bei 0. Wird sowohl fuer die Einzel-Ansicht (ein Objekt) als auch pro
-// Tagesplan-Eintrag (ein Objekt je Mahlzeit) verwendet.
+// Startwert eines Reroll-Zaehler-Objekts: pro Kategorie ein { zaehler,
+// schwelle } - schwelle beginnt bei REROLL_SCHWELLE_ERSTES_MAL. Wird sowohl
+// fuer die Einzel-Ansicht (ein Objekt) als auch pro Tagesplan-Eintrag (ein
+// Objekt je Mahlzeit) verwendet.
 function leererRerollZaehler() {
-  return { protein: 0, carbs: 0, fett: 0, gemuese: 0 }
+  const leererSlotZaehler = { zaehler: 0, schwelle: REROLL_SCHWELLE_ERSTES_MAL }
+  return { protein: leererSlotZaehler, carbs: leererSlotZaehler, fett: leererSlotZaehler, gemuese: leererSlotZaehler }
 }
 
 // Ab wie vielen aufeinanderfolgenden Rerolls DESSELBEN Slots das Suchfeld
-// automatisch erscheint.
-const REROLL_SCHWELLE_FUER_SUCHE = 3
+// erstmals automatisch erscheint.
+const REROLL_SCHWELLE_ERSTES_MAL = 3
+
+// Ab wie vielen weiteren Rerolls DESSELBEN Slots das Suchfeld erneut
+// erscheint, NACHDEM es schon einmal erschienen ist (siehe
+// naechsterRerollZaehlerStand/manuellGewaehlterRerollZaehlerStand weiter
+// unten) - bewusst hoeher als REROLL_SCHWELLE_ERSTES_MAL, damit das
+// Suchfeld eine gelegentliche Hilfe bleibt und nicht bei jedem weiteren
+// Reroll erneut stoert.
+const REROLL_SCHWELLE_ERNEUT = 5
+
+// Naechster Zaehler-Stand fuer EINE Kategorie eines Slots, nachdem dieser
+// (wieder) neu gewuerfelt wurde. War das Suchfeld beim letzten Rendern schon
+// sichtbar (zaehler >= schwelle), zaehlt DIESER Reroll bereits als erster
+// einer neuen Runde (zaehler auf 1) und die Schwelle springt dauerhaft auf
+// REROLL_SCHWELLE_ERNEUT - so verschwindet das Suchfeld sofort wieder und
+// taucht erst nach REROLL_SCHWELLE_ERNEUT weiteren Rerolls erneut auf, egal
+// ob der User es beim vorigen Mal genutzt oder ignoriert hat. Ansonsten
+// normaler Inkrement bei unveraenderter Schwelle.
+function naechsterRerollZaehlerStand(bisher) {
+  const warSichtbar = bisher.zaehler >= bisher.schwelle
+  return warSichtbar
+    ? { zaehler: 1, schwelle: REROLL_SCHWELLE_ERNEUT }
+    : { zaehler: bisher.zaehler + 1, schwelle: bisher.schwelle }
+}
+
+// Zaehler-Stand fuer EINE Kategorie, nachdem der User im Suchfeld gezielt
+// eine Zutat ausgewaehlt hat - direkter Reset (kein weiterer Reroll noetig,
+// um das als "Suchfeld wurde genutzt" zu werten), aber mit derselben
+// erhoehten Schwelle wie beim Ignorieren (siehe naechsterRerollZaehlerStand).
+function manuellGewaehlterRerollZaehlerStand() {
+  return { zaehler: 0, schwelle: REROLL_SCHWELLE_ERNEUT }
+}
 
 // Kurzer Platzhalter fuer das schmale Zeitfenster zwischen "Pro Tag aktiv"
 // und "erster Tagesplan fertig generiert" (siehe Auto-Generieren-Effekt in
@@ -598,13 +631,15 @@ function App() {
   const [gemuesePortion, setGemuesePortion] = useState(null)
 
   // Zaehlt pro Kategorie, wie oft HINTEREINANDER derselbe Slot ueber den
-  // Reroll-Button neu gewuerfelt wurde (Einzel-Ansicht). Ab
-  // REROLL_SCHWELLE_FUER_SUCHE erscheint fuer den betroffenen Slot das
-  // Suchfeld (siehe sucheAnzeigen weiter unten). Wird bei jeder manuellen
-  // Auswahl (fuer den gewaehlten Slot) sowie bei jedem "globalen" Neu-
-  // Wuerfeln/Filterwechsel (fuer ALLE Slots) wieder auf 0 zurueckgesetzt,
-  // weil der Slot dann ohnehin schon eine neue Zutat zeigt und ein sofort
-  // sichtbares Suchfeld dort ueberraschend waere.
+  // Reroll-Button neu gewuerfelt wurde (Einzel-Ansicht), zusammen mit der
+  // aktuell geltenden Schwelle (siehe naechsterRerollZaehlerStand weiter
+  // oben: erst REROLL_SCHWELLE_ERSTES_MAL, danach dauerhaft
+  // REROLL_SCHWELLE_ERNEUT). Ab Erreichen der Schwelle erscheint fuer den
+  // betroffenen Slot das Suchfeld (siehe sucheAnzeigen weiter unten). Wird
+  // bei jedem "globalen" Neu-Wuerfeln/Filterwechsel (fuer ALLE Slots) wieder
+  // auf leererRerollZaehler() zurueckgesetzt, weil der Slot dann ohnehin
+  // schon eine neue Zutat zeigt und ein sofort sichtbares Suchfeld dort
+  // ueberraschend waere.
   const [rerollZaehler, setRerollZaehler] = useState(leererRerollZaehler)
 
   // Solange die Daten noch nicht aus der Datenbank geladen sind, zeigen wir "Laedt...".
@@ -1153,11 +1188,12 @@ function App() {
     setRerollZaehler(leererRerollZaehler())
   }
 
-  // Erhoeht den Reroll-Zaehler (Einzel-Ansicht) fuer GENAU eine Kategorie um
-  // 1 - siehe rerollZaehler weiter oben fuer den Zweck (Suchfeld nach
-  // REROLL_SCHWELLE_FUER_SUCHE aufeinanderfolgenden Rerolls desselben Slots).
+  // Rueckt den Reroll-Zaehler (Einzel-Ansicht) fuer GENAU eine Kategorie
+  // einen Schritt weiter - siehe naechsterRerollZaehlerStand weiter oben fuer
+  // den Zweck (Suchfeld nach REROLL_SCHWELLE_ERSTES_MAL bzw. spaeter
+  // REROLL_SCHWELLE_ERNEUT aufeinanderfolgenden Rerolls desselben Slots).
   function rerollZaehlerErhoehen(kategorie) {
-    setRerollZaehler((aktuell) => ({ ...aktuell, [kategorie]: aktuell[kategorie] + 1 }))
+    setRerollZaehler((aktuell) => ({ ...aktuell, [kategorie]: naechsterRerollZaehlerStand(aktuell[kategorie]) }))
   }
 
   // Diese vier Funktionen aendern jeweils nur EINEN Slot, skalieren danach
@@ -1222,11 +1258,12 @@ function App() {
   }
 
   // Wird aufgerufen, wenn der User im Suchfeld eines Slots (erscheint ab
-  // REROLL_SCHWELLE_FUER_SUCHE Rerolls desselben Slots) gezielt eine Zutat
+  // REROLL_SCHWELLE_ERSTES_MAL Rerolls desselben Slots) gezielt eine Zutat
   // auswaehlt. Behandelt die Auswahl wie einen Reroll: derselbe
   // Portionsberechnungs-Pfad (portionenMitMakroZielenSetzen), keine
   // Sonderbehandlung. Setzt zusaetzlich NUR den Zaehler dieser Kategorie
-  // zurueck, die anderen drei Slots behalten ihren Zaehlerstand.
+  // zurueck (siehe manuellGewaehlterRerollZaehlerStand), die anderen drei
+  // Slots behalten ihren Zaehlerstand.
   function zutatManuellWaehlen(kategorie, zutat) {
     const naechsteZutaten = {
       protein: kategorie === 'protein' ? zutat : protein,
@@ -1248,7 +1285,7 @@ function App() {
       mahlzeit,
       makroZieleFuer(mahlzeit)
     )
-    setRerollZaehler((aktuell) => ({ ...aktuell, [kategorie]: 0 }))
+    setRerollZaehler((aktuell) => ({ ...aktuell, [kategorie]: manuellGewaehlterRerollZaehlerStand() }))
   }
 
   // Wird vom MahlzeitFilter aufgerufen, wenn der User einen anderen Filter
@@ -1658,7 +1695,7 @@ function App() {
     })
 
     setTagesplanRerollZaehler((aktuelleZaehler) =>
-      aktuelleZaehler.map((z, i) => (i === index ? { ...z, [kategorie]: z[kategorie] + 1 } : z))
+      aktuelleZaehler.map((z, i) => (i === index ? { ...z, [kategorie]: naechsterRerollZaehlerStand(z[kategorie]) } : z))
     )
   }
 
@@ -1693,7 +1730,7 @@ function App() {
     })
 
     setTagesplanRerollZaehler((aktuelleZaehler) =>
-      aktuelleZaehler.map((z, i) => (i === index ? { ...z, [kategorie]: 0 } : z))
+      aktuelleZaehler.map((z, i) => (i === index ? { ...z, [kategorie]: manuellGewaehlterRerollZaehlerStand() } : z))
     )
   }
 
@@ -1911,7 +1948,7 @@ function App() {
                 zielWert={aktuelleMakroZiele.protein}
                 onZielAendern={(wert) => makroZielAendern('protein', wert)}
                 zielErreichbar={proteinZielErreichbar}
-                sucheAnzeigen={rerollZaehler.protein >= REROLL_SCHWELLE_FUER_SUCHE}
+                sucheAnzeigen={rerollZaehler.protein.zaehler >= rerollZaehler.protein.schwelle}
                 suchPool={proteinSuchPool}
                 onZutatWaehlen={(zutat) => zutatManuellWaehlen('protein', zutat)}
               />
@@ -1923,7 +1960,7 @@ function App() {
                 zielWert={aktuelleMakroZiele.carbs}
                 onZielAendern={(wert) => makroZielAendern('carbs', wert)}
                 zielErreichbar={carbsZielErreichbar}
-                sucheAnzeigen={rerollZaehler.carbs >= REROLL_SCHWELLE_FUER_SUCHE}
+                sucheAnzeigen={rerollZaehler.carbs.zaehler >= rerollZaehler.carbs.schwelle}
                 suchPool={carbsSuchPool}
                 onZutatWaehlen={(zutat) => zutatManuellWaehlen('carbs', zutat)}
               />
@@ -1935,7 +1972,7 @@ function App() {
                 zielWert={aktuelleMakroZiele.fett}
                 onZielAendern={(wert) => makroZielAendern('fett', wert)}
                 zielErreichbar={fettZielErreichbar}
-                sucheAnzeigen={rerollZaehler.fett >= REROLL_SCHWELLE_FUER_SUCHE}
+                sucheAnzeigen={rerollZaehler.fett.zaehler >= rerollZaehler.fett.schwelle}
                 suchPool={fettSuchPool}
                 onZutatWaehlen={(zutat) => zutatManuellWaehlen('fett', zutat)}
               />
@@ -1944,7 +1981,7 @@ function App() {
                 text={gemuese.name}
                 portion={gemuesePortion}
                 onWuerfeln={gemueseWuerfeln}
-                sucheAnzeigen={rerollZaehler.gemuese >= REROLL_SCHWELLE_FUER_SUCHE}
+                sucheAnzeigen={rerollZaehler.gemuese.zaehler >= rerollZaehler.gemuese.schwelle}
                 suchPool={gemueseSuchPool}
                 onZutatWaehlen={(zutat) => zutatManuellWaehlen('gemuese', zutat)}
               />

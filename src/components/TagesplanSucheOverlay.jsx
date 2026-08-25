@@ -6,8 +6,9 @@ import { FADE_UEBERGANG, SPRING_REVEAL, motionPropsFuer, transitionFuer } from '
 import { suchtextGefiltert } from '../zutatenFilter'
 
 // Ersetzt das bisherige INLINE-Suchfeld von SlotKarte fuer die Tagesplan-
-// Ansicht: nach REROLL_SCHWELLE_FUER_SUCHE aufeinanderfolgenden Rerolls
-// desselben Slots (siehe TagesplanAnsicht.jsx) erscheint dieses Suchfeld
+// Ansicht: nach REROLL_SCHWELLE_ERSTES_MAL aufeinanderfolgenden Rerolls
+// desselben Slots (siehe naechsterRerollZaehlerStand in App.jsx sowie den
+// Effekt in TagesplanAnsicht.jsx) erscheint dieses Suchfeld
 // stattdessen als Overlay ueber der ganzen kompakten Liste - inline wuerde in
 // der neuen, engen Zeilen-Optik die deterministische Hoehe wieder aufbrechen.
 // Gleiches Backdrop-Fade-Muster wie der "Kalorienziel neu berechnen?"-Dialog

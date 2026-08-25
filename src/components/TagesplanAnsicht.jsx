@@ -19,10 +19,6 @@ function MakroPill({ ton, children }) {
   return <span className={`rounded-full px-1.5 py-0.5 text-xs font-medium ${klassen}`}>{children}</span>
 }
 
-// Ab wie vielen aufeinanderfolgenden Rerolls DESSELBEN Slots das Suchfeld
-// automatisch erscheint - identischer Wert wie in App.jsx (Einzel-Ansicht).
-const REROLL_SCHWELLE_FUER_SUCHE = 3
-
 // Feste Reihenfolge der 4 Kategorien PRO Mahlzeit-Eintrag, fuer den
 // Zaehler-Vergleich im Effekt unten (welcher der bis zu 16 Slots - 4
 // Mahlzeiten x 4 Kategorien - ist gerade erst ueber die Reroll-Schwelle
@@ -73,25 +69,30 @@ function TagesplanAnsicht({
   const vorherigeZaehler = useRef(null)
 
   // Oeffnet das Such-Overlay automatisch, sobald ein Slot GERADE ERST ueber
-  // die Reroll-Schwelle gestiegen ist ("neu > alt", nicht nur "neu >=
+  // seine Reroll-Schwelle gestiegen ist ("neu > alt", nicht nur "neu >=
   // Schwelle"!). Der Unterschied ist entscheidend: eine reine Ableitung
   // "zeige Overlay, wenn Zaehler >= Schwelle" wuerde ein per Backdrop-Klick
   // geschlossenes Overlay bei JEDEM weiteren Re-Render (z. B. durch einen
   // Reroll an ganz anderer Stelle) sofort wieder oeffnen, weil der Zaehler
   // ja weiterhin >= Schwelle bleibt - der User haette gar keine Moeglichkeit,
   // es zuzuklappen. Mit dem "gerade erst gestiegen"-Vergleich wird das
-  // Oeffnen zu einem einmaligen Ereignis PRO Reroll: der User kann es per
-  // Backdrop-Klick schliessen, und ein erneuter Reroll desselben Slots
-  // (Zaehler steigt weiter, 3 -> 4 -> 5 ...) oeffnet es bewusst wieder -
-  // exakt das bisherige "wird nach jedem weiteren Reroll erneut angeboten"-
-  // Verhalten von SlotKarte, nur jetzt schliessbar.
+  // Oeffnen zu einem einmaligen Ereignis PRO Reroll.
+  //
+  // zaehler/schwelle kommen beide aus tagesplanRerollZaehler (siehe
+  // naechsterRerollZaehlerStand in App.jsx): die Schwelle selbst steigt nach
+  // dem ersten Erscheinen dauerhaft von 3 auf 5, und der Zaehler wird beim
+  // naechsten Reroll DESSELBEN Slots automatisch auf 1 zurueckgesetzt (egal
+  // ob der User das Overlay genutzt oder nur weggeklickt/ignoriert hat) -
+  // das Overlay bleibt dadurch eine gelegentliche Hilfe statt bei jedem
+  // weiteren Reroll erneut aufzupoppen.
   useEffect(() => {
     if (vorherigeZaehler.current) {
       for (let index = 0; index < tagesplanRerollZaehler.length; index++) {
         for (const kategorie of KATEGORIEN) {
-          const neu = tagesplanRerollZaehler[index][kategorie]
-          const alt = vorherigeZaehler.current[index]?.[kategorie] ?? 0
-          if (neu > alt && neu >= REROLL_SCHWELLE_FUER_SUCHE) {
+          const neu = tagesplanRerollZaehler[index][kategorie].zaehler
+          const alt = vorherigeZaehler.current[index]?.[kategorie]?.zaehler ?? 0
+          const schwelle = tagesplanRerollZaehler[index][kategorie].schwelle
+          if (neu > alt && neu >= schwelle) {
             setSucheSlot({ index, kategorie })
           }
         }
