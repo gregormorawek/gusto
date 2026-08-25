@@ -34,7 +34,7 @@ const GEWICHT_BEREICH = { min: 40, max: 200 }
 // im Kalorienrechner-Wizard sind die Raeder hier nur EIN Element unter
 // vielen auf einer normal scrollbaren Seite, eine volle Zeilenbreite wuerde
 // dort versehentliche Rad-Aenderungen beim Durchscrollen begünstigen.
-const KOERPERDATEN_RAD_BREITE_PX = 150
+const KOERPERDATEN_RAD_BREITE_PX = 200
 
 // Divisor fuer die Umrechnung eines TAGES-Kalorienziels (das Ergebnis von
 // berechneKalorienZiel, siehe kalorienBerechnung.js) auf ein PRO-MAHLZEIT-
