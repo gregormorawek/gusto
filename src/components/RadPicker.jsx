@@ -88,7 +88,20 @@ function trommelStilFuerOffset(offsetRows, anzeigeWerte) {
 // React aus - React wuerde ein reconciliertes style-Attribut sonst bei
 // jedem Re-render auf den JSX-Wert zuruecksetzen und die imperativen
 // Scroll-Updates dadurch "wegradieren".
-function RadPicker({ min, max, startWert, einheit, onAendern, reduzierteBewegung, ariaLabel }) {
+// "breite" (optional, px) begrenzt die GESAMTE Rad-Zeile (Zahlenspalte +
+// Einheit) auf eine feste, zentrierte Breite - NICHT nur die Zahlenspalte
+// selbst (die bleibt immer bei ihren festen 104px, s.u.). Ohne diese Prop
+// (Standardfall, so verwendet vom Kalorienrechner-Wizard, siehe
+// Kalorienrechner.jsx) spannt die Zeile wie bisher die volle Breite ihres
+// Elternelements auf. In den Einstellungen (siehe EinstellungenAnsicht.jsx)
+// wird sie dagegen bewusst auf einen schmalen Wert (~150px) begrenzt: die
+// Einstellungen-Karte ist deutlich breiter als noetig fuer ein einzelnes
+// Zahlenrad, und eine volle Zeilenbreite wuerde beim vertikalen
+// Durchscrollen der Einstellungen dazu fuehren, dass fast jede Wisch-Geste
+// ueber der Rad-Zeile beginnt und dadurch versehentlich das Rad statt der
+// Seite scrollt. Mit fester, schmaler Breite + mx-auto bleibt links/rechts
+// echter, elementfreier Platz fuer normales Scrollen.
+function RadPicker({ min, max, startWert, einheit, onAendern, reduzierteBewegung, ariaLabel, breite }) {
   const scrollRef = useRef(null)
   const settleTimeoutRef = useRef(null)
   const rafRef = useRef(null)
@@ -253,7 +266,10 @@ function RadPicker({ min, max, startWert, einheit, onAendern, reduzierteBewegung
   }
 
   return (
-    <div className="relative flex items-center justify-center gap-3" style={{ height: RAD_HOEHE_PX }}>
+    <div
+      className="relative mx-auto flex items-center justify-center gap-3"
+      style={{ height: RAD_HOEHE_PX, width: breite ?? '100%' }}
+    >
       {/* Auswahl-Markierung spannt die GESAMTE Zeile (Zahlenrad + Einheit),
           nicht nur die Zahlenspalte - dadurch liegt die Einheit sichtbar
           "in" der hervorgehobenen Zeile, wie bei einem nativen iOS-Picker.

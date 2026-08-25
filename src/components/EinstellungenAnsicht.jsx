@@ -29,6 +29,13 @@ const ALTER_BEREICH = { min: 16, max: 80 }
 const GROESSE_BEREICH = { min: 130, max: 220 }
 const GEWICHT_BEREICH = { min: 40, max: 200 }
 
+// Feste, schmale Rad-Breite (siehe "breite"-Prop-Kommentar in RadPicker.jsx)
+// fuer die drei Koerperdaten-Raeder hier in den Einstellungen - anders als
+// im Kalorienrechner-Wizard sind die Raeder hier nur EIN Element unter
+// vielen auf einer normal scrollbaren Seite, eine volle Zeilenbreite wuerde
+// dort versehentliche Rad-Aenderungen beim Durchscrollen begünstigen.
+const KOERPERDATEN_RAD_BREITE_PX = 150
+
 // Divisor fuer die Umrechnung eines TAGES-Kalorienziels (das Ergebnis von
 // berechneKalorienZiel, siehe kalorienBerechnung.js) auf ein PRO-MAHLZEIT-
 // Fenster, falls ziel.typ==='proMahlzeit' aktiv ist. Der Rechner selbst kennt
@@ -321,6 +328,7 @@ function EinstellungenAnsicht({
             einheit="Jahre"
             ariaLabel="Alter in Jahren"
             reduzierteBewegung={reduzierteBewegung}
+            breite={KOERPERDATEN_RAD_BREITE_PX}
             onAendern={(w) => koerperdatenFeldAendern('alterJahre', w)}
           />
         </div>
@@ -334,6 +342,7 @@ function EinstellungenAnsicht({
             einheit="cm"
             ariaLabel="Größe in Zentimetern"
             reduzierteBewegung={reduzierteBewegung}
+            breite={KOERPERDATEN_RAD_BREITE_PX}
             onAendern={(w) => koerperdatenFeldAendern('groesseCm', w)}
           />
         </div>
@@ -347,6 +356,7 @@ function EinstellungenAnsicht({
             einheit="kg"
             ariaLabel="Gewicht in Kilogramm"
             reduzierteBewegung={reduzierteBewegung}
+            breite={KOERPERDATEN_RAD_BREITE_PX}
             onAendern={(w) => koerperdatenFeldAendern('gewichtKg', w)}
           />
         </div>
