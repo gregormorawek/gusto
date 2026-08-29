@@ -179,8 +179,11 @@ function OnboardingWizard({
           Entscheidung beschrieben) hinter die Statusleiste hochgescrollt
           wird: sticky kann per Definition nicht ueber top:0 hinaus scrollen.
           bg-bg noetig, damit der darunter scrollende Inhalt nicht sichtbar
-          durchscheint, sobald der Header steht und der Rest weiterzieht. */}
-      <header className="sticky top-0 z-10 bg-bg px-6 pt-8">
+          durchscheint, sobald der Header steht und der Rest weiterzieht.
+          pt-[...]: Safe-Area oben (Notch/Dynamic Island) zusaetzlich zum
+          bisherigen pt-8-Abstand - ohne env(safe-area-inset-top) wuerde der
+          Header auf Geraeten mit grosser Statusleiste zu nah an ihr kleben. */}
+      <header className="sticky top-0 z-10 bg-bg px-6 pt-[calc(2rem_+_env(safe-area-inset-top))]">
         {schritt > 1 ? (
           // EXPLIZIT h-9 w-9 (statt sich implizit aus p-2 + text-2xl-
           // Zeilenhoehe zu ergeben) + flex-Zentrierung fuers "←" - GEFUNDENE

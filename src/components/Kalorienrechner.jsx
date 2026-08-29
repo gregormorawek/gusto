@@ -202,7 +202,10 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
       })}
       className="fixed inset-0 z-40 flex h-dvh flex-col bg-bg"
     >
-      <header className="sticky top-0 z-10 bg-bg px-6 pt-8">
+      {/* pt-[...]: Safe-Area oben (Notch/Dynamic Island), analog zu
+          OnboardingWizard.jsx - derselbe fixed inset-0-Vollbild-Screen
+          braucht denselben Schutz. */}
+      <header className="sticky top-0 z-10 bg-bg px-6 pt-[calc(2rem_+_env(safe-area-inset-top))]">
         <AnimatedButton
           type="button"
           onClick={zurueck}

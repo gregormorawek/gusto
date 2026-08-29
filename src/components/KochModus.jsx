@@ -422,7 +422,11 @@ function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten
   ]
 
   return (
-    <div className="pb-6">
+    // pb-[...]: Safe-Area unten (Home-Indicator) zusaetzlich zum bisherigen
+    // pb-6 - das Sheet reicht bis bottom-0 (siehe KochModusSheet), ohne
+    // env(safe-area-inset-bottom) wuerde der letzte Kochschritt auf
+    // Geraeten mit Home-Indicator zu nah an dessen Bereich enden.
+    <div className="pb-[calc(1.5rem_+_env(safe-area-inset-bottom))]">
       {/* Randloses Bild ueber die volle Breite (kein mx-4, kein rounded) -
           bewusster Kontrast zur kompakten RezeptKarte, in der das Bild noch
           in eine gepolsterte Karte eingebettet ist. */}

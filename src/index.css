@@ -21,6 +21,39 @@ body {
   font-family: var(--font-sans);
 }
 
+/* App-Shell-Pattern fuer Capacitor/WKWebView (iOS-Build, siehe ios/App).
+   OHNE diese Regeln ist html/body selbst der Scroll-Container der Seite -
+   in einer WKWebView fuehrt das dazu, dass "position: fixed"-Elemente
+   (TabLeiste, KochModus-Backdrop) waehrend des nativen Scrollens sichtbar
+   nachziehen/aus ihrer Position rutschen (bekannte WKWebView-Eigenheit,
+   anders als in normalen Desktop-Browsern), UND dass der native
+   UIScrollView der WebView beim Ueberziehen (Rubber-Banding) am oberen/
+   unteren Rand seinen eigenen (dunklen) Hintergrund durchscheinen laesst,
+   statt unseres Cream-Tons - sichtbar als "schwarzer Rand" oben/unten.
+   position: fixed + overflow: hidden auf html/body unterbindet dieses
+   native Scrollen komplett; #root uebernimmt stattdessen als fixe,
+   Cream-hinterlegte Flex-Spalte die volle Viewport-Hoehe, und JEDER
+   Screen bekommt seine EIGENE innere Scroll-Region (overflow-y: auto,
+   siehe z. B. der Content-Wrapper in App.jsx sowie OnboardingWizard.jsx/
+   Kalorienrechner.jsx, die bereits vorher nach demselben Prinzip gebaut
+   wurden: h-dvh + min-h-0/overflow-hidden statt eines wachsenden Body). */
+html,
+body {
+  height: 100%;
+  width: 100%;
+  overflow: hidden;
+  position: fixed;
+  overscroll-behavior: none;
+}
+
+#root {
+  height: 100dvh;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  background-color: var(--color-bg);
+}
+
 /* Sanftes statt hartes Scrollen, wenn beim Fokussieren eines Eingabefelds
    Ausgleich noetig ist (siehe useTastaturAusgleich.js + der Sticky-Header
    in OnboardingWizard.jsx) - ohne dieses scroll-behavior wuerde selbst ein
@@ -62,13 +95,18 @@ html {
      Wurzelelement seine Scrollbar ueber einen separaten, browserinternen
      Viewport-Scrolling-Mechanismus zeigt statt ueber einen normalen CSS-
      Scroll-Container, auf den scrollbar-gutter in der Praxis nicht
-     zuverlaessig durchgreift. Stattdessen der aeltere, dafuer garantiert
-     wirksame Ansatz: overflow-y:scroll erzwingt die Scrollbar-Spur permanent
-     sichtbar (statt nur bei Bedarf) - die verfuegbare Breite kann sich
-     dadurch nie mehr aendern, weil die Scrollbar nie mehr erscheint/
-     verschwindet. Per Messung bestaetigt wirksam (siehe Bugfix "Schritt-
-     Wechsel-Animation wiederherstellen"). */
-  overflow-y: scroll;
+     zuverlaessig durchgreift. Damals wirksamer Ansatz: overflow-y:scroll
+     erzwang die Scrollbar-Spur permanent sichtbar (statt nur bei Bedarf) -
+     die verfuegbare Breite konnte sich dadurch nie mehr aendern, weil die
+     Scrollbar nie mehr erschien/verschwand.
+
+     INZWISCHEN OBSOLET (App-Shell-Fix, siehe html/body-Regel weiter oben in
+     dieser Datei): html ist seitdem grundsaetzlich overflow:hidden und
+     scrollt nie mehr selbst - eine Scrollbar auf html kann dadurch gar
+     nicht mehr entstehen, das urspruengliche Breiten-Sprung-Problem ist
+     strukturell unmoeglich geworden. overflow-y:scroll hier wuerde die
+     neue html/body-Regel (spaeter in der Kaskade, gleiche Spezifitaet)
+     direkt wieder aufheben - deshalb entfernt statt beibehalten. */
 }
 
 @media (prefers-reduced-motion: reduce) {

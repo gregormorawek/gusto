@@ -1842,13 +1842,22 @@ function App() {
           onSchrittUmschalten={kochSchrittUmschalten}
         />
 
-        {/* pb-[...]: Platz fuer die schwebende TabLeiste (60px Hoehe + 12px
-            Bodenabstand + Safe-Area, siehe .tab-leiste in index.css), damit
-            sie den untersten Inhalt nicht dauerhaft ueberlagert. Nur um
-            diesen Content-Block herum (nicht um KochModus oben) - das ist
-            ein fixed inset-0-Overlay und deckt den Viewport ohnehin komplett
-            ab, braucht also kein eigenes Bottom-Padding. */}
-        <div className="pb-[calc(96px_+_env(safe-area-inset-bottom))] pt-4">
+        {/* flex-1 min-h-0 overflow-y-auto: DIE innere Scroll-Region dieses
+            Screens (siehe App-Shell-Pattern in index.css - html/body
+            scrollen bewusst NICHT mehr) - deckt Planen/Rezepte/
+            Einkaufsliste/Einstellungen einheitlich mit einem einzigen
+            Wrapper ab, da alle vier hier durchlaufen. pt-[...]: Safe-Area
+            oben (Notch/Dynamic Island), da hier (anders als im
+            OnboardingWizard/Kalorienrechner mit eigenem stickyem Header)
+            kein separater Header-Bereich existiert, der das uebernehmen
+            koennte. pb-[...]: Platz fuer die schwebende TabLeiste (60px
+            Hoehe + 12px Bodenabstand + Safe-Area, siehe .tab-leiste in
+            index.css), damit sie den untersten Inhalt nicht dauerhaft
+            ueberlagert. Nur um diesen Content-Block herum (nicht um
+            KochModus oben) - das ist ein fixed inset-0-Overlay und deckt
+            den Viewport ohnehin komplett ab, braucht also keine eigene
+            Scroll-Region/kein eigenes Padding. */}
+        <div className="flex-1 min-h-0 overflow-y-auto pb-[calc(96px_+_env(safe-area-inset-bottom))] pt-[calc(1rem_+_env(safe-area-inset-top))]">
         {ansicht === 'einstellungen' ? (
           <EinstellungenAnsicht
             ziel={ziel}
@@ -2026,6 +2035,19 @@ function App() {
         <motion.div
           key="app-inhalt"
           ref={naechsteAnsichtRef}
+          // flex flex-1 min-h-0 flex-col overflow-hidden: fuellt #root (siehe
+          // App-Shell-Pattern in index.css) komplett aus, OHNE selbst zu
+          // wachsen/zu scrollen - das eigentliche Scrollen passiert
+          // ausschliesslich in den inneren Scroll-Regionen darunter (Content-
+          // Wrapper weiter unten fuer Planen/Rezepte/Einkaufsliste/
+          // Einstellungen, bzw. das eigene h-dvh-Skelett von
+          // OnboardingWizard.jsx). min-h-0 ist noetig, damit dieser
+          // Flex-Container ueberhaupt kleiner als sein Inhalt werden darf -
+          // ohne min-h-0 wuerde sein impliziter min-height:auto verhindern,
+          // dass ein zu hoher naechsteAnsicht-Inhalt intern (statt der
+          // ganzen Seite) beschnitten wird, siehe dieselbe Problematik
+          // bereits geloest in OnboardingWizard.jsx/Kalorienrechner.jsx.
+          className="flex min-h-0 flex-1 flex-col overflow-hidden"
           initial={
             reduzierteBewegung ? false : { opacity: 0, y: NAECHSTE_ANSICHT_EINBLEND_Y_PX }
           }
