@@ -74,7 +74,16 @@ function KartenBild({ url, alt, onError }) {
         draggable={false}
         onLoad={() => setGeladen(true)}
         onError={onError}
-        className={`absolute inset-0 h-full w-full object-cover transition-opacity duration-200 motion-reduce:transition-none ${
+        // select-none/-webkit-touch-callout/-webkit-user-drag: draggable={false}
+        // oben blockiert nur HTML5-Drag-and-Drop (mousedown-basiert) - WebKits
+        // eigene, TOUCH-basierte Bild-Drag-Geste (langes Druecken+Bewegen auf
+        // einem <img>, normalerweise fuers "Bild teilen/sichern") ist ein
+        // komplett separater nativer Mechanismus, den weder draggable=false
+        // noch touch-action:pan-y (siehe style-Attribut am Karten-Wrapper
+        // oben) abdecken - genau das war laut Real-Device-Test die
+        // verbleibende Ursache fuer noch minimal moegliches horizontales
+        // Verschieben trotz touch-action:pan-y auf dem Drag-Ziel-Element.
+        className={`absolute inset-0 h-full w-full select-none object-cover transition-opacity duration-200 [-webkit-touch-callout:none] [-webkit-user-drag:none] motion-reduce:transition-none ${
           geladen ? 'opacity-100' : 'opacity-0'
         }`}
       />

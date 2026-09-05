@@ -877,13 +877,25 @@ function App() {
             overscroll-behavior-x:none (Tailwind overscroll-x-none) ist die
             zweite, unabhaengige Absicherung: unterbindet zusaetzlich JEDES
             elastische Ueberziehen/Rubber-Banding auf der X-Achse, falls
-            trotzdem einmal horizontal "gescrollt" wuerde. Bewusst NUR auf
-            der X-Achse (nicht overscroll-none/touch-none) - das normale,
-            von iOS-Nutzern erwartete vertikale Rubber-Banding an oberer/
-            unterer Kante bleibt dadurch unangetastet erhalten, nur die
-            (hier fachlich sinnlose) horizontale Bewegung wird
-            unterbunden. */}
-        <div className="flex-1 min-h-0 touch-pan-y overflow-y-auto overscroll-x-none pb-[calc(96px_+_env(safe-area-inset-bottom))] pt-[calc(1rem_+_env(safe-area-inset-top))]">
+            trotzdem einmal horizontal "gescrollt" wuerde.
+
+            NACHTRAG (naechste Testrunde): urspruenglich bewusst NUR auf der
+            X-Achse (nicht overscroll-none), mit der Annahme, dass normales,
+            von iOS-Nutzern erwartetes vertikales Rubber-Banding an oberer/
+            unterer Kante erwuenscht bleibt. Real-Device-Test zeigte danach
+            aber ein NEU aufgetretenes elastisches Wippen auf dem Rezepte-
+            Swipe-Screen, obwohl dessen Inhalt gar nicht ueberlaeuft - touch-
+            action:pan-y aktiviert dort explizit vertikales Pannen, und OHNE
+            overscroll-behavior-y bekommt WebKits interne WKChildScrollView
+            trotzdem ihr natives Rand-Wippen, obwohl es fachlich nichts zu
+            "ueberziehen" gibt. overscroll-none (statt weiterhin nur
+            overscroll-x-none) unterbindet zusaetzlich dieses Y-Wippen -
+            WICHTIG laut Spec: overscroll-behavior betrifft nur das
+            elastische Rand-Verhalten UND das Scroll-Chaining zum Elternteil,
+            NICHT das normale Scrollen selbst bei tatsaechlichem Overflow
+            (Tag-Tab bei vielen Mahlzeiten, Einstellungen scrollen dadurch
+            unveraendert normal weiter). */}
+        <div className="flex-1 min-h-0 touch-pan-y overflow-y-auto overscroll-none pb-[calc(96px_+_env(safe-area-inset-bottom))] pt-[calc(1rem_+_env(safe-area-inset-top))]">
         {ansicht === 'einstellungen' ? (
           <EinstellungenAnsicht
             ziel={ziel}
