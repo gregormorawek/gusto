@@ -894,8 +894,45 @@ function App() {
             elastische Rand-Verhalten UND das Scroll-Chaining zum Elternteil,
             NICHT das normale Scrollen selbst bei tatsaechlichem Overflow
             (Tag-Tab bei vielen Mahlzeiten, Einstellungen scrollen dadurch
-            unveraendert normal weiter). */}
-        <div className="flex-1 min-h-0 touch-pan-y overflow-y-auto overscroll-none pb-[calc(96px_+_env(safe-area-inset-bottom))] pt-[calc(1rem_+_env(safe-area-inset-top))]">
+            unveraendert normal weiter).
+
+            NACHTRAG 2 (EIGENTLICHE URSACHE des ganzen "Karte laesst sich
+            horizontal verschieben"-Raetsels, endlich gefunden): Nach dem
+            overscroll-none-Fix oben blieb die native WKChildScrollView
+            dieses Containers laut Laufzeit-Log dauerhaft bei einem
+            NICHT-elastischen contentOffset von (16.0, 0.0) haengen, statt
+            wie zuvor durch das Bounce-Zurueckfedern kaschiert zu werden.
+            Per gezieltem DOM-Test bestaetigt: dieser Container hat (weil
+            nur overflow-y-auto gesetzt wurde) laut getComputedStyle
+            EFFEKTIV overflow-x:auto, NICHT visible - CSS-Spec-Regel:
+            "wenn eine Achse ungleich visible/clip ist und die andere
+            visible waere, wird die visible-Achse zu auto befoerdert".
+            WebKit legt fuer overflow:auto/scroll-Container eine native,
+            horizontal scrollfaehige ScrollView an, fuer overflow:hidden
+            dagegen NICHT. Waehrend des Wisch-Ziehens der Rezept-Karte
+            (RezeptSchwipKarte.jsx, x/rotate-Transform auf dem
+            motion.div) wird diese Karte von KEINEM Vorfahren bis hinauf
+            zu diesem Wrapper geclippt (der direkte aspect-[3/4]-Elternteil
+            hat overflow:visible) - per direktem Transform-Test gemessen:
+            card.style.transform = translateX(150px) erzeugt hier real
+            ~157px zusaetzlichen scrollWidth. Mit dem oben effektiv
+            aktiven overflow-x:auto haelt WebKits Scrolling-Koordinator
+            das fuer echten (wenn auch nur waehrend der Geste
+            existierenden) horizontalen Scrollinhalt und laesst der
+            nativen ScrollView einen entsprechenden contentOffset-
+            Spielraum - nach Geste-Ende blieb dieser (ohne die jetzt
+            fehlende Bounce-Rueckfederung) auf einem Zwischenwert stehen.
+            overflow-x-hidden (Tailwind) setzt overflow-x EXPLIZIT (statt
+            es auf visible zu belassen und der Spec-Koerzion zu
+            ueberlassen) - das verhindert die auto-Beforderung komplett,
+            WebKit legt fuer diesen Container dann gar keine horizontal
+            scrollfaehige native ScrollView mehr an. Visuell unkritisch:
+            die Karte SOLL beim tatsaechlichen Swipe ohnehin komplett aus
+            dem Bild fliegen (siehe SWIPE_AUSTRITT_PX in
+            RezeptSchwipKarte.jsx) - overflow-x-hidden clippt das jetzt
+            zusaetzlich sauber, statt es dem Zufall/Viewport-Rand zu
+            ueberlassen. */}
+        <div className="flex-1 min-h-0 touch-pan-y overflow-y-auto overflow-x-hidden overscroll-none pb-[calc(96px_+_env(safe-area-inset-bottom))] pt-[calc(1rem_+_env(safe-area-inset-top))]">
         {ansicht === 'einstellungen' ? (
           <EinstellungenAnsicht
             ziel={ziel}
