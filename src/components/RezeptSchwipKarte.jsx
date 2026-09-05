@@ -286,7 +286,20 @@ function RezeptSchwipKarte({
     // Mindestabstand von 4px - der Ueberstand bleibt als schmaler Rand
     // erkennbar, beruehrt aber nie mehr die Buttons.
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      <div className="relative mx-4 mt-2 aspect-[3/4] shrink-0">
+      {/* mx-8/my-4/max-h-[52dvh] statt vorher mx-4/mt-2 ohne Hoehen-Deckel:
+          zusaetzliches, von Teil 1 (natives Scroll-Lockdown in
+          MainViewController.swift) UNABHAENGIGES Sicherheitsnetz gegen die
+          seit mehreren Runden gemeldeten "Flaeche verschiebt sich"-Bugs
+          (horizontal UND, neuester Befund, auch vertikal um ~110-115px).
+          Bewusst deutlich mehr Rand als frueher (32px statt 16px seitlich,
+          16px statt 8px oben) UND ein Hoehen-Deckel (max-h, nicht nur
+          aspect-ratio) statt vorher nahezu die gesamte verfuegbare
+          Vertikalflaeche auszufuellen - damit bleibt auf JEDER Seite ein
+          garantierter, sichtbarer Puffer zum Bildschirmrand, der selbst bei
+          einem trotz Teil 1 verbleibenden Rest-Ruckler von wenigen Pixeln
+          nie sichtbar "anschneidet". Behebt NICHT die Ursache (das ist
+          Teil 1) - reines Sicherheitsnetz auf Bild-Ebene, wie beauftragt. */}
+      <div className="relative mx-8 my-4 aspect-[3/4] max-h-[52dvh] shrink-0">
         {/* Zwei rein dekorative "Stapel dahinter"-Karten - NICHT per scale()
             auf einer inset-0-Flaeche (das haette sie exakt zentriert hinter
             der gleich grossen Vorderkarte verschwinden lassen, komplett
