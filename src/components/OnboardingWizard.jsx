@@ -1,13 +1,11 @@
 import { useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
-import { IconBook2, IconChevronRight, IconDice5 } from '@tabler/icons-react'
 import ZielEinstellungen from './ZielEinstellungen'
 import MahlzeitFilter from './MahlzeitFilter'
 import DiaetFilter from './DiaetFilter'
-import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
+import AktiveMahlzeitenFilter from './AktiveMahlzeitenFilter'
 import WizardTageskarte from './WizardTageskarte'
 import AnimatedButton from './AnimatedButton'
-import DampfSchuesselIllustration from './DampfSchuesselIllustration'
 import Kalorienrechner from './Kalorienrechner'
 import { kalorienZielGueltig } from '../kalorienZiel'
 import { EXPO_OUT, SPRING_REVEAL, motionPropsFuer } from '../motionConfig'
@@ -50,13 +48,11 @@ function schrittVarianten(reduzierteBewegung) {
 }
 
 // Wizard fuer den allerersten Besuch: 3 Frage-Schritte (Kalorienziel/
-// Mahlzeit/Ernaehrungsform) + 1 Abschluss-Screen (Schritt 4, "Los geht's"-
-// Auswahl zwischen Wuerfeln/Rezepte). Der Schritt-Zaehler ist reiner
-// interner UI-State - App.jsx muss nur wissen, WANN der Wizard fertig ist
-// (onAbschluss) UND in welcher Ansicht er starten soll (Parameter von
-// onAbschluss), nicht bei welchem Schritt er gerade steht. Schritt 1-3
+// Mahlzeit/Ernaehrungsform). Der Schritt-Zaehler ist reiner interner
+// UI-State - App.jsx muss nur wissen, WANN der Wizard fertig ist
+// (onAbschluss), nicht bei welchem Schritt er gerade steht. Schritt 1-3
 // rendern exakt dieselben Komponenten wie die Haupt-Ansicht
-// (ZielEinstellungen/MahlzeitFilter/DiaetFilter/TagesplanMahlzeitenFilter)
+// (ZielEinstellungen/MahlzeitFilter/DiaetFilter/AktiveMahlzeitenFilter)
 // mit denselben Props/Handlern, damit sich Wizard und spaeteres
 // Einstellungen-Panel identisch verhalten.
 //
@@ -65,15 +61,20 @@ function schrittVarianten(reduzierteBewegung) {
 // eigentliche Frage, per AnimatePresence beim Schritt-Wechsel geslided),
 // unteres Drittel (WizardTageskarte + "Weiter"-Button).
 //
-// Schritt 4 ist BEWUSST ANDERS (kein Datenfeld mehr, sondern der
-// Abschluss): kein Fortschrittsbalken, celebratorische Ueberschrift statt
-// Frage-Titel, keine WizardTageskarte/kein Button-Footer - stattdessen zwei
-// grosse Tap-Karten (Wuerfeln/Rezepte), deren Tap selbst die Aktion ist.
-// Bleibt trotzdem im SELBEN AnimatePresence wie Schritt 1-3 (nur mit
-// eigenen, nicht-geslideten Animate-Props statt der gemeinsamen
-// schrittVarianten), damit der Uebergang 3->4 weiterhin sauber ausspielt
-// statt abrupt zu wirken. Nur bestehende Marken-Tokens, keine neuen
-// Farben/Fonts.
+// Ehemals gab es einen vierten Abschluss-Schritt ("Alles bereit!" mit einer
+// Tap-Wahl zwischen "Wuerfeln" und "Rezepte") - mit dem Rezepte-Swipe-Pivot
+// (siehe Plan floating-mixing-shannon.md) faellt "Wuerfeln" als eigene
+// Ansicht weg, die Wahl macht also keinen Sinn mehr: "Weiter" auf Schritt 3
+// schliesst das Onboarding jetzt DIREKT mit onAbschluss('rezepte') ab (siehe
+// weiterKlicken unten), schritt erreicht dadurch nie mehr einen Wert > 3.
+// Die verbleibenden "schritt <= 3"/"schritt === 4"-Weichen weiter unten
+// (Fortschrittsbalken-Opacity, Titel-Ternary, Footer-Sichtbarkeit, Content-
+// Motion-Varianten) sind dadurch technisch tote Zweige (schritt === 4 kann
+// nie mehr eintreten) - BEWUSST unangetastet gelassen statt "aufgeraeumt":
+// sie sind Teil einer ueber mehrere Bugfix-Runden fein austarierten
+// Uebergangs-Choreografie (siehe deren jeweils eigene, sehr detaillierte
+// Kommentare), ein Eingriff dort waere ein unnoetiges Risiko fuer eine reine
+// Umbenennungs-/Entfernungs-Aufgabe.
 function OnboardingWizard({
   ziel,
   onTypAendern,
@@ -83,8 +84,8 @@ function OnboardingWizard({
   onMahlzeitAendern,
   diaeten,
   onDiaetenAendern,
-  tagesplanMahlzeiten,
-  onTagesplanMahlzeitenAendern,
+  aktiveMahlzeiten,
+  onAktiveMahlzeitenAendern,
   onAbschluss,
 }) {
   const [schritt, setSchritt] = useState(1)
@@ -142,7 +143,16 @@ function OnboardingWizard({
   const diaetGueltig = diaeten.length > 0
   const proTag = ziel.typ === 'proTag'
 
+  // Schritt 3 ist jetzt der LETZTE Frage-Schritt (siehe Komponenten-Kommentar
+  // oben zum entfallenen vierten Abschluss-Schritt) - "Weiter" schliesst das
+  // Onboarding dort direkt ab, statt zu einem weiteren Schritt zu wechseln.
+  // 'rezepte' ist die einzig verbleibende Ansicht (die fruehere Wahl
+  // zwischen "Wuerfeln"/"Rezepte" gibt es nicht mehr).
   function weiterKlicken() {
+    if (schritt === 3) {
+      onAbschluss('rezepte')
+      return
+    }
     setRichtung(1)
     setSchritt((s) => s + 1)
   }
@@ -551,9 +561,9 @@ function OnboardingWizard({
                       <h2 className="text-sm font-semibold uppercase tracking-wide text-text-muted">Mahlzeiten</h2>
                       <p className="mt-1 text-xs text-text-muted">Welche Mahlzeiten sollen im Tagesplan vorkommen?</p>
                       <div className="mt-3">
-                        <TagesplanMahlzeitenFilter
-                          ausgewaehlt={tagesplanMahlzeiten}
-                          onAendern={onTagesplanMahlzeitenAendern}
+                        <AktiveMahlzeitenFilter
+                          ausgewaehlt={aktiveMahlzeiten}
+                          onAendern={onAktiveMahlzeitenAendern}
                           layout="raster2x2"
                         />
                       </div>
@@ -605,57 +615,6 @@ function OnboardingWizard({
                       Bitte eine Option auswählen (z. B. "Keine Einschränkung").
                     </p>
                   )}
-                </>
-              )}
-
-              {schritt === 4 && (
-                <>
-                  <DampfSchuesselIllustration
-                    reduzierteBewegung={reduzierteBewegung}
-                    className="mx-auto mb-5 h-auto w-[130px]"
-                  />
-
-                  <div className="flex flex-col gap-3">
-                    <AnimatedButton
-                      type="button"
-                      onClick={() => onAbschluss('haupt')}
-                      className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-secondary/20 bg-card py-5 pl-6 pr-4 text-left shadow-sm"
-                    >
-                      <span className="absolute inset-y-0 left-0 w-1.5 bg-primary" aria-hidden="true" />
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-primary/10">
-                        <IconDice5 size={26} stroke={1.75} className="text-primary" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <h2 className="font-display text-lg font-semibold text-text">Würfeln</h2>
-                        <p className="mt-0.5 text-sm text-text-muted">
-                          Eine einzelne Zutaten-Kombination für deine nächste Mahlzeit auswürfeln.
-                        </p>
-                      </span>
-                      <IconChevronRight size={20} stroke={1.75} className="shrink-0 text-text-muted" />
-                    </AnimatedButton>
-
-                    <AnimatedButton
-                      type="button"
-                      onClick={() => onAbschluss('rezepte')}
-                      className="relative flex items-center gap-4 overflow-hidden rounded-2xl border border-secondary/20 bg-card py-5 pl-6 pr-4 text-left shadow-sm"
-                    >
-                      <span className="absolute inset-y-0 left-0 w-1.5 bg-secondary" aria-hidden="true" />
-                      <span className="flex h-12 w-12 shrink-0 items-center justify-center rounded-xl bg-secondary/10">
-                        <IconBook2 size={26} stroke={1.75} className="text-secondary" />
-                      </span>
-                      <span className="min-w-0 flex-1">
-                        <h2 className="font-display text-lg font-semibold text-text">Rezepte</h2>
-                        <p className="mt-0.5 text-sm text-text-muted">
-                          Fertige, kuratierte Rezept-Ideen zum Durchstöbern.
-                        </p>
-                      </span>
-                      <IconChevronRight size={20} stroke={1.75} className="shrink-0 text-text-muted" />
-                    </AnimatedButton>
-                  </div>
-
-                  <p className="mt-4 text-center text-xs text-text-muted">
-                    Du kannst jederzeit zwischen beiden wechseln.
-                  </p>
                 </>
               )}
             </motion.div>
@@ -760,7 +719,7 @@ function OnboardingWizard({
               schritt={schritt}
               ziel={ziel}
               mahlzeit={mahlzeit}
-              tagesplanMahlzeiten={tagesplanMahlzeiten}
+              aktiveMahlzeiten={aktiveMahlzeiten}
               proTag={proTag}
               diaeten={diaeten}
               reduzierteBewegung={reduzierteBewegung}
@@ -773,7 +732,12 @@ function OnboardingWizard({
                 disabled={(schritt === 1 && !zielGueltig) || (schritt === 3 && !diaetGueltig)}
                 className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
               >
-                Weiter
+                {/* Schritt 3 schliesst das Onboarding direkt ab (siehe
+                    weiterKlicken oben) statt zu einem weiteren Schritt zu
+                    wechseln - "Weiter" waere dort semantisch irrefuehrend,
+                    "Los geht's" greift denselben Wortlaut wie der Haupt-CTA
+                    im Startbildschirm auf (gleicher Ton). */}
+                {schritt === 3 ? 'Los geht’s' : 'Weiter'}
               </AnimatedButton>
             </div>
           </>

@@ -18,7 +18,7 @@ import AuswahlChip from './AuswahlChip'
 // mahlzeiten ist optional (Default: alle 4) - die Rezepte-Tagesplan-Ansicht
 // (RezepteAnsicht.jsx, proTag-Zweig) nutzt diese Komponente auch als
 // Tab-Leiste NUR fuer die laut Einstellungen aktivierten Mahlzeiten
-// (tagesplanMahlzeiten), gleiche Chip-Optik, aber eine gefilterte Liste
+// (aktiveMahlzeiten in App.jsx), gleiche Chip-Optik, aber eine gefilterte Liste
 // statt der vollen MAHLZEITEN-Liste.
 function MahlzeitFilter({ aktuell, onAendern, mahlzeiten = MAHLZEITEN, layout = 'reihe' }) {
   const containerKlasse = layout === 'raster2x2' ? 'grid grid-cols-2 gap-2 px-4' : 'flex flex-wrap gap-2 px-4'

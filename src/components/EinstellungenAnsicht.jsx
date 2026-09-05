@@ -5,9 +5,8 @@ import AnimatedButton from './AnimatedButton'
 import RadPicker from './RadPicker'
 import Kalorienrechner, { GeschlechtKarte, OptionZeile } from './Kalorienrechner'
 import ZielEinstellungen from './ZielEinstellungen'
-import TagesplanMahlzeitenFilter from './TagesplanMahlzeitenFilter'
+import AktiveMahlzeitenFilter from './AktiveMahlzeitenFilter'
 import DiaetFilter from './DiaetFilter'
-import SuessDeftigFilter from './SuessDeftigFilter'
 import {
   AKTIVITAETEN,
   ZIELE,
@@ -195,15 +194,13 @@ function EinstellungenAnsicht({
   onMakroAendern,
   diaeten,
   onDiaetenAendern,
-  suessDeftig,
-  onSuessDeftigAendern,
-  tagesplanMahlzeiten,
-  onTagesplanMahlzeitenAendern,
+  aktiveMahlzeiten,
+  onAktiveMahlzeitenAendern,
   kochschrittePersistent,
   onKochschrittePersistentUmschalten,
 }) {
   // Koerperdaten-Profil (Sektion 1) - eigenstaendiger, lokaler State analog
-  // zu z. B. tagesplanMahlzeiten in App.jsx: lazy initializer laedt den
+  // zu z. B. aktiveMahlzeiten in App.jsx: lazy initializer laedt den
   // zuletzt gespeicherten Stand (siehe koerperdatenLaden in
   // kalorienBerechnung.js), ein Effekt-freier Setter schreibt jede Aenderung
   // synchron zurueck (kein useEffect noetig, siehe koerperdatenFeldAendern
@@ -407,29 +404,34 @@ function EinstellungenAnsicht({
           (rgba(138,107,74,0.15) === text-muted bei 15% Deckkraft, siehe
           Design-Vertrag in CLAUDE.md) gegliederter Karten-Block - genau die
           in der Aufgabenstellung geforderte "Sektionen mit Trennlinien"-
-          Optik. divide-y greift automatisch nur zwischen tatsaechlich
-          gerenderten Kindern, die Mahlzeiten-Sektion (nur bei "Pro Tag"
-          relevant) kann daher bedingt weggelassen werden, ohne eine
-          verwaiste Trennlinie zu hinterlassen. */}
+          Optik.
+          Mahlzeiten-Sektion (AktiveMahlzeitenFilter) ist seit dem Rezepte-
+          Swipe-Pivot (siehe Plan floating-mixing-shannon.md) NICHT mehr an
+          ziel.typ === 'proTag' gebunden - aktiveMahlzeiten steuert jetzt
+          app-weit den Tag-Tab UND den Mahlzeit-Switcher in
+          RezepteSwipeAnsicht.jsx, unabhaengig vom Kalorienziel-Typ (vorher,
+          im alten Wuerfel-Tagesplan, war es tatsaechlich nur dort relevant -
+          dieselbe Bedingung war seit dem Pivot ein Ueberbleibsel, das die
+          Sektion faelschlich fuer alle Nutzer AUSSER "Pro Tag" versteckt
+          haette, obwohl der Tag-Tab immer sichtbar ist). Die frühere
+          "Süß/Deftig"-Sektion ist komplett entfallen: der globale
+          suessDeftig-State gehoerte ausschliesslich zum jetzt entfernten
+          alten Wuerfel-Engine-Pfad - die Süß/Deftig-Auswahl lebt seither
+          NUR NOCH pro Mahlzeit im Rezepte-Swipe-Filter-Panel (siehe
+          RezepteSwipeAnsicht.jsx). */}
       <div className="mx-4 mt-3 divide-y divide-text-muted/15 overflow-hidden rounded-2xl bg-card shadow-sm">
-        {ziel.typ === 'proTag' && (
-          <div className="p-4">
-            <SektionTitel>Mahlzeiten</SektionTitel>
-            <p className="mt-1 text-xs text-text-muted">Welche Mahlzeiten sollen im Tagesplan vorkommen?</p>
-            <div className="mt-2">
-              <TagesplanMahlzeitenFilter ausgewaehlt={tagesplanMahlzeiten} onAendern={onTagesplanMahlzeitenAendern} />
-            </div>
+        <div className="p-4">
+          <SektionTitel>Mahlzeiten</SektionTitel>
+          <p className="mt-1 text-xs text-text-muted">Welche Mahlzeiten sollen im Tag-Tab und Mahlzeit-Wechsler vorkommen?</p>
+          <div className="mt-2">
+            <AktiveMahlzeitenFilter ausgewaehlt={aktiveMahlzeiten} onAendern={onAktiveMahlzeitenAendern} />
           </div>
-        )}
+        </div>
 
         <div className="p-4">
           <SektionTitel>Ernährung</SektionTitel>
           <div className="mt-2">
             <DiaetFilter ausgewaehlt={diaeten} onAendern={onDiaetenAendern} />
-          </div>
-          <p className="mt-3 text-xs text-text-muted">Süß oder deftig - gilt für Frühstück und Snacks.</p>
-          <div className="mt-2">
-            <SuessDeftigFilter aktuell={suessDeftig} onAendern={onSuessDeftigAendern} />
           </div>
         </div>
 

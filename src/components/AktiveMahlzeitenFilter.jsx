@@ -1,19 +1,24 @@
 import { MAHLZEITEN, MAHLZEIT_ICON } from '../mahlzeiten'
 import AuswahlChip from './AuswahlChip'
 
+// Umbenannt von "TagesplanMahlzeitenFilter" (Rezepte-Swipe-Pivot, siehe Plan
+// floating-mixing-shannon.md) - kein Verhaltenswechsel, nur Klarheit: der
+// alte Name war an das inzwischen entfernte Wuerfel-"Tagesplan"-Konzept
+// angelehnt.
+//
 // Zeigt einen Keramik-Auswahl-Chip pro Mahlzeit (Mehrfachauswahl, echte
 // Checkbox fuer A11y bleibt erhalten, aber visuell versteckt - siehe
-// AuswahlChip), welche Mahlzeiten bei "Ganzen Tag planen" ueberhaupt
-// vorkommen sollen. ausgewaehlt ist das Array der aktuell aktiven Slugs,
-// onAendern wird mit dem geklickten Slug aufgerufen (das eigentliche Toggle
-// inkl. "mind. 1 bleibt aktiv"-Schutz passiert in App.jsx, siehe
-// tagesplanMahlzeitenAendern). Ist nur noch eine Mahlzeit ausgewaehlt, wird
+// AuswahlChip), welche Mahlzeiten ueberhaupt aktiv sind (Tag-Tab-Zeilen,
+// Mahlzeit-Switcher-Optionen). ausgewaehlt ist das Array der aktuell aktiven
+// Slugs, onAendern wird mit dem geklickten Slug aufgerufen (das eigentliche
+// Toggle inkl. "mind. 1 bleibt aktiv"-Schutz passiert in App.jsx, siehe
+// aktiveMahlzeitenAendern). Ist nur noch eine Mahlzeit ausgewaehlt, wird
 // genau diese als disabled dargestellt, damit sichtbar ist, warum sich der
 // letzte Haken nicht entfernen laesst.
 //
 // layout analog zu MahlzeitFilter: 'reihe' (Default, ueberall ausser dem
 // Wizard) vs. 'raster2x2' (NUR vom Onboarding-Wizard-proTag-Zweig gesetzt).
-function TagesplanMahlzeitenFilter({ ausgewaehlt, onAendern, layout = 'reihe' }) {
+function AktiveMahlzeitenFilter({ ausgewaehlt, onAendern, layout = 'reihe' }) {
   const letzteVerbleibende = ausgewaehlt.length === 1 ? ausgewaehlt[0] : null
   const containerKlasse = layout === 'raster2x2' ? 'grid grid-cols-2 gap-2 px-4' : 'flex flex-wrap gap-3 px-4'
   const groesse = layout === 'raster2x2' ? 'gross' : 'kompakt'
@@ -38,4 +43,4 @@ function TagesplanMahlzeitenFilter({ ausgewaehlt, onAendern, layout = 'reihe' })
   )
 }
 
-export default TagesplanMahlzeitenFilter
+export default AktiveMahlzeitenFilter

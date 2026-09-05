@@ -15,9 +15,16 @@ const SUESS_DEFTIG_OPTIONEN = [
 // den Suess/Deftig-Filter. Wird von App.jsx nur bei mahlzeit === 'fruehstueck'
 // bzw. 'snack' gerendert - bei Mittag/Abend ergibt die Unterscheidung keinen
 // Sinn.
+//
+// flex-wrap: ohne das ragte der letzte Chip ("Alles") im schmalen
+// Filter-Panel des Rezepte-Tabs (RezepteSwipeAnsicht.jsx, dort w-72 minus
+// Panel-Padding) rechts ueber den Panel-Rand hinaus (Real-Device-Bugreport)
+// - analog zu MahlzeitFilters 'reihe'-Layout (siehe dortiger Kommentar zur
+// selben Herleitung), bricht ein zu breiter Chip jetzt einfach in die
+// naechste Zeile um statt zu ueberlaufen.
 function SuessDeftigFilter({ aktuell, onAendern }) {
   return (
-    <div className="mt-2 flex gap-2 px-4">
+    <div className="mt-2 flex flex-wrap gap-2 px-4">
       {SUESS_DEFTIG_OPTIONEN.map(({ slug, label, Icon }) => (
         <AuswahlChip
           key={slug || 'alles'}

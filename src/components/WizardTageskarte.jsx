@@ -86,7 +86,7 @@ const OLIVE = { aktivBorder: 'border-secondary', aktivBg: 'bg-secondary/15', akt
 // Diaet-Sektion (schritt > 3) wird dadurch in der Praxis nie sichtbar, da
 // die Karte ab Schritt 4 (siehe OnboardingWizard, schritt <= 3) gar nicht
 // mehr gerendert wird - bewusst in Kauf genommen, siehe Ruecksprache.
-function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag, diaeten, reduzierteBewegung }) {
+function WizardTageskarte({ schritt, ziel, mahlzeit, aktiveMahlzeiten, proTag, diaeten, reduzierteBewegung }) {
   // SECHSTER Bug an genau dieser Karte, wieder das GEGENTEIL des vorigen
   // Fixes (siehe Git-Historie fuer alle sechs): der FUENFTE Fix entfernte
   // useBeobachteteHoehe komplett (height:auto), weil der Hook border-box-
@@ -138,7 +138,7 @@ function WizardTageskarte({ schritt, ziel, mahlzeit, tagesplanMahlzeiten, proTag
     ? Math.round((Number(ziel.kalorien.min) + Number(ziel.kalorien.max)) / 2)
     : 0
 
-  const ausgewaehlteMahlzeiten = proTag ? tagesplanMahlzeiten : [mahlzeit]
+  const ausgewaehlteMahlzeiten = proTag ? aktiveMahlzeiten : [mahlzeit]
   const zeigeKalorien = schritt > 1 && kalorienGueltig
   const zeigeMahlzeiten = schritt > 2
   const zeigeDiaet = schritt > 3 && diaeten.length > 0

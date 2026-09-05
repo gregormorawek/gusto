@@ -1,18 +1,26 @@
-import { IconBook2, IconDice5, IconSettings, IconShoppingCart } from '@tabler/icons-react'
+import { IconBook2, IconChecklist, IconSettings, IconShoppingCart } from '@tabler/icons-react'
 import { motion, useReducedMotion } from 'framer-motion'
 import AnimatedButton from './AnimatedButton'
 import { EXPO_OUT } from '../motionConfig'
 
 // Die vier Tabs der schwebenden Bottom-Navigation, in Anzeige-Reihenfolge.
 // key entspricht 1:1 dem ansicht-State in App.jsx - 'einstellungen' zeigt
-// (wie 'rezepte'/'einkaufsliste') einen vollwertigen Screen
-// (EinstellungenAnsicht.jsx) statt eines Overlays, siehe App.jsx. IconDice5/
-// IconBook2 sind dieselben Icons, die bereits
-// im OnboardingWizard-Abschluss-Screen fuer "Wuerfeln"/"Rezepte" verwendet
-// werden (dortige Tap-Karten) - fuer eine konsistente Icon-Sprache app-weit.
+// (wie 'rezepte'/'tag'/'einkaufsliste') einen vollwertigen Screen statt
+// eines Overlays, siehe App.jsx.
+//
+// Rezepte-Swipe-Pivot (siehe Plan floating-mixing-shannon.md): der
+// fruehere 'haupt'-Eintrag (Planen/IconDice5, reiner Zutaten-Wuerfel ohne
+// Rezept-Kontext) faellt komplett weg - Rezepte sind jetzt das alleinige
+// Kern-Feature, deshalb steht 'rezepte' hier an ERSTER Stelle statt wie
+// zuvor an zweiter. Neu: 'tag' (TagAnsicht.jsx) zeigt den Stand des
+// aktuellen Tages (per "Uebernehmen" an der Swipe-Karte festgelegte
+// Mahlzeiten) - IconChecklist passend zum "abgehakte Tages-Auswahl"-Charakter
+// dieser Ansicht. Reihenfolge/Icon-Sprache durch die im Plan gesichtete
+// Mockup-Referenz bestaetigt (dort dieselbe 4er-Reihenfolge, nur "Mehr"
+// statt "Einstellungen" als Label - wir bleiben beim bestehenden Label).
 const TABS = [
-  { key: 'haupt', label: 'Planen', Icon: IconDice5 },
   { key: 'rezepte', label: 'Rezepte', Icon: IconBook2 },
+  { key: 'tag', label: 'Tag', Icon: IconChecklist },
   { key: 'einkaufsliste', label: 'Einkaufsliste', Icon: IconShoppingCart },
   { key: 'einstellungen', label: 'Einstellungen', Icon: IconSettings },
 ]

@@ -11,7 +11,7 @@ export const MAHLZEITEN = [
 ]
 
 // Icon pro Mahlzeit - einzige Quelle fuer diese Zuordnung, verwendet von
-// MahlzeitFilter, TagesplanMahlzeitenFilter und WizardTageskarte.
+// MahlzeitFilter, AktiveMahlzeitenFilter und WizardTageskarte.
 export const MAHLZEIT_ICON = {
   fruehstueck: IconCoffee,
   mittag: IconSoup,
@@ -34,12 +34,12 @@ export function standardMahlzeit(datum = new Date()) {
 
 // Feste Anzeige-Reihenfolge der Mahlzeit-Tabs (Fruehstueck -> Mittag ->
 // Abend -> Snack), eingeschraenkt auf die laut Einstellungen aktivierten
-// Mahlzeiten (tagesplanMahlzeiten). Urspruenglich privat in
+// Mahlzeiten (aktiveMahlzeiten in App.jsx). Urspruenglich privat in
 // RezepteAnsicht.jsx, jetzt hier geteilt: App.jsx braucht dieselbe Ableitung
 // jetzt ebenfalls, seit die Rezepte-Tagesplan-Auswahl (welche Mahlzeit-Tabs
 // existieren) beim "Mahlzeiten anpassen" eine Ebene hoeher (in App.jsx)
 // neu gewuerfelt wird, statt nur lokal in einem Effekt der (bei Tab-Wechsel
 // unmountenden) RezepteAnsicht.jsx.
-export function aktiveMahlzeitenFuer(tagesplanMahlzeiten) {
-  return MAHLZEITEN.filter(({ slug }) => tagesplanMahlzeiten.includes(slug))
+export function aktiveMahlzeitenFuer(aktiveMahlzeitenSlugs) {
+  return MAHLZEITEN.filter(({ slug }) => aktiveMahlzeitenSlugs.includes(slug))
 }

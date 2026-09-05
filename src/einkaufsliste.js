@@ -1,5 +1,7 @@
+import { rezeptKarteBerechnen } from './rezeptKarteBerechnen'
+
 // Reine Datenlogik fuer die Einkaufsliste (kein React), analog zu
-// portionenRechner.js/zutatenFilter.js. Datenmodell pro Posten:
+// portionenRechner.js. Datenmodell pro Posten:
 // { zutatId, name, kategorie, supermarktKategorie, mengeG, abgehakt }.
 //
 // kategorie wird 1:1 aus der jeweiligen Zutat uebernommen (Supabase-Wert,
@@ -44,9 +46,9 @@ export function einkaufslisteLaden() {
   }
 }
 
-// Fuegt neue Eintraege (z. B. aus einem Rezept oder einem kompletten
-// Tagesplan, siehe zutatenAusRezeptKarte/zutatenAusTagesplan unten) einer
-// bestehenden Liste hinzu. Bereits vorhandene Zutaten (gleicher Schluessel)
+// Fuegt neue Eintraege (z. B. aus einem Rezept oder der kompletten
+// Tages-Auswahl, siehe zutatenAusRezeptKarte/zutatenAusTagesauswahl unten)
+// einer bestehenden Liste hinzu. Bereits vorhandene Zutaten (gleicher Schluessel)
 // werden gemergt: Menge addiert, abgehakt auf false zurueckgesetzt (die
 // Zutat muss ja erneut eingekauft werden, siehe Aufgabenstellung) - neue
 // Zutaten werden ans Ende angehaengt. Reine Funktion (gibt eine NEUE Liste
@@ -80,7 +82,7 @@ export function abgehakteEntfernen(liste) {
 // Baut aus einer bereits berechneten Rezept-"karte" (siehe
 // rezeptKarteBerechnen.js: proteinZutat/carbsZutat/fettZutat/gemueseZutat +
 // die tatsaechlich berechneten Portionen) die 4 Zutaten-Eintraege fuer die
-// Einkaufsliste - fuer den "Zur Einkaufsliste"-Button in RezeptKarte.jsx.
+// Einkaufsliste - fuer den "Zur Einkaufsliste"-Button in RezeptSchwipKarte.jsx.
 export function zutatenAusRezeptKarte(karte) {
   return [
     {
@@ -114,40 +116,20 @@ export function zutatenAusRezeptKarte(karte) {
   ]
 }
 
-// Baut aus einem kompletten Tagesplan (Array von Mahlzeit-Eintraegen, siehe
-// App.jsx/tagesplanEintragBauen: protein/carbs/fett/gemuese als Zutat-Objekt
-// + proteinPortion/carbsPortion/fettPortion/gemuesePortion als eigene
-// Top-Level-Felder) die Zutaten-Eintraege ALLER Mahlzeiten auf einmal - fuer
-// den "Tagesplan zur Einkaufsliste hinzufuegen"-Button in TagesplanAnsicht.jsx.
-export function zutatenAusTagesplan(tagesplan) {
-  return tagesplan.flatMap((eintrag) => [
-    {
-      zutatId: eintrag.protein.id,
-      name: eintrag.protein.name,
-      kategorie: eintrag.protein.kategorie,
-      supermarktKategorie: eintrag.protein.supermarkt_kategorie,
-      mengeG: eintrag.proteinPortion,
-    },
-    {
-      zutatId: eintrag.carbs.id,
-      name: eintrag.carbs.name,
-      kategorie: eintrag.carbs.kategorie,
-      supermarktKategorie: eintrag.carbs.supermarkt_kategorie,
-      mengeG: eintrag.carbsPortion,
-    },
-    {
-      zutatId: eintrag.fett.id,
-      name: eintrag.fett.name,
-      kategorie: eintrag.fett.kategorie,
-      supermarktKategorie: eintrag.fett.supermarkt_kategorie,
-      mengeG: eintrag.fettPortion,
-    },
-    {
-      zutatId: eintrag.gemuese.id,
-      name: eintrag.gemuese.name,
-      kategorie: eintrag.gemuese.kategorie,
-      supermarktKategorie: eintrag.gemuese.supermarkt_kategorie,
-      mengeG: eintrag.gemuesePortion,
-    },
-  ])
+// Baut aus der tagesaktuellen Rezept-Auswahl (Rezepte-Swipe-Pivot, siehe
+// Plan floating-mixing-shannon.md: tagesauswahl.mahlzeiten in App.jsx,
+// { [mahlzeitTyp]: rezeptId | null }) die Zutaten-Eintraege ALLER gesetzten
+// Mahlzeiten auf einmal - fuer den "Zur Einkaufsliste"-Button in
+// TagAnsicht.jsx. Berechnet fuer jede gesetzte rezeptId per
+// rezeptKarteBerechnen die karte und ruft darauf DIESELBE Feld-Extraktion
+// wie zutatenAusRezeptKarte auf, statt sie zu duplizieren. Mahlzeiten ohne
+// gesetztes Rezept ODER mit einer inzwischen nicht mehr auffindbaren
+// rezeptId liefern (ueber rezeptKarteBerechnen, das dann null zurueckgibt)
+// einfach keine Eintraege statt abzustuerzen.
+export function zutatenAusTagesauswahl(tagesauswahlMahlzeiten, rezepte, zutatenNachId, ziel, makroZiele) {
+  return Object.values(tagesauswahlMahlzeiten).flatMap((rezeptId) => {
+    const rezept = rezeptId != null ? (rezepte.find((r) => r.id === rezeptId) ?? null) : null
+    const karte = rezeptKarteBerechnen(rezept, zutatenNachId, ziel, makroZiele)
+    return karte ? zutatenAusRezeptKarte(karte) : []
+  })
 }

@@ -1,19 +1,21 @@
-// Rezepte-Filterfunktionen, analog zu zutatenFilter.js - ABER bewusst mit
-// zwei Unterschieden zum dortigen Vorbild:
+// Rezepte-Filterfunktionen. Urspruenglich analog zum inzwischen entfernten
+// Filtermodul des Zutaten-Wuerfels angelegt (dieser wurde mitsamt dem
+// gesamten alten Wuerfel-Feature im Rezepte-Swipe-Pivot entfernt, siehe Plan
+// floating-mixing-shannon.md, Schritt 6), aber bewusst mit zwei
+// Unterschieden zu jenem Vorbild:
 //
 // 1. rezepte.diaeten ist ein echtes Postgres-Array (text[]), waehrend
-//    zutaten.diaeten ein kommaseparierter String ist. Die bestehende
-//    nachDiaetenGefiltert aus zutatenFilter.js wuerde hier mit einem
-//    .split(',')-Aufruf auf einem Array crashen, deshalb eine eigene,
-//    strukturell angepasste Variante.
+//    zutaten.diaeten ein kommaseparierter String war. Ein simples
+//    .split(',') auf einem Array haette gecrasht, deshalb eine eigene,
+//    strukturell angepasste Variante (nachDiaetenGefiltertRezepte unten).
 //
 // 2. KEIN Fallback auf den ungefilterten Pool bei 0 Treffern (anders als
-//    ALLE Filter in zutatenFilter.js). Bei Zutaten ist der Fallback
-//    unproblematisch (ein Wuerfel-Slot braucht immer irgendeine Zutat). Bei
-//    Rezepten waere er irrefuehrend: ein striktes Vegan-Filter duerfte
-//    niemals ein nicht-veganes Rezept anzeigen, nur weil kein passendes
-//    existiert - stattdessen zeigt RezepteAnsicht.jsx bei leerem Ergebnis
-//    einen Hinweistext.
+//    beim Zutaten-Wuerfel, wo ein leerer Pool problematisch waere - ein
+//    Wuerfel-Slot brauchte immer irgendeine Zutat). Bei Rezepten waere ein
+//    Fallback irrefuehrend: ein striktes Vegan-Filter duerfte niemals ein
+//    nicht-veganes Rezept anzeigen, nur weil kein passendes existiert -
+//    stattdessen zeigt RezepteSwipeAnsicht.jsx bei leerem Ergebnis einen
+//    Hinweistext.
 
 // Hilfsfunktion: gibt aus einer beliebigen Liste ein zufaelliges Element
 // zurueck (dieselbe Logik wie zufaelligesElement in App.jsx, hier separat
@@ -50,14 +52,14 @@ export function gefiltertePoolFuerRezepte(liste, mahlzeitWert, diaetenWert, eige
   return nachDiaet.filter((r) => (r.eigenschaft ?? '') === eigenschaftWert)
 }
 
-// Wuerfelt fuer ALLE aktuell aktiven Mahlzeiten (Rezepte-Tagesplan) ein
-// neues Rezept, unter Beibehaltung des jeweiligen Suess/Deftig-Filters
-// (vorherigerStand) - Mahlzeiten OHNE bisherigen Eintrag (erstmaliges Laden,
-// neu aktivierte Mahlzeit) starten mit '' (Alles). Reine Funktion, die einen
-// kompletten neuen proMahlzeitState liefert. Urspruenglich privat in
-// RezepteAnsicht.jsx, jetzt hier geteilt und von App.jsx aufgerufen (statt
-// per Effekt in der bei Tab-Wechsel unmountenden RezepteAnsicht.jsx) - siehe
-// App.jsx-Kommentar zur Bugfix-Begruendung ("Rezepte-Tab-Flackern").
+// Wuerfelt fuer ALLE aktuell aktiven Mahlzeiten ein neues Rezept, unter
+// Beibehaltung des jeweiligen Suess/Deftig-Filters (vorherigerStand) -
+// Mahlzeiten OHNE bisherigen Eintrag (erstmaliges Laden, neu aktivierte
+// Mahlzeit) starten mit '' (Alles). Reine Funktion, die einen kompletten
+// neuen proMahlzeitState liefert - lebt hier (statt lokal in
+// RezepteSwipeAnsicht.jsx) und wird von App.jsx aufgerufen (statt per Effekt
+// in der bei Tab-Wechsel unmountenden Rezepte-Ansicht) - siehe App.jsx-
+// Kommentar zur Bugfix-Begruendung ("Rezepte-Tab-Flackern").
 export function alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten) {
   return (vorherigerStand) => {
     const neuerStand = {}

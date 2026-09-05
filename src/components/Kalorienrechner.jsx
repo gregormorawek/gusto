@@ -365,7 +365,14 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
                     // uebergeordnete "justify-center"-Flex-Bereich hat bei
                     // 375x700 (engster getesteter Fall) ausreichend Frei-
                     // raum (~100px), sodass es im Alltag nicht greift.
-                    <div className="flex flex-col gap-2 overflow-y-auto py-2">
+                    // touch-pan-y overscroll-x-none: dieselbe Absicherung
+                    // gegen WKWebViews interne WKChildScrollView-Rubber-Band-
+                    // Bewegung wie am App.jsx-Content-Wrapper (siehe
+                    // dortiger, ausfuehrlicher Kommentar zur Herleitung ueber
+                    // ein natives Laufzeit-Log) - jeder eigene overflow-y-
+                    // auto-Bereich in der App bekommt einzeln so eine eigene
+                    // ScrollView, nicht nur der App.jsx-Wrapper.
+                    <div className="flex flex-col gap-2 touch-pan-y overflow-y-auto overscroll-x-none py-2">
                       {AKTIVITAETEN.map((option) => (
                         <OptionZeile
                           key={option.id}
@@ -385,7 +392,7 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
                     // Schatten-Werte). Weniger Optionen (3 statt 4) heisst
                     // NICHT weniger Puffer-Bedarf - der Schatten haengt an
                     // JEDEM einzelnen Chip, nicht an der Gesamtzahl.
-                    <div className="flex flex-col gap-2 overflow-y-auto py-2">
+                    <div className="flex flex-col gap-2 touch-pan-y overflow-y-auto overscroll-x-none py-2">
                       {ZIELE.map((option) => (
                         <OptionZeile
                           key={option.id}
@@ -426,8 +433,10 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
                 {/* Derselbe "py-2 als Schatten-Puffer"-Kniff wie bei den
                     OptionZeile-Containern oben (schritt 5/6) - die Karte
                     darunter hat einen shadow-sm, der sonst am unteren Rand
-                    dieses min-h-0-Bereichs abgeschnitten wuerde. */}
-                <div className="mt-4 flex min-h-0 flex-1 flex-col justify-center gap-2 overflow-y-auto py-2">
+                    dieses min-h-0-Bereichs abgeschnitten wuerde. Ebenso
+                    touch-pan-y/overscroll-x-none - siehe Kommentar bei den
+                    OptionZeile-Containern oben. */}
+                <div className="mt-4 flex min-h-0 flex-1 flex-col touch-pan-y justify-center gap-2 overflow-y-auto overscroll-x-none py-2">
                   <div className="rounded-2xl bg-card p-4 shadow-sm">
                     <p>
                       <span className="font-display text-5xl font-semibold text-text">{ergebnis.zielKalorien}</span>{' '}

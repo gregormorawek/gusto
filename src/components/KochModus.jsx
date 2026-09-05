@@ -690,7 +690,20 @@ function KochModusSheet({ eintrag, onZurueck, erledigteSchritte, onSchrittUmscha
           </div>
         </div>
 
-        <div ref={inhaltRef} onPointerDown={handlePointerDownInhalt} className="flex-1 overflow-y-auto overscroll-contain">
+        {/* overscroll-x-none: dieselbe Absicherung gegen WKWebViews interne
+            WKChildScrollView-Rubber-Band-Bewegung wie am App.jsx-Content-
+            Wrapper (siehe dortiger Kommentar zur Herleitung ueber ein
+            natives Laufzeit-Log) - JEDER eigene overflow-y-auto-Bereich
+            bekommt in WKWebView seine eigene ScrollView. Bewusst OHNE
+            touch-pan-y hier (anders als am App.jsx-Wrapper): dieser Bereich
+            hat mit handlePointerDownInhalt bereits eine eigene, sorgfaeltig
+            austarierte Pointer-Logik fuer das Zusammenspiel mit dem
+            vertikalen Drag-to-close der ganzen Sheet (siehe deren
+            Kommentare) - touch-action zusaetzlich zu setzen waere ein
+            unnoetiges Risiko fuer dieses bereits funktionierende
+            Zusammenspiel, ohne dass dieser Screen bisher ueberhaupt vom
+            gemeldeten Bug betroffen war. */}
+        <div ref={inhaltRef} onPointerDown={handlePointerDownInhalt} className="flex-1 overflow-y-auto overscroll-contain overscroll-x-none">
           <KochModusInhalt
             rezept={rezept}
             karte={karte}

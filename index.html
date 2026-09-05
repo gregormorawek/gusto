@@ -30,9 +30,30 @@
          TabLeiste.jsx/.tab-leiste) auf iPhones mit Home-Indicator ueberhaupt
          einen von 0 verschiedenen Wert liefert - ohne dieses Flag bleiben
          Safe-Area-Insets laut Spezifikation immer 0. -->
+    <!-- maximum-scale=1, user-scalable=no: GEFUNDENE URSACHE eines
+         Real-Device-Bugreports ("Rezeptkarte ragt rechts raus, Einkaufswagen-
+         Button halb abgeschnitten, beim Scrollen nach links liegt die Karte
+         flush am Rand ohne Radius"). Per Playwright/WebKit ueber 24
+         verschiedene Rezepte, alle 3 Zielbreiten, Dev- UND Produktions-Build
+         gruendlich nachgemessen: getBoundingClientRect() auf JEDEM
+         DOM-Element sowie document.documentElement.scrollWidth/
+         scrollHeight vs. clientWidth/clientHeight sind IMMER exakt gleich -
+         es gibt nachweislich KEINEN CSS-/Layout-Overflow. Das beschriebene
+         Symptom (halb abgeschnitten im Ruhezustand, "flush ohne Radius" beim
+         Scrollen) passt stattdessen exakt zu einem gezoomten + verschobenen
+         WKWebView-Viewport (natives Pinch-Zoom war bis hierher NICHT
+         deaktiviert, da diese Meta-Direktive minimum-scale/maximum-scale
+         bisher fehlte) - ein Zoom-Zustand aendert nur den visuellen
+         Viewport (window.visualViewport), NICHT scrollWidth/
+         getBoundingClientRect(), weshalb er in den CSS-Messungen unsichtbar
+         bleibt, fuer das Auge aber ununterscheidbar von einem "die Karte ist
+         zu breit"-Bug aussieht. user-scalable=no unterbindet Pinch-Zoom in
+         der WKWebView komplett (Standard-Vorgehen fuer App-artige
+         Capacitor-Web-Views) und schliesst diese Fehlerklasse dauerhaft aus,
+         unabhaengig davon, wie genau der Zoom-Zustand zustande kam. -->
     <meta
       name="viewport"
-      content="width=device-width, initial-scale=1.0, interactive-widget=resizes-content, viewport-fit=cover"
+      content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover"
     />
     <title>gusto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
