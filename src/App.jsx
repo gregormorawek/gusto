@@ -494,11 +494,26 @@ function App() {
     }))
   }
 
-  // Wird von TagAnsicht.jsx aufgerufen (Tap auf eine Mahlzeit-Zeile) -
-  // springt zurueck in den Swipe-Modus fuer GENAU diese Mahlzeit, egal ob
-  // dafuer heute schon ein Rezept feststeht (ansehen/aendern) oder noch
-  // nicht (erstmalig waehlen) - TagZeile in TagAnsicht.jsx behandelt beide
-  // Faelle mit demselben Tap.
+  // Wird von TagAnsicht.jsx aufgerufen (Wisch-nach-links-Aktion auf einer
+  // BEFUELLTEN Mahlzeit-Zeile, siehe TagZeile dort) - macht die Uebernahme
+  // rueckgaengig, die Zeile faellt danach in ihren Platzhalter-Zustand
+  // zurueck (derselbe rezeptId==null-Fall wie "noch nie etwas gewaehlt",
+  // TagAnsicht behandelt beides bereits identisch).
+  function tagesauswahlMahlzeitEntfernen(mahlzeitTyp) {
+    setTagesauswahl((aktuell) => ({
+      ...aktuell,
+      mahlzeiten: { ...aktuell.mahlzeiten, [mahlzeitTyp]: null },
+    }))
+  }
+
+  // Wird von TagAnsicht.jsx aufgerufen (Tap auf eine LEERE Mahlzeit-Zeile) -
+  // springt in den Swipe-Modus fuer GENAU diese Mahlzeit, um erstmalig ein
+  // Rezept zu waehlen. Ein Tap auf eine BEREITS befuellte Zeile oeffnet
+  // stattdessen direkt den Kochmodus (siehe onKochModusOeffnen-Verwendung in
+  // TagAnsicht.jsx) - dieselbe Geste wie an der Swipe-Karte selbst (siehe
+  // dortiger onTap-Kommentar), UND vermeidet, dass ein bereits gewaehltes
+  // Rezept aus Versehen ueberschrieben wird, nur weil man es sich nochmal
+  // ansehen wollte.
   function tagZeileOeffnen(mahlzeitTyp) {
     setRezepteAktuelleMahlzeit(mahlzeitTyp)
     setAnsicht('rezepte')
@@ -964,6 +979,8 @@ function App() {
             aktiveMahlzeiten={aktiveMahlzeiten}
             tagesauswahl={tagesauswahl}
             onZeileOeffnen={tagZeileOeffnen}
+            onZeileEntfernen={tagesauswahlMahlzeitEntfernen}
+            onKochModusOeffnen={kochModusOeffnen}
             onZurEinkaufslisteHinzufuegen={tagesauswahlZurEinkaufslisteHinzufuegen}
           />
         ) : ansicht === 'einkaufsliste' ? (
