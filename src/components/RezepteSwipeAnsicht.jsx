@@ -40,7 +40,6 @@ function RezepteSwipeAnsicht({
   onWuerfeln,
   onUebernehmen,
   onKochModusOeffnen,
-  onZurEinkaufslisteHinzufuegen,
 }) {
   const reduzierteBewegung = useReducedMotion()
   const [panelOffen, setPanelOffen] = useState(false)
@@ -143,7 +142,6 @@ function RezepteSwipeAnsicht({
         wuerfelnDeaktiviert={aktuellerPool.length === 0}
         onUebernehmen={onUebernehmen}
         onKochModusOeffnen={onKochModusOeffnen}
-        onZurEinkaufslisteHinzufuegen={onZurEinkaufslisteHinzufuegen}
       />
     </div>
   )

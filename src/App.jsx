@@ -16,7 +16,6 @@ import {
   zutatenHinzufuegen,
   postenAbhaken,
   abgehakteEntfernen,
-  zutatenAusRezeptKarte,
   zutatenAusTagesauswahl,
 } from './einkaufsliste'
 import { MAHLZEITEN, standardMahlzeit, aktiveMahlzeitenFuer } from './mahlzeiten'
@@ -427,14 +426,6 @@ function App() {
     clearTimeout(toastTimeoutRef.current)
     setToast({ text, id: Date.now() })
     toastTimeoutRef.current = setTimeout(() => setToast(null), 2000)
-  }
-
-  // Von RezeptSchwipKarte.jsx aufgerufen ("Zur Einkaufsliste"-Button) -
-  // bekommt die dort bereits berechnete karte (4 Zutaten + tatsaechliche
-  // Portionen).
-  function rezeptZurEinkaufslisteHinzufuegen(karte) {
-    setEinkaufsliste((aktuell) => zutatenHinzufuegen(aktuell, zutatenAusRezeptKarte(karte)))
-    toastZeigen('Zutaten hinzugefügt')
   }
 
   // Von TagAnsicht.jsx aufgerufen ("Zur Einkaufsliste"-Button) - liest die
@@ -963,7 +954,6 @@ function App() {
             onWuerfeln={rezepteMahlzeitTabWuerfeln}
             onUebernehmen={(rezeptId) => tagesauswahlMahlzeitUebernehmen(rezepteEffektivAktuelleMahlzeit, rezeptId)}
             onKochModusOeffnen={kochModusOeffnen}
-            onZurEinkaufslisteHinzufuegen={rezeptZurEinkaufslisteHinzufuegen}
           />
         ) : ansicht === 'tag' ? (
           <TagAnsicht

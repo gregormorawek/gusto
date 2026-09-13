@@ -1,6 +1,6 @@
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion'
-import { IconCheck, IconDice5, IconPhotoOff, IconShoppingCart } from '@tabler/icons-react'
+import { IconCheck, IconDice5, IconPhotoOff } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
 import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
 import { SPRING_REVEAL, transitionFuer } from '../motionConfig'
@@ -127,9 +127,11 @@ function KartenSkeleton() {
 // ohne dass dafuer ein echtes vorgefertigtes Deck existieren muesste) sowie
 // die kleine Sekundaer-Aktion "Zur Einkaufsliste" am Kartenrand - der frueher
 // danebenstehende "Jetzt kochen"-Button ist entfallen, ein Tap auf die Karte
-// selbst oeffnet jetzt direkt den Kochmodus (siehe onTap weiter unten). Beide
-// brauchen die hier lokal berechnete karte/angezeigtes Rezept, deshalb leben
-// sie hier statt im Aufrufer (RezepteSwipeAnsicht.jsx).
+// selbst oeffnet jetzt direkt den Kochmodus (siehe onTap weiter unten). Der
+// Kartenrand-Warenkorb-Button selbst ist wieder entfernt worden (Regression:
+// loeste faelschlich den Kochmodus mit aus) - Rezepte kommen ohnehin per
+// "Uebernehmen" in den Tag, von dort fuehrt TagAnsicht.jsx's "Zur
+// Einkaufsliste"-Button weiter, das war immer nur eine Nebenhandlung hier.
 function RezeptSchwipKarte({
   rezepteGeladen = true,
   rezept,
@@ -140,7 +142,6 @@ function RezeptSchwipKarte({
   wuerfelnDeaktiviert,
   onUebernehmen,
   onKochModusOeffnen,
-  onZurEinkaufslisteHinzufuegen,
 }) {
   const reduzierteBewegung = useReducedMotion()
 
@@ -203,6 +204,28 @@ function RezeptSchwipKarte({
   // Dezenter Tilt waehrend des Ziehens (bewaehrtes "Tinder-Karten"-Muster) -
   // rein optisches Feedback, unabhaengig von der Schwellen-Logik unten.
   const rotate = useTransform(x, [-200, 200], [-8, 8])
+
+  // GEFUNDENE URSACHE der Regression "jede Wisch-Richtung loest faelschlich
+  // den Kochmodus aus": Framer Motions EIGENE Tap-vs-Drag-Unterdrueckung
+  // (motion-dom, gestures/press/index.mjs) verlaesst sich darauf, dass beim
+  // Loslassen ihr eigener window-"pointerup"-Capture-Listener VOR dem der
+  // Drag-Geste (PanSession.mjs, ebenfalls window-Capture-Phase) laeuft, um
+  // eine globale "Drag war aktiv"-Markierung noch rechtzeitig zu lesen.
+  // Bei DIESER Kombination aus drag='x' + onTap auf demselben motion.div
+  // gewinnt nachweislich (per Playwright-Messung verifiziert, siehe
+  // Bugfix-Historie) das Tap-Cleanup dieses Wettrennen IMMER - die Markierung
+  // ist zum Pruefzeitpunkt schon zurueckgesetzt, onTap feuert deshalb IMMER
+  // zusaetzlich zur (korrekt laufenden) Drag-Geste, unabhaengig von Distanz/
+  // Geschwindigkeit. Kein WebKit-/natives Thema (im normalen Browser exakt
+  // gleich reproduzierbar), reines Framer-Motion-internes Timing - deshalb
+  // hier eine EIGENE, von diesem Wettrennen unabhaengige Tap-Unterdrueckung
+  // statt eines weiteren Versuchs, Framers interne Reihenfolge zu beeinflussen.
+  // Wird bei JEDEM neuen Pointerdown frisch auf false gesetzt (istGeradeAmZiehenPointerDown
+  // unten) und von Framers eigenem onDragStart (feuert zuverlaessig, sobald
+  // die Pan-Geste die 3px-Erkennungsschwelle ueberschreitet, lange vor einem
+  // etwaigen Loslassen) auf true gesetzt - onTap prueft diesen Ref VOR dem
+  // Oeffnen des Kochmodus.
+  const istAmZiehenRef = useRef(false)
   // Richtungs-Hinweis-Badges (siehe Rendering unten): blenden erst kurz vor
   // Erreichen der jeweiligen Schwelle sichtbar ein, damit sie beim normalen,
   // kurzen Antippen/Wackeln nicht schon aufblitzen.
@@ -328,19 +351,34 @@ function RezeptSchwipKarte({
               key={angezeigtesRezept.id}
               drag={reduzierteBewegung ? false : 'x'}
               dragElastic={0.9}
+              // onPointerDown: frischer Start jeder Geste - VOR jedem
+              // moeglichen onDragStart dieser Geste synchron im selben
+              // Pointerdown-Event ausgefuehrt (siehe istAmZiehenRef-Kommentar
+              // oben), unabhaengig von Framers eigenem internen Listener-
+              // Wettrennen beim spaeteren Loslassen.
+              onPointerDown={() => {
+                istAmZiehenRef.current = false
+              }}
+              onDragStart={() => {
+                istAmZiehenRef.current = true
+              }}
               onDragEnd={handleDragEnd}
               // onTap statt onClick: framer-motions eigene Tap-Geste erkennt
-              // zuverlaessig, ob der Pointer sich waehrend Druecken+Loslassen
-              // nennenswert bewegt hat, und feuert in dem Fall NICHT (die
-              // laufende drag-Geste "gewinnt" stattdessen) - genau die vom
-              // Auftrag geforderte saubere Trennung Tap/Wisch, ganz ohne
-              // eigene Schwellen-Logik. Oeffnet den Kochmodus nur, wenn es
-              // ueberhaupt eine Kochanleitung gibt (siehe CLAUDE.md "Neue
-              // kuratierte Rezepte") - sonst erwartet KochModus.jsx ein
-              // vorhandenes anleitung-Array und wuerde sonst abstuerzen,
-              // exakt dieselbe Bedingung wie vorher am jetzt entfernten
-              // eigenen "Jetzt kochen"-Button.
+              // grundsaetzlich zuverlaessig Druecken+Loslassen ohne
+              // nennenswerte Bewegung - die zusaetzliche istAmZiehenRef-
+              // Pruefung hier faengt genau den in der Bugfix-Historie
+              // hergeleiteten Sonderfall ab, in dem Framers EIGENE interne
+              // Drag-Unterdrueckung durch ein Listener-Wettrennen ausfaellt
+              // (siehe Kommentar bei istAmZiehenRef oben). Oeffnet den
+              // Kochmodus nur, wenn es ueberhaupt eine Kochanleitung gibt
+              // (siehe CLAUDE.md "Neue kuratierte Rezepte") - sonst erwartet
+              // KochModus.jsx ein vorhandenes anleitung-Array und wuerde
+              // sonst abstuerzen, exakt dieselbe Bedingung wie vorher am
+              // jetzt entfernten eigenen "Jetzt kochen"-Button.
               onTap={() => {
+                if (istAmZiehenRef.current) {
+                  return
+                }
                 if (angezeigtesRezept.anleitung?.length > 0) {
                   onKochModusOeffnen(angezeigtesRezept, karte)
                 }
@@ -397,28 +435,6 @@ function RezeptSchwipKarte({
               >
                 <IconCheck size={20} stroke={2} />
               </motion.span>
-
-              {/* Einzige verbleibende Sekundaer-Aktion am Kartenrand - "Jetzt
-                  kochen" (Kochhauben-Icon) ist entfallen, dieselbe Aktion
-                  passiert jetzt per Tap auf die Karte selbst (siehe onTap am
-                  motion.div oben). onPointerDown stoppt die Ausbreitung VOR
-                  Framers eigenem Pointer-Listener auf dem Karten-Wrapper
-                  (Bubbling-Phase) - ohne das wuerde ein Tap auf diesen Button
-                  zusaetzlich als Karten-Tap durchgereicht und den Kochmodus
-                  MIT oeffnen, obwohl nur die Einkaufsliste gemeint war. z-20
-                  haelt den Button ueber dem z-10-Kartenkoerper UND den
-                  Richtungs-Hinweis-Badges antippbar. */}
-              <div className="absolute bottom-24 right-3 z-20">
-                <AnimatedButton
-                  type="button"
-                  onPointerDown={(event) => event.stopPropagation()}
-                  onClick={() => onZurEinkaufslisteHinzufuegen(karte)}
-                  aria-label="Zur Einkaufsliste"
-                  className="flex h-10 w-10 items-center justify-center rounded-full bg-card/90 text-primary shadow-sm backdrop-blur-sm"
-                >
-                  <IconShoppingCart size={18} stroke={1.75} />
-                </AnimatedButton>
-              </div>
             </motion.div>
           </AnimatePresence>
         ) : (
