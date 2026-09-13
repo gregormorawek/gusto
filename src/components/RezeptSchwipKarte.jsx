@@ -410,6 +410,12 @@ function RezeptSchwipKarte({
               <div className="absolute inset-x-0 bottom-0 p-4">
                 <p className="text-xs font-semibold uppercase tracking-wide text-card/80">
                   {karte.summeKalorien.toFixed(0)} kcal
+                  {/* zubereitungszeit_min ist optional (Supabase-Spalte, siehe
+                      supabase/migrations/20260913_rezepte_zubereitungszeit.sql)
+                      - nur anhaengen, wenn tatsaechlich ein Wert gesetzt ist,
+                      statt "· null min" anzuzeigen, solange die Migration
+                      noch nicht ausgefuehrt ist. */}
+                  {angezeigtesRezept.zubereitungszeit_min != null && ` · ${angezeigtesRezept.zubereitungszeit_min} min`}
                 </p>
                 <h2 className="mt-0.5 font-display text-2xl font-semibold text-card">{angezeigtesRezept.titel}</h2>
                 <div className="mt-2 flex flex-wrap gap-1.5">

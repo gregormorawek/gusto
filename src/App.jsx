@@ -565,7 +565,7 @@ function App() {
         supabase
           .from('rezepte')
           .select(
-            'id, titel, beschreibung, bild_url, mahlzeit, eigenschaft, diaeten, protein_zutat_id, carbs_zutat_id, fett_zutat_id, gemuese_obst_zutat_id, anleitung'
+            'id, titel, beschreibung, bild_url, mahlzeit, eigenschaft, diaeten, protein_zutat_id, carbs_zutat_id, fett_zutat_id, gemuese_obst_zutat_id, anleitung, zubereitungszeit_min'
           ),
       ])
 
