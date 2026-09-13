@@ -191,14 +191,80 @@ input[type='number'] {
    bestehendes Marken-Token (keine neue Farbe). Zusaetzlich ein innerer
    Lichtschein (inset box-shadow oben, simuliert eine glaenzende
    Glas-Oberkante) fuer mehr wahrgenommene Tiefe. */
+/* LIQUID-GLASS-UEBERARBEITUNG: die bisherige Fassung (einzelner Blur +
+   einzelner Blend-Ton + ein einzelner Schatten) ist generisches Web-
+   Glassmorphism, keine Annaeherung an Apples tatsaechliches Material.
+   Echtes iOS-Liquid-Glass hat (beobachtet an System-Tab-Bars/Sheets)
+   mehrere GLEICHZEITIGE Merkmale, die hier einzeln nachgebildet werden,
+   jedes an genau einer Stelle unten:
+   1. Saettigung des Hintergrunds VOR dem Weichzeichnen (saturate() in
+      backdrop-filter) - Apples eigene UIBlurEffect-Naeherung nutzt
+      genau diesen Trick (saturate(180%) blur(...)), damit Farben DAHINTER
+      kraeftig durchscheinen statt blass/grau zu verwaschen. Bisher fehlte
+      das komplett - reines blur() allein macht jede Farbe dahinter
+      unweigerlich blasser.
+   2. Gerichtete statt gleichfoermige Lichtkante: echtes Glas faengt Licht
+      vor allem an der OBEREN Kante ein (siehe .tab-leiste::before unten,
+      Tiefen-Gradient) - die alte Fassung hatte nur einen gleichfoermigen
+      Rand-Ton auf allen vier Seiten.
+   3. Zwei gestapelte Schatten statt einem: ein enger, dunklerer Kontakt-
+      schatten (die Bar beruehrt fast den Inhalt darunter) PLUS ein
+      weiter, weicherer Umgebungsschatten (die Bar schwebt insgesamt ueber
+      dem Screen) - ein einzelner mittlerer Schatten (wie bisher) trifft
+      keinen von beiden Eindruecken wirklich.
+   Grundton bleibt bewusst der in mehreren frueheren Kalibrierungsrunden
+   gefundene Tan-Ton (--color-text-muted) - NICHT neu kalibriert, nur um
+   die obigen drei zusaetzlichen Dimensionen ergaenzt. Alpha-Werte 1:1 aus
+   der alten rgba()-Fassung uebernommen (0.28 Grundton, 0.4/0.35 Rand/
+   Lichtschein), nur auf color-mix() mit den Marken-Tokens umgestellt
+   statt hartcodierter rgb-Tripel (siehe CLAUDE.md - keine neuen
+   Farbwerte, nur bestehende Tokens in anderer Schreibweise). */
 .tab-leiste {
-  background: rgba(138, 107, 74, 0.28);
-  border: 0.5px solid rgba(255, 253, 248, 0.4);
+  /* KEIN eigenes position: hier - die Komponente setzt bereits Tailwinds
+     "fixed"-Klasse (siehe TabLeiste.jsx); eine hier gesetzte position:
+     relative wuerde das per CSS-Kaskade ueberschreiben (Cascade-Reihenfolge:
+     diese Regel wird NACH Tailwinds Utilities eingebunden) und die ganze
+     Bar aus ihrer fixed-Position reissen - real passiert und per
+     Playwright-Screenshot als Regression entdeckt. position:fixed bildet
+     bereits selbst einen gueltigen Containing Block fuer das absolut
+     positionierte ::before darunter, ein zusaetzliches position hier ist
+     gar nicht noetig. */
+  background: color-mix(in srgb, var(--color-text-muted) 28%, transparent);
+  border: 0.5px solid color-mix(in srgb, var(--color-card) 40%, transparent);
+  /* Obere Kante bewusst heller/praesenter als der restliche Rand (siehe
+     Merkmal 2 oben) - Licht "von oben" trifft eine konvexe Glasflaeche
+     zuerst und staerker an ihrer Oberkante. */
+  border-top-color: color-mix(in srgb, var(--color-card) 65%, transparent);
   box-shadow:
-    inset 0 0.5px 0 rgba(255, 253, 248, 0.35),
-    0 4px 20px rgba(62, 46, 34, 0.18);
-  backdrop-filter: blur(14px);
-  -webkit-backdrop-filter: blur(14px);
+    /* Lichtschein oben (1:1 aus der alten Fassung uebernommen). */
+    inset 0 0.5px 0 color-mix(in srgb, var(--color-card) 35%, transparent),
+    /* NEU: enger Kontaktschatten - simuliert, dass die Bar knapp ueber
+       dem Screen-Inhalt schwebt, nicht weit darueber. */
+    0 1px 3px color-mix(in srgb, var(--color-text) 14%, transparent),
+    /* Bisheriger weicher Umgebungsschatten, unveraendert. */
+    0 4px 20px color-mix(in srgb, var(--color-text) 18%, transparent);
+  backdrop-filter: blur(14px) saturate(180%);
+  -webkit-backdrop-filter: blur(14px) saturate(180%);
   isolation: isolate;
   will-change: backdrop-filter;
+}
+
+/* Merkmal 2 (Fortsetzung): dezenter Tiefen-Gradient UEBER dem Blur-
+   Hintergrund - oben ein Hauch Cream-Licht, unten ein Hauch Espresso-
+   Schatten, dazwischen komplett transparent. pointer-events:none, damit
+   die Flaeche weiterhin Klicks an die Tab-Buttons darunter durchlaesst.
+   inset statt eigener Positionierung + border-radius:inherit, damit die
+   Flaeche exakt der (auf .tab-leiste selbst gesetzten) Pill-Rundung folgt. */
+.tab-leiste::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  background: linear-gradient(
+    to bottom,
+    color-mix(in srgb, var(--color-card) 14%, transparent),
+    transparent 45%,
+    color-mix(in srgb, var(--color-text) 8%, transparent) 100%
+  );
+  pointer-events: none;
 }

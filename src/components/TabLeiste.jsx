@@ -91,7 +91,15 @@ function TabLeiste({ aktiverTab, onTabWaehlen }) {
               // Zentrierungs-Regression von damals zu wiederholen.
               <motion.span
                 layoutId="tab-aktive-pille"
-                className="absolute inset-0 rounded-2xl bg-card/38"
+                // shadow-[...]: dezente eigene Tiefe fuer die Pille (Liquid-
+                // Glass-Ueberarbeitung, siehe .tab-leiste in index.css) - ein
+                // winziger heller Lichtschein oben (wirkt wie ein eigenes,
+                // leicht erhabenes Glas-Element INNERHALB der Bar) plus ein
+                // ganz naher, weicher Kontaktschatten darunter, statt einer
+                // komplett flachen Farbflaeche. Bewusst sehr dezent (kleine
+                // Blur-/Alpha-Werte) - soll als Tiefe wahrgenommen werden,
+                // nicht als eigener sichtbarer Rand.
+                className="absolute inset-0 rounded-2xl bg-card/38 shadow-[inset_0_0.5px_0_color-mix(in_srgb,var(--color-card)_50%,transparent),0_1px_2px_color-mix(in_srgb,var(--color-text)_8%,transparent)]"
                 transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
               />
             )}
