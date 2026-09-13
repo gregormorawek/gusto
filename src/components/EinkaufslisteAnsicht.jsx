@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { IconCheck, IconShoppingCart } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
@@ -142,6 +142,36 @@ function ListeLeerenBestaetigung({ offen, onAbbrechen, onBestaetigen }) {
 function EinkaufslisteAnsicht({ liste, onPostenAbhaken, onAbgehakteEntfernen, onListeLeeren }) {
   const [leerenBestaetigungOffen, setLeerenBestaetigungOffen] = useState(false)
 
+  // GEFUNDENE URSACHE des Bugreports "Zutaten scrollen ueber den
+  // Schriftzug": per Messung (getBoundingClientRect, mehrfach mit
+  // margin-/top-Varianten gegengeprueft) bestaetigt, dass ein
+  // position:sticky-Element NIEMALS in den PADDING-Bereich seines
+  // scrollenden Vorfahren hineinragen kann, unabhaengig von top-Wert oder
+  // Margin-Tricks - eine harte CSS-Grenze (die "sticky-constraining
+  // rectangle" ist die PADDING-BOX des Scroll-Containers). Der App.jsx-
+  // Wrapper hat pt-[calc(1rem+env(safe-area-inset-top))] - genau dieser
+  // Streifen blieb dadurch bei sticky IMMER ungeclippt, durch ihn scrollten
+  // Listeneintraege sichtbar durch. position:fixed ist von jedem
+  // Vorfahren-Padding unbeeinflusst (positioniert relativ zum Viewport,
+  // ausser ein Vorfahre setzt transform/filter/contain - hier keiner) und
+  // deckt die Luecke deshalb vollstaendig. headerHoehe per ResizeObserver
+  // gemessen (dasselbe Muster wie sheetHoehe in KochModus.jsx) statt
+  // hartcodiert, da Schriftgroesse/Safe-Area geraeteabhaengig variieren -
+  // der Listen-Inhalt bekommt exakt so viel paddingTop, wie der jetzt aus
+  // dem Fluss genommene fixed-Header tatsaechlich hoch ist.
+  const headerRef = useRef(null)
+  const [headerHoehe, setHeaderHoehe] = useState(0)
+
+  useEffect(() => {
+    const el = headerRef.current
+    if (!el) {
+      return undefined
+    }
+    const beobachter = new ResizeObserver(([eintrag]) => setHeaderHoehe(eintrag.contentRect.height))
+    beobachter.observe(el)
+    return () => beobachter.disconnect()
+  }, [])
+
   if (liste.length === 0) {
     return (
       <div className="flex flex-col items-center gap-3 px-8 pt-24 text-center">
@@ -166,14 +196,25 @@ function EinkaufslisteAnsicht({ liste, onPostenAbhaken, onAbgehakteEntfernen, on
 
   return (
     <>
-      {/* sticky statt fixed: die Liste selbst nutzt bewusst den normalen
-          Seiten-Scroll (wie der Rest der App, siehe App.jsx-Wrapper-Kommentar
-          "Kein Scrollen"-Prinzip) statt eines eigenen inneren Scroll-
-          Containers - sticky reicht dafuer voellig aus (klebt am oberen
-          Viewport-Rand, sobald man daran vorbeiscrollt) und ist einfacher als
-          ein separat gehoehter overflow-y-auto-Block. bg-bg deckt den
-          durchscrollenden Inhalt darunter vollstaendig ab. */}
-      <div className="sticky top-0 z-10 flex items-center justify-between gap-2 bg-bg px-4 pb-2">
+      {/* GEFUNDENE URSACHE des Bugreports "Zutaten scrollen ueber den
+          Schriftzug": per Messung (getBoundingClientRect, mehrfach mit
+          top-/margin-Varianten gegengeprueft) bestaetigt, dass ein
+          position:sticky-Element NIEMALS in den PADDING-Bereich seines
+          scrollenden Vorfahren hineinragen kann - eine harte CSS-Grenze
+          (die "sticky-constraining rectangle" ist die PADDING-BOX des
+          Scroll-Containers), unabhaengig von top-Wert oder Margin-Tricks.
+          Der App.jsx-Wrapper hat pt-[calc(1rem+env(safe-area-inset-top))] -
+          genau dieser Streifen blieb bei sticky IMMER ungeclippt, durch ihn
+          scrollten Listeneintraege sichtbar durch. position:fixed ist von
+          jedem Vorfahren-Padding unbeeinflusst (positioniert relativ zum
+          Viewport, ausser ein Vorfahre setzt transform/filter/contain -
+          hier keiner) und deckt die Luecke deshalb vollstaendig. Braucht
+          dafuer sein EIGENES pt-[safe-area] (der App.jsx-Wrapper-Abstand
+          gilt ja nicht mehr, der Header ist aus dessen Fluss heraus). */}
+      <div
+        ref={headerRef}
+        className="fixed inset-x-0 top-0 z-10 flex items-center justify-between gap-2 bg-bg px-4 pb-2 pt-[calc(1rem_+_env(safe-area-inset-top))]"
+      >
         <h1 className="font-display text-xl font-semibold text-text">Einkaufsliste</h1>
         <div className="flex shrink-0 items-center gap-3 text-xs">
           <AnimatedButton
@@ -192,9 +233,25 @@ function EinkaufslisteAnsicht({ liste, onPostenAbhaken, onAbgehakteEntfernen, on
             Liste leeren
           </AnimatedButton>
         </div>
+
+        {/* Weicher Fade statt harter Kante am unteren Header-Rand (auf
+            Gregors Vorschlag geprueft, wirkt nativer als ein abrupter
+            Schnitt) - rein dekorative Deckflaeche UNTER dem eigentlichen
+            Header-Inhalt, positioniert relativ zum fixed-Header (dieser
+            bildet als position:fixed selbst einen Containing Block fuer
+            absolute Nachkommen). top-full setzt sie direkt an dessen
+            Unterkante. */}
+        <div
+          aria-hidden="true"
+          className="pointer-events-none absolute inset-x-0 top-full h-3 bg-gradient-to-b from-bg to-bg/0"
+        />
       </div>
 
-      <div className="px-4">
+      {/* paddingTop = gemessene Header-Hoehe (siehe headerHoehe oben) -
+          der Header ist jetzt fixed (aus dem Fluss heraus), ohne diesen
+          Ausgleich wuerden die ersten Zutaten-Zeilen beim ERSTEN Rendern
+          (vor jedem Scrollen) unter ihm verdeckt starten. */}
+      <div className="px-4" style={{ paddingTop: headerHoehe }}>
         {ABSCHNITT_REIHENFOLGE.filter((schluessel) => gruppen[schluessel].length > 0).map((schluessel) => (
           <section key={schluessel} className="mt-3">
             <h2 className="text-xs font-semibold uppercase tracking-wide text-text-muted">{ABSCHNITT_LABEL[schluessel]}</h2>
