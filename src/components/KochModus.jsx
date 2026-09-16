@@ -410,17 +410,6 @@ function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten
   // mehr, siehe SchrittIcon-Vergleich istAktuell unten).
   const aktuellerSchrittIndex = rezept.anleitung.findIndex((_, index) => !erledigteSchritte.has(index))
 
-  const zutatenReferenz = [
-    { label: 'Protein', name: karte.proteinZutat.name, portion: karte.portionen.proteinPortion },
-    { label: 'Kohlenhydrate', name: karte.carbsZutat.name, portion: karte.portionen.carbsPortion },
-    { label: 'Fett', name: karte.fettZutat.name, portion: karte.portionen.fettPortion },
-    {
-      label: karte.gemueseZutat.kategorie === 'obst' ? 'Obst' : 'Gemüse',
-      name: karte.gemueseZutat.name,
-      portion: karte.portionen.gemuesePortion,
-    },
-  ]
-
   return (
     // pb-[...]: Safe-Area unten (Home-Indicator) zusaetzlich zum bisherigen
     // pb-6 - das Sheet reicht bis bottom-0 (siehe KochModusSheet), ohne
@@ -445,14 +434,21 @@ function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten
 
       {/* Kompakte Zutaten-Referenz - bewusst NICHT die grossen SlotKarte-
           Kacheln aus RezeptKarte.jsx (waere eine reine Wiederholung), nur
-          Name+Menge je Zutat zum schnellen Nachschauen waehrend des Kochens. */}
-      <div className="mx-4 mt-3 grid grid-cols-2 gap-2">
-        {zutatenReferenz.map((z) => (
-          <div key={z.label} className="rounded-lg bg-secondary/10 px-3 py-2">
-            <p className="text-[11px] font-semibold uppercase tracking-wide text-text-muted">{z.label}</p>
+          Name+Menge je Zutat zum schnellen Nachschauen waehrend des Kochens.
+          Funktionaler Port auf rezeptKarteDaten.zutaten (4-12 statt fest 4
+          Eintraegen) - grid-cols-2 war exakt auf 4 Kacheln ausgelegt und
+          traegt bei mehr Zutaten nicht mehr, deshalb einspaltige Liste ohne
+          feste Slot-Labels (Protein/Kohlenhydrate/... gibt es im neuen
+          Modell nicht mehr). Eigener Design-Durchgang folgt erst, wenn
+          echte Rezepte mit 8-12 Zutaten da sind. */}
+      <div className="mx-4 mt-3 flex flex-col gap-2">
+        {karte.zutaten.map((z) => (
+          <div key={z.zutatId} className="rounded-lg bg-secondary/10 px-3 py-2">
             <p className="text-sm text-text">
-              {z.name} · <AnimierteZahl wert={z.portion ?? 0} /> g
+              {z.name} · <AnimierteZahl wert={z.anzeigeMenge ?? 0} /> {z.anzeigeEinheit}
+              {z.optional && <span className="text-text-muted"> · optional</span>}
             </p>
+            {z.anmerkung && <p className="text-xs text-text-muted">{z.anmerkung}</p>}
           </div>
         ))}
       </div>
@@ -726,10 +722,10 @@ function KochModusSheet({ eintrag, onZurueck, erledigteSchritte, onSchrittUmscha
 // sichtbar (geblurrt+abgedunkelt), das Sheet selbst kann per Ziehen
 // geschlossen werden. eintrag kommt von App.jsx (State auf Top-Level, siehe
 // dortiger Kommentar) - { rezept, karte } | null. karte ist ein REINER
-// Momentaufnahme-Snapshot vom Oeffnen-Zeitpunkt (rezeptKarteBerechnen-
-// Ergebnis), kein State mehr: da das Zahnrad (und damit jede Moeglichkeit,
-// ziel/makroZiele waehrend des Kochmodus zu aendern) verdeckt ist, kann er
-// waehrend der Session ohnehin nicht veralten.
+// Momentaufnahme-Snapshot vom Oeffnen-Zeitpunkt (rezeptKarteDaten-Ergebnis),
+// kein State mehr - seit dem Datenmodell-Umbau ohnehin ziel-/makroZiele-
+// unabhaengig (feste Naehrwerte/Mengen aus der DB), kann also erst recht
+// nicht mehr waehrend der Session veralten.
 //
 // erledigteSchritte/onSchrittUmschalten kommen EBENFALLS von App.jsx (State
 // dort, siehe Kommentar an der dortigen Verwendungsstelle) statt lokal hier

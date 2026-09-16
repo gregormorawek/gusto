@@ -2,7 +2,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion'
 import { IconCheck, IconDice5, IconPhotoOff } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
-import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
+import { rezeptKarteDaten } from '../rezeptKarteDaten'
 import { SPRING_REVEAL, transitionFuer } from '../motionConfig'
 
 // NUR noch das WEGBLENDEN der alten Karte beim Kartenwechsel (Filter-
@@ -192,7 +192,7 @@ function RezeptSchwipKarte({
     }
   }, [rezept, angezeigtesRezept])
 
-  const karte = rezeptKarteBerechnen(angezeigtesRezept, zutatenNachId, ziel, makroZiele)
+  const karte = rezeptKarteDaten(angezeigtesRezept)
   const bildFehlgeschlagen = angezeigtesRezept && fehlgeschlageneBildUrl === angezeigtesRezept.bild_url
 
   // x ist die EINZIGE Quelle der Wahrheit fuer den horizontalen Kartenversatz

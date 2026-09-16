@@ -11,7 +11,7 @@ import {
 import AnimatedButton from './AnimatedButton'
 import AnimierteZahl from './AnimierteZahl'
 import { aktiveMahlzeitenFuer } from '../mahlzeiten'
-import { rezeptKarteBerechnen } from '../rezeptKarteBerechnen'
+import { rezeptKarteDaten } from '../rezeptKarteDaten'
 import { motionPropsFuer, SPRING_REVEAL } from '../motionConfig'
 
 // Reines Fade fuer den Inhaltswechsel EINER TagZeile (Platzhalter <-> echtes
@@ -378,15 +378,15 @@ function TagAnsicht({
   const aktiveMahlzeitenListe = aktiveMahlzeitenFuer(aktiveMahlzeiten)
 
   // Pro aktiver Mahlzeit: das gesetzte Rezept (falls vorhanden UND noch in
-  // rezepte auffindbar) plus dessen LIVE berechnete Karte (reagiert dadurch
-  // automatisch auf spaetere Ziel-/Makro-Aenderungen, siehe
-  // rezeptKarteBerechnen-Kommentar dort - kein Snapshot). rezeptKarteBerechnen
-  // liefert bei rezept=null ohnehin bereits null, das deckt sowohl "nichts
-  // gesetzt" als auch "gesetzte rezeptId nicht mehr auffindbar" einheitlich ab.
+  // rezepte auffindbar) plus dessen Kartendaten direkt aus der DB (feste
+  // Naehrwerte/Mengen, keine Ziel-/Makro-Abhaengigkeit mehr - siehe
+  // rezeptKarteDaten.js). rezeptKarteDaten liefert bei rezept=null ohnehin
+  // bereits null, das deckt sowohl "nichts gesetzt" als auch "gesetzte
+  // rezeptId nicht mehr auffindbar" einheitlich ab.
   const eintraege = aktiveMahlzeitenListe.map(({ slug, label }) => {
     const rezeptId = tagesauswahl.mahlzeiten[slug]
     const rezept = rezeptId != null ? (rezepte.find((r) => r.id === rezeptId) ?? null) : null
-    const karte = rezeptKarteBerechnen(rezept, zutatenNachId, ziel, makroZiele)
+    const karte = rezeptKarteDaten(rezept)
     return { slug, label, rezept: karte ? rezept : null, karte }
   })
 
