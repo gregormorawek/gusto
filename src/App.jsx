@@ -580,8 +580,14 @@ function App() {
         supabase
           .from('rezepte')
           .select(
-            'id, titel, beschreibung, bild_url, mahlzeit, eigenschaft, diaeten, protein_zutat_id, carbs_zutat_id, fett_zutat_id, gemuese_obst_zutat_id, anleitung, zubereitungszeit_min'
-          ),
+            'id, titel, beschreibung, bild_url, mahlzeit, eigenschaft, diaeten, ' +
+              'protein_zutat_id, carbs_zutat_id, fett_zutat_id, gemuese_obst_zutat_id, ' +
+              'anleitung, zubereitungszeit_min, ' +
+              'portionen, tipps, kcal_pro_portion, protein_pro_portion, carbs_pro_portion, fett_pro_portion, ' +
+              'rezept_zutaten(zutat_id, menge_g, anzeige_menge, anzeige_einheit, anmerkung, optional, sortierung, ' +
+              'zutaten(id, name, kategorie, supermarkt_kategorie))'
+          )
+          .order('sortierung', { referencedTable: 'rezept_zutaten' }),
       ])
 
       if (zutatenErgebnis.error) {
