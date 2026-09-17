@@ -433,7 +433,7 @@ function App() {
   // (kein Parameter noetig).
   function tagesauswahlZurEinkaufslisteHinzufuegen() {
     setEinkaufsliste((aktuell) =>
-      zutatenHinzufuegen(aktuell, zutatenAusTagesauswahl(tagesauswahl.mahlzeiten, rezepte, zutatenNachId, ziel, makroZiele))
+      zutatenHinzufuegen(aktuell, zutatenAusTagesauswahl(tagesauswahl.mahlzeiten, rezepte))
     )
     toastZeigen('Zutaten hinzugefügt')
   }

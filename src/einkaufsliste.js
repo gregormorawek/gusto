@@ -1,4 +1,4 @@
-import { rezeptKarteBerechnen } from './rezeptKarteBerechnen'
+import { rezeptKarteDaten } from './rezeptKarteDaten'
 
 // Reine Datenlogik fuer die Einkaufsliste (kein React), analog zu
 // portionenRechner.js. Datenmodell pro Posten:
@@ -79,57 +79,36 @@ export function abgehakteEntfernen(liste) {
   return liste.filter((posten) => !posten.abgehakt)
 }
 
-// Baut aus einer bereits berechneten Rezept-"karte" (siehe
-// rezeptKarteBerechnen.js: proteinZutat/carbsZutat/fettZutat/gemueseZutat +
-// die tatsaechlich berechneten Portionen) die 4 Zutaten-Eintraege fuer die
-// Einkaufsliste - fuer den "Zur Einkaufsliste"-Button in RezeptSchwipKarte.jsx.
+// Baut aus einer bereits gelesenen Rezept-"karte" (siehe rezeptKarteDaten.js:
+// karte.zutaten, echte Mengen aus rezept_zutaten) die Zutaten-Eintraege fuer
+// die Einkaufsliste - beliebig viele statt der vier alten Slots. Nur die vom
+// Posten-Modell benoetigten Felder werden uebernommen (anzeigeMenge/
+// anzeigeEinheit/anmerkung/optional sind fuer die Einkaufsliste ohne
+// Bedeutung, siehe Plan Schritt 5: der Einheiten-Mix ist noch kein Thema).
 export function zutatenAusRezeptKarte(karte) {
-  return [
-    {
-      zutatId: karte.proteinZutat.id,
-      name: karte.proteinZutat.name,
-      kategorie: karte.proteinZutat.kategorie,
-      supermarktKategorie: karte.proteinZutat.supermarkt_kategorie,
-      mengeG: karte.portionen.proteinPortion,
-    },
-    {
-      zutatId: karte.carbsZutat.id,
-      name: karte.carbsZutat.name,
-      kategorie: karte.carbsZutat.kategorie,
-      supermarktKategorie: karte.carbsZutat.supermarkt_kategorie,
-      mengeG: karte.portionen.carbsPortion,
-    },
-    {
-      zutatId: karte.fettZutat.id,
-      name: karte.fettZutat.name,
-      kategorie: karte.fettZutat.kategorie,
-      supermarktKategorie: karte.fettZutat.supermarkt_kategorie,
-      mengeG: karte.portionen.fettPortion,
-    },
-    {
-      zutatId: karte.gemueseZutat.id,
-      name: karte.gemueseZutat.name,
-      kategorie: karte.gemueseZutat.kategorie,
-      supermarktKategorie: karte.gemueseZutat.supermarkt_kategorie,
-      mengeG: karte.portionen.gemuesePortion,
-    },
-  ]
+  return karte.zutaten.map((zutat) => ({
+    zutatId: zutat.zutatId,
+    name: zutat.name,
+    kategorie: zutat.kategorie,
+    supermarktKategorie: zutat.supermarktKategorie,
+    mengeG: zutat.mengeG,
+  }))
 }
 
 // Baut aus der tagesaktuellen Rezept-Auswahl (Rezepte-Swipe-Pivot, siehe
 // Plan floating-mixing-shannon.md: tagesauswahl.mahlzeiten in App.jsx,
 // { [mahlzeitTyp]: rezeptId | null }) die Zutaten-Eintraege ALLER gesetzten
 // Mahlzeiten auf einmal - fuer den "Zur Einkaufsliste"-Button in
-// TagAnsicht.jsx. Berechnet fuer jede gesetzte rezeptId per
-// rezeptKarteBerechnen die karte und ruft darauf DIESELBE Feld-Extraktion
-// wie zutatenAusRezeptKarte auf, statt sie zu duplizieren. Mahlzeiten ohne
-// gesetztes Rezept ODER mit einer inzwischen nicht mehr auffindbaren
-// rezeptId liefern (ueber rezeptKarteBerechnen, das dann null zurueckgibt)
-// einfach keine Eintraege statt abzustuerzen.
-export function zutatenAusTagesauswahl(tagesauswahlMahlzeiten, rezepte, zutatenNachId, ziel, makroZiele) {
+// TagAnsicht.jsx. Liest fuer jede gesetzte rezeptId per rezeptKarteDaten die
+// karte und ruft darauf DIESELBE Feld-Extraktion wie zutatenAusRezeptKarte
+// auf, statt sie zu duplizieren. Mahlzeiten ohne gesetztes Rezept ODER mit
+// einer inzwischen nicht mehr auffindbaren rezeptId liefern (ueber
+// rezeptKarteDaten, das dann null zurueckgibt) einfach keine Eintraege statt
+// abzustuerzen.
+export function zutatenAusTagesauswahl(tagesauswahlMahlzeiten, rezepte) {
   return Object.values(tagesauswahlMahlzeiten).flatMap((rezeptId) => {
     const rezept = rezeptId != null ? (rezepte.find((r) => r.id === rezeptId) ?? null) : null
-    const karte = rezeptKarteBerechnen(rezept, zutatenNachId, ziel, makroZiele)
+    const karte = rezeptKarteDaten(rezept)
     return karte ? zutatenAusRezeptKarte(karte) : []
   })
 }
