@@ -16,7 +16,7 @@ import {
   zutatenHinzufuegen,
   postenAbhaken,
   abgehakteEntfernen,
-  zutatenAusTagesauswahl,
+  zutatenUndStatusAusTagesauswahl,
 } from './einkaufsliste'
 import { MAHLZEITEN, standardMahlzeit, aktiveMahlzeitenFuer } from './mahlzeiten'
 import { supabase } from './supabase'
@@ -155,28 +155,38 @@ function heutigesDatumString() {
 // Laedt die tagesaktuelle Rezept-Auswahl (Rezepte-Swipe-Pivot, siehe Plan
 // floating-mixing-shannon.md): welches Rezept pro Mahlzeit per "Uebernehmen"
 // fuer HEUTE festgelegt wurde - { datum: 'YYYY-MM-DD', mahlzeiten: {
-// [mahlzeitTyp]: rezeptId | null } }. BEWUSST kein dauerhafter Speiseplan:
-// weicht das gespeicherte datum vom heutigen Datum ab (App wurde zuletzt an
-// einem anderen Tag benutzt), wird mahlzeiten verworfen und leer mit
-// heutigem Datum neu begonnen (Mitternachts-Reset). Der Vergleich passiert
-// bewusst nur HIER beim Laden (lazy initializer), nicht ueber einen
-// laufenden Timer - eine App-Sitzung, die exakt ueber Mitternacht hinweg
-// offen bleibt, reset(et) also erst beim naechsten Neuladen, analog zu allen
-// anderen localStorage-Ladefunktionen in dieser Datei (siehe z. B. zielLaden).
+// [mahlzeitTyp]: rezeptId | null }, hinzugefuegt: { [mahlzeitTyp]: rezeptId } }.
+// hinzugefuegt haelt PRO MAHLZEIT die rezeptId, die zuletzt tatsaechlich zur
+// Einkaufsliste hinzugefuegt wurde (siehe tagesauswahlZurEinkaufslisteHinzufuegen
+// weiter unten) - bewusst die id selbst statt nur true/false: stimmt sie
+// nicht mehr mit mahlzeiten[typ] ueberein (Rezept wurde ausgetauscht), gilt
+// die Mahlzeit automatisch wieder als "offen", ohne eigene Invalidierung.
+// BEWUSST kein dauerhafter Speiseplan: weicht das gespeicherte datum vom
+// heutigen Datum ab (App wurde zuletzt an einem anderen Tag benutzt), werden
+// mahlzeiten UND hinzugefuegt verworfen und leer mit heutigem Datum neu
+// begonnen (Mitternachts-Reset). Der Vergleich passiert bewusst nur HIER
+// beim Laden (lazy initializer), nicht ueber einen laufenden Timer - eine
+// App-Sitzung, die exakt ueber Mitternacht hinweg offen bleibt, reset(et)
+// also erst beim naechsten Neuladen, analog zu allen anderen
+// localStorage-Ladefunktionen in dieser Datei (siehe z. B. zielLaden).
+//
+// hinzugefuegt ?? {} faengt eine gestern gespeicherte tagesauswahl ab, die
+// dieses Feld noch nicht kannte - analog zum supermarktKategorie-Fallback in
+// einkaufslisteLaden() (einkaufsliste.js).
 function tagesauswahlLaden() {
   const heute = heutigesDatumString()
   try {
     const gespeichert = localStorage.getItem(TAGESAUSWAHL_LOCALSTORAGE_KEY)
     if (!gespeichert) {
-      return { datum: heute, mahlzeiten: {} }
+      return { datum: heute, mahlzeiten: {}, hinzugefuegt: {} }
     }
     const geparst = JSON.parse(gespeichert)
     if (geparst.datum !== heute) {
-      return { datum: heute, mahlzeiten: {} }
+      return { datum: heute, mahlzeiten: {}, hinzugefuegt: {} }
     }
-    return { datum: heute, mahlzeiten: geparst.mahlzeiten ?? {} }
+    return { datum: heute, mahlzeiten: geparst.mahlzeiten ?? {}, hinzugefuegt: geparst.hinzugefuegt ?? {} }
   } catch {
-    return { datum: heute, mahlzeiten: {} }
+    return { datum: heute, mahlzeiten: {}, hinzugefuegt: {} }
   }
 }
 
@@ -430,11 +440,19 @@ function App() {
 
   // Von TagAnsicht.jsx aufgerufen ("Zur Einkaufsliste"-Button) - liest die
   // komplette tagesaktuelle Rezept-Auswahl direkt aus dem tagesauswahl-State
-  // (kein Parameter noetig).
-  function tagesauswahlZurEinkaufslisteHinzufuegen() {
-    setEinkaufsliste((aktuell) =>
-      zutatenHinzufuegen(aktuell, zutatenAusTagesauswahl(tagesauswahl.mahlzeiten, rezepte))
-    )
+  // (kein Parameter noetig ausser erzwingen). Pro Mahlzeit, nicht pro Tag:
+  // zutatenUndStatusAusTagesauswahl liefert standardmaessig nur die Zutaten
+  // der noch NICHT hinzugefuegten Mahlzeiten (siehe tagesauswahlLaden oben -
+  // hinzugefuegt[typ] === mahlzeiten[typ]). erzwingen=true (TagAnsicht.jsx
+  // nach expliziter Rueckfrage-Bestaetigung, nur wenn ALLE Mahlzeiten schon
+  // dran waren) verarbeitet stattdessen wieder alle gesetzten Mahlzeiten.
+  function tagesauswahlZurEinkaufslisteHinzufuegen(erzwingen = false) {
+    const { zutaten, hinzugefuegt } = zutatenUndStatusAusTagesauswahl(tagesauswahl, rezepte, erzwingen)
+    if (zutaten.length === 0) {
+      return
+    }
+    setEinkaufsliste((aktuell) => zutatenHinzufuegen(aktuell, zutaten))
+    setTagesauswahl((aktuell) => ({ ...aktuell, hinzugefuegt: { ...aktuell.hinzugefuegt, ...hinzugefuegt } }))
     toastZeigen('Zutaten hinzugefügt')
   }
 

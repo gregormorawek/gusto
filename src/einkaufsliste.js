@@ -96,19 +96,40 @@ export function zutatenAusRezeptKarte(karte) {
 }
 
 // Baut aus der tagesaktuellen Rezept-Auswahl (Rezepte-Swipe-Pivot, siehe
-// Plan floating-mixing-shannon.md: tagesauswahl.mahlzeiten in App.jsx,
-// { [mahlzeitTyp]: rezeptId | null }) die Zutaten-Eintraege ALLER gesetzten
-// Mahlzeiten auf einmal - fuer den "Zur Einkaufsliste"-Button in
-// TagAnsicht.jsx. Liest fuer jede gesetzte rezeptId per rezeptKarteDaten die
-// karte und ruft darauf DIESELBE Feld-Extraktion wie zutatenAusRezeptKarte
-// auf, statt sie zu duplizieren. Mahlzeiten ohne gesetztes Rezept ODER mit
-// einer inzwischen nicht mehr auffindbaren rezeptId liefern (ueber
-// rezeptKarteDaten, das dann null zurueckgibt) einfach keine Eintraege statt
-// abzustuerzen.
-export function zutatenAusTagesauswahl(tagesauswahlMahlzeiten, rezepte) {
-  return Object.values(tagesauswahlMahlzeiten).flatMap((rezeptId) => {
-    const rezept = rezeptId != null ? (rezepte.find((r) => r.id === rezeptId) ?? null) : null
+// Plan floating-mixing-shannon.md: tagesauswahl.{mahlzeiten,hinzugefuegt} in
+// App.jsx) die Zutaten-Eintraege fuer den "Zur Einkaufsliste"-Button in
+// TagAnsicht.jsx - PRO MAHLZEIT, nicht pro Tag: eine Mahlzeit gilt als
+// "offen", solange hinzugefuegt[typ] nicht mit der aktuell gesetzten
+// rezeptId uebereinstimmt (siehe tagesauswahlLaden in App.jsx - deckt sowohl
+// "noch nie hinzugefuegt" als auch "Rezept seither ausgetauscht" ab, ohne
+// eigene Invalidierung). Standardmaessig (erzwingen=false) werden nur die
+// offenen Mahlzeiten verarbeitet; erzwingen=true (nach expliziter
+// Rueckfrage, siehe TagAnsicht.jsx) nimmt wieder ALLE gesetzten Mahlzeiten.
+//
+// Liest fuer jede zu verarbeitende rezeptId per rezeptKarteDaten die karte
+// und ruft darauf DIESELBE Feld-Extraktion wie zutatenAusRezeptKarte auf,
+// statt sie zu duplizieren. Mahlzeiten ohne gesetztes Rezept ODER mit einer
+// inzwischen nicht mehr auffindbaren rezeptId liefern (ueber rezeptKarteDaten,
+// das dann null zurueckgibt) einfach keine Eintraege statt abzustuerzen.
+//
+// Rueckgabe { zutaten, hinzugefuegt }: zutaten fuer zutatenHinzufuegen()
+// oben, hinzugefuegt der Ausschnitt der Map, den der Aufrufer (App.jsx) in
+// tagesauswahl.hinzugefuegt einmischen soll - NUR die tatsaechlich
+// verarbeiteten Mahlzeiten, damit bereits laenger offene, hier aber nicht
+// betroffene Mahlzeiten unangetastet bleiben.
+export function zutatenUndStatusAusTagesauswahl(tagesauswahl, rezepte, erzwingen = false) {
+  const gesetzteMahlzeiten = Object.entries(tagesauswahl.mahlzeiten).filter(([, rezeptId]) => rezeptId != null)
+  const zuVerarbeiten = erzwingen
+    ? gesetzteMahlzeiten
+    : gesetzteMahlzeiten.filter(([mahlzeitTyp, rezeptId]) => tagesauswahl.hinzugefuegt[mahlzeitTyp] !== rezeptId)
+
+  const zutaten = zuVerarbeiten.flatMap(([, rezeptId]) => {
+    const rezept = rezepte.find((r) => r.id === rezeptId) ?? null
     const karte = rezeptKarteDaten(rezept)
     return karte ? zutatenAusRezeptKarte(karte) : []
   })
+
+  const hinzugefuegt = Object.fromEntries(zuVerarbeiten)
+
+  return { zutaten, hinzugefuegt }
 }

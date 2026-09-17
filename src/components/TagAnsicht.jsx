@@ -1,6 +1,7 @@
 import { useRef, useState } from 'react'
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion } from 'framer-motion'
 import {
+  IconCheck,
   IconChevronRight,
   IconPhotoOff,
   IconPlus,
@@ -12,7 +13,7 @@ import AnimatedButton from './AnimatedButton'
 import AnimierteZahl from './AnimierteZahl'
 import { aktiveMahlzeitenFuer } from '../mahlzeiten'
 import { rezeptKarteDaten } from '../rezeptKarteDaten'
-import { motionPropsFuer, SPRING_REVEAL } from '../motionConfig'
+import { FADE_UEBERGANG, motionPropsFuer, SPRING_REVEAL, transitionFuer } from '../motionConfig'
 
 // Reines Fade fuer den Inhaltswechsel EINER TagZeile (Platzhalter <-> echtes
 // Rezept) - siehe TagZeile weiter unten fuer den Kontext. Kurz und dezent,
@@ -357,12 +358,72 @@ function LeererTagEinstieg() {
   )
 }
 
+// Bestaetigungs-Dialog fuer den Fall "alle gesetzten Mahlzeiten sind schon
+// auf der Einkaufsliste, User klickt den Button trotzdem bewusst" - NICHT
+// destruktiv (im Gegensatz zum "Wirklich alles loeschen?"-Vorbild in
+// EinkaufslisteAnsicht.jsx), aber verdient trotzdem eine explizite
+// Rueckfrage statt stillem erneuten Addieren, siehe Aufgabenstellung.
+// Bewusst dasselbe Backdrop-/Karten-Muster (fixed inset-0 bg-text/40 +
+// zentrierte bg-card-Karte) fuer visuelle Konsistenz zwischen den beiden
+// Bestaetigungs-Dialogen der App.
+function ErneutHinzufuegenBestaetigung({ offen, onAbbrechen, onBestaetigen }) {
+  const reduzierteBewegung = useReducedMotion()
+  return (
+    <AnimatePresence>
+      {offen && (
+        <motion.div
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
+          exit={{ opacity: 0 }}
+          transition={transitionFuer(reduzierteBewegung, FADE_UEBERGANG)}
+          className="fixed inset-0 z-50 flex items-center justify-center bg-text/40 p-4"
+          onClick={onAbbrechen}
+        >
+          <motion.div
+            {...motionPropsFuer(reduzierteBewegung, {
+              initial: { opacity: 0, y: -16 },
+              animate: { opacity: 1, y: 0 },
+              exit: { opacity: 0, y: -16 },
+              transition: SPRING_REVEAL,
+            })}
+            className="w-full max-w-xs rounded-lg bg-card p-4 text-center shadow-lg"
+            onClick={(e) => e.stopPropagation()}
+          >
+            <p className="font-display text-lg font-semibold text-text">Nochmal hinzufügen?</p>
+            <p className="mt-1 text-sm text-text-muted">
+              Diese Zutaten stehen schon auf deiner Einkaufsliste und würden erneut addiert.
+            </p>
+            <div className="mt-4 flex gap-2">
+              <AnimatedButton
+                type="button"
+                onClick={onAbbrechen}
+                className="flex-1 rounded-lg border border-text-muted/30 px-3 py-2 text-sm font-medium text-text"
+              >
+                Abbrechen
+              </AnimatedButton>
+              <AnimatedButton
+                type="button"
+                onClick={onBestaetigen}
+                className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-card"
+              >
+                Hinzufügen
+              </AnimatedButton>
+            </div>
+          </motion.div>
+        </motion.div>
+      )}
+    </AnimatePresence>
+  )
+}
+
 // TagAnsicht ersetzt TagesplanAnsicht.jsx (Rezepte-Swipe-Pivot, siehe Plan
 // floating-mixing-shannon.md) - zeigt, was per "Uebernehmen" fuer HEUTE
 // bereits feststeht (tagesauswahl, siehe App.jsx), eine Zeile pro aktiver
-// Mahlzeit plus eine aggregierte Tages-Summe. Haelt selbst KEINEN State -
-// tagesauswahl/rezepte/zutatenNachId/ziel/makroZiele kommen komplett als
-// Props von App.jsx, exakt wie RezepteSwipeAnsicht.jsx.
+// Mahlzeit plus eine aggregierte Tages-Summe. Haelt selbst ausser dem
+// Bestaetigungs-Dialog-Sichtbarkeitszustand (siehe hinzufuegenBestaetigungOffen
+// unten, analog zum Vorbild in EinkaufslisteAnsicht.jsx) KEINEN eigenen
+// State - tagesauswahl/rezepte/zutatenNachId/ziel/makroZiele kommen komplett
+// als Props von App.jsx, exakt wie RezepteSwipeAnsicht.jsx.
 function TagAnsicht({
   rezepte,
   zutatenNachId,
@@ -391,6 +452,38 @@ function TagAnsicht({
   })
 
   const hatMindestensEinenEintrag = eintraege.some((eintrag) => eintrag.karte)
+
+  // Welche Eintraege sind noch NICHT zur Einkaufsliste hinzugefuegt worden -
+  // siehe tagesauswahl.hinzugefuegt in App.jsx: haelt pro Mahlzeit die
+  // zuletzt hinzugefuegte rezeptId, ein Mismatch mit der aktuell gesetzten
+  // rezeptId (nie hinzugefuegt ODER Rezept seither ausgetauscht) zaehlt als
+  // offen. alleBereitsHinzugefuegt schaltet Button-Optik/-Verhalten weiter
+  // unten um (siehe hinzufuegenButtonKlick).
+  const offeneEintraege = eintraege.filter(
+    (eintrag) => eintrag.karte && tagesauswahl.hinzugefuegt[eintrag.slug] !== tagesauswahl.mahlzeiten[eintrag.slug]
+  )
+  const alleBereitsHinzugefuegt = hatMindestensEinenEintrag && offeneEintraege.length === 0
+
+  const [hinzufuegenBestaetigungOffen, setHinzufuegenBestaetigungOffen] = useState(false)
+
+  // Normalfall (mind. eine Mahlzeit noch offen): direkt und ohne Rueckfrage
+  // nur die offenen Mahlzeiten hinzufuegen (siehe
+  // zutatenUndStatusAusTagesauswahl in einkaufsliste.js). Sind bereits ALLE
+  // gesetzten Mahlzeiten hinzugefuegt, waere ein direktes erneutes Addieren
+  // ein stilles Verdoppeln - dafuer stattdessen die Rueckfrage oeffnen (siehe
+  // ErneutHinzufuegenBestaetigung oben), die ihrerseits erzwingen=true nutzt.
+  function hinzufuegenButtonKlick() {
+    if (alleBereitsHinzugefuegt) {
+      setHinzufuegenBestaetigungOffen(true)
+    } else {
+      onZurEinkaufslisteHinzufuegen(false)
+    }
+  }
+
+  function hinzufuegenBestaetigt() {
+    onZurEinkaufslisteHinzufuegen(true)
+    setHinzufuegenBestaetigungOffen(false)
+  }
 
   // Kompakte Tages-Summe ueber alle VORHANDENEN Eintraege - reiner
   // Render-Wert (kein State), analog zur bestehenden tagesSumme-Reduce-Logik
@@ -482,15 +575,27 @@ function TagAnsicht({
           <div className="mx-4 mb-4 mt-3">
             <AnimatedButton
               type="button"
-              onClick={onZurEinkaufslisteHinzufuegen}
-              className="flex w-full items-center justify-center gap-2 rounded-lg border border-secondary px-3 py-2 text-sm font-medium text-secondary"
+              onClick={hinzufuegenButtonKlick}
+              className={`flex w-full items-center justify-center gap-2 rounded-lg border px-3 py-2 text-sm font-medium ${
+                alleBereitsHinzugefuegt ? 'border-text-muted/30 text-text-muted' : 'border-secondary text-secondary'
+              }`}
             >
-              <IconShoppingCart size={18} stroke={1.75} />
-              Zur Einkaufsliste hinzufügen
+              {alleBereitsHinzugefuegt ? (
+                <IconCheck size={18} stroke={1.75} />
+              ) : (
+                <IconShoppingCart size={18} stroke={1.75} />
+              )}
+              {alleBereitsHinzugefuegt ? 'Bereits hinzugefügt' : 'Zur Einkaufsliste hinzufügen'}
             </AnimatedButton>
           </div>
         </>
       )}
+
+      <ErneutHinzufuegenBestaetigung
+        offen={hinzufuegenBestaetigungOffen}
+        onAbbrechen={() => setHinzufuegenBestaetigungOffen(false)}
+        onBestaetigen={hinzufuegenBestaetigt}
+      />
     </>
   )
 }
