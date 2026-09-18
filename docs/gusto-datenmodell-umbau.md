@@ -215,18 +215,16 @@ Lesepfad auf `rezept_zutaten` und die zwischengespeicherten Nährwerte
 umgebaut. Betroffen: Swipe-Karte, Kochmodus, Tagesansicht, Einkaufsliste,
 Zielabgleich. Umsetzungsplan (historisch): `docs/etappe-3-plan.md`.
 
-**Etappe 4 — aufräumen** ✅ Code-Teil erledigt, DB-Teil vorbereitet
-Die vier alten FK-Spalten werden entfernt — erst aus der `select()`-Klausel
-in `App.jsx` (auf iOS-App und Vercel-Web bestätigt ausgeliefert), danach
-erst aus der DB. Diese Reihenfolge ist bewusst umgedreht gegenüber der
+**Etappe 4 — aufräumen** ✅ erledigt
+Die vier alten FK-Spalten entfernt — erst aus der `select()`-Klausel in
+`App.jsx` (auf iOS-App und Vercel-Web bestätigt ausgeliefert), danach erst
+aus der DB. Diese Reihenfolge ist bewusst umgedreht gegenüber der
 ursprünglichen Planung oben — Begründung und Details: `docs/etappe-4-plan.md`.
-Migration vorbereitet und committed:
-`supabase/migrations/20260918_rezepte_alte_zutat_spalten_entfernen.sql`,
-wird von Gregor im SQL Editor ausgeführt. `portionenRechner.js` wurde
-bereits in Etappe 3 stillgelegt, nicht erst hier.
+Migration: `supabase/migrations/20260918_rezepte_alte_zutat_spalten_entfernen.sql`,
+ausgeführt, Kontroll-Query lieferte 0 Zeilen, iPhone und Vercel bestätigt.
+`portionenRechner.js` wurde bereits in Etappe 3 stillgelegt, nicht erst hier.
 
-Damit ist der gesamte Datenmodell-Umbau (Etappen 1–4) inhaltlich
-abgeschlossen, sobald diese Migration ausgeführt ist.
+Damit ist der gesamte Datenmodell-Umbau (Etappen 1–4) abgeschlossen.
 
 ---
 
