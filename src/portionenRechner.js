@@ -1,3 +1,13 @@
+// STILLGELEGT mit dem Datenmodell-Umbau (Etappe 3, Schritt 6, siehe Plan
+// magical-meandering-puzzle.md): kein Import mehr im Baum. Naehrwerte und
+// Mengen kommen seither fertig aus der DB (rezepte.*_pro_portion,
+// rezept_zutaten.menge_g, siehe rezeptKarteDaten.js) statt live aus vier
+// fest vorgegebenen Zutaten berechnet zu werden. Bewusst NICHT geloescht -
+// der Kern der Gleichungssystem-Logik bleibt als Dokumentation erhalten,
+// falls eine kuenftige Funktion (z. B. eine "Menge anpassen"-Funktion
+// ausserhalb der festen Rezept-Mengen) wieder eine echte Portions-
+// Skalierung braucht.
+
 // Portionsberechnungs-Pipeline: rein rechnerische, UI-unabhaengige Logik, die
 // aus vier FEST vorgegebenen Zutaten (egal ob gewuerfelt, manuell per
 // Reroll-Suchfeld gewaehlt, oder - seit Schritt 3 - aus einem Rezept fest

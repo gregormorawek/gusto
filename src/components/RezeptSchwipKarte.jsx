@@ -135,9 +135,6 @@ function KartenSkeleton() {
 function RezeptSchwipKarte({
   rezepteGeladen = true,
   rezept,
-  zutatenNachId,
-  ziel,
-  makroZiele,
   onWuerfeln,
   wuerfelnDeaktiviert,
   onUebernehmen,

@@ -27,11 +27,8 @@ import { SLIDE_DISTANZ, motionPropsFuer } from '../motionConfig'
 function RezepteSwipeAnsicht({
   rezepteGeladen,
   rezepte,
-  zutatenNachId,
   diaeten,
   onDiaetenAendern,
-  ziel,
-  makroZiele,
   aktiveMahlzeiten,
   aktuelleMahlzeit,
   onMahlzeitAendern,
@@ -135,9 +132,6 @@ function RezepteSwipeAnsicht({
       <RezeptSchwipKarte
         rezepteGeladen={rezepteGeladen}
         rezept={aktuellesRezept}
-        zutatenNachId={zutatenNachId}
-        ziel={ziel}
-        makroZiele={makroZiele}
         onWuerfeln={onWuerfeln}
         wuerfelnDeaktiviert={aktuellerPool.length === 0}
         onUebernehmen={onUebernehmen}

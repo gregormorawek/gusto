@@ -422,13 +422,11 @@ function ErneutHinzufuegenBestaetigung({ offen, onAbbrechen, onBestaetigen }) {
 // Mahlzeit plus eine aggregierte Tages-Summe. Haelt selbst ausser dem
 // Bestaetigungs-Dialog-Sichtbarkeitszustand (siehe hinzufuegenBestaetigungOffen
 // unten, analog zum Vorbild in EinkaufslisteAnsicht.jsx) KEINEN eigenen
-// State - tagesauswahl/rezepte/zutatenNachId/ziel/makroZiele kommen komplett
-// als Props von App.jsx, exakt wie RezepteSwipeAnsicht.jsx.
+// State - tagesauswahl/rezepte/ziel kommen komplett als Props von App.jsx,
+// exakt wie RezepteSwipeAnsicht.jsx.
 function TagAnsicht({
   rezepte,
-  zutatenNachId,
   ziel,
-  makroZiele,
   aktiveMahlzeiten,
   tagesauswahl,
   onZeileOeffnen,

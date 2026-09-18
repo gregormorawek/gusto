@@ -78,21 +78,6 @@ function onboardingAbgeschlossenLaden() {
   return localStorage.getItem(ONBOARDING_LOCALSTORAGE_KEY) === 'true'
 }
 
-const MAKRO_ZIELE_LOCALSTORAGE_KEY = 'gusto-makro-ziele'
-
-// Laedt die gespeicherten Makro-Ziele (Protein/Carbs/Fett in Gramm, PRO
-// MAHLZEIT-TYP) aus dem localStorage. Ist noch nichts gespeichert oder der
-// Inhalt beschaedigt, wird ein leeres Objekt zurueckgegeben (= keine Ziele
-// gesetzt). Form: { [mahlzeitTyp]: { protein, carbs, fett } }.
-function makroZieleLaden() {
-  try {
-    const gespeichert = localStorage.getItem(MAKRO_ZIELE_LOCALSTORAGE_KEY)
-    return gespeichert ? JSON.parse(gespeichert) : {}
-  } catch {
-    return {}
-  }
-}
-
 // Umbenannt von "tagesplanMahlzeiten" (Rezepte-Swipe-Pivot, siehe Plan
 // floating-mixing-shannon.md): der alte Name war an das inzwischen
 // entfernte Wuerfel-"Tagesplan"-Konzept angelehnt und waere jetzt
@@ -256,12 +241,6 @@ function App() {
   // einzelner Fetch beim Laden, siehe zutatenLaden-Effekt unten.
   const [rezepte, setRezepte] = useState([])
 
-  // Nachschlage-Map zutat.id -> Zutat-Objekt, fuer den Zutaten-Join in der
-  // Rezepte-Anzeige (jedes Rezept referenziert 4 Zutaten nur per id). Wird
-  // im selben Effekt wie setRezepte aus den geladenen Zutaten gebaut, siehe
-  // zutatenLaden-Effekt unten.
-  const [zutatenNachId, setZutatenNachId] = useState({})
-
   // Im Onboarding-Wizard gewaehlte Mahlzeit-Praeferenz (nur relevant, wenn
   // ziel.typ NICHT 'proTag' ist - siehe OnboardingWizard.jsx Schritt 2 und
   // dessen WizardTageskarte-Vorschau). Lazy initializer: wird nur einmal
@@ -271,7 +250,7 @@ function App() {
   // Aktuell ausgewaehlte Diaetform-Filter (vegan/vegetarisch/glutenfrei),
   // Mehrfachauswahl. Leeres Array = kein Diaet-Filter aktiv, alle Zutaten
   // kommen infrage. Lazy initializer laedt den zuletzt gespeicherten Wert
-  // aus dem localStorage (analog zu ziel/makroZiele/aktiveMahlzeiten),
+  // aus dem localStorage (analog zu ziel/aktiveMahlzeiten),
   // damit die im Onboarding gewaehlte Ernaehrungsform einen Reload uebersteht.
   const [diaeten, setDiaeten] = useState(diaetenLaden)
 
@@ -409,7 +388,7 @@ function App() {
   }
 
   // Einkaufsliste (siehe einkaufsliste.js fuer das Datenmodell/die reine
-  // Merge-Logik) - App-weiter State analog zu ziel/diaeten/makroZiele oben:
+  // Merge-Logik) - App-weiter State analog zu ziel/diaeten oben:
   // lazy initializer laedt den zuletzt gespeicherten Stand aus dem
   // localStorage, ein Effekt schreibt jede Aenderung sofort zurueck.
   const [einkaufsliste, setEinkaufsliste] = useState(einkaufslisteLaden)
@@ -552,7 +531,7 @@ function App() {
   // einen Frame. Mit dem State hier oben bleibt die Auswahl ueber Tab-
   // Wechsel hinweg erhalten (kein Neu-Wuerfeln, kein erneutes Bild-Vorladen
   // fuer ein Rezept, das man Sekunden zuvor schon gesehen hat) - analog zu
-  // diaeten/ziel/makroZiele/aktiveMahlzeiten oben, die aus demselben Grund
+  // diaeten/ziel/aktiveMahlzeiten oben, die aus demselben Grund
   // schon auf dieser Ebene liegen. Die Erst-Befuellung passiert im
   // zutatenLaden-Effekt weiter unten, im selben Zug wie setRezepte(...) -
   // Diaet-/Mahlzeiten-AENDERUNGEN loesen die Neu-Wuerfelung direkt in den
@@ -567,52 +546,22 @@ function App() {
   const [rezepteAktuelleMahlzeit, setRezepteAktuelleMahlzeit] = useState(standardMahlzeit)
   const [rezepteProMahlzeitState, setRezepteProMahlzeitState] = useState({})
 
-  // Makro-Ziele (Protein/Carbs/Fett in Gramm) PRO MAHLZEIT-TYP:
-  // { [mahlzeitTyp]: { protein, carbs, fett } }. Wird von rezeptKarteBerechnen
-  // (siehe RezepteSwipeAnsicht.jsx/RezeptSchwipKarte.jsx/TagAnsicht.jsx)
-  // gelesen, damit z. B. ein vor dem Rezepte-Swipe-Pivot gesetztes "40g
-  // Protein-Ziel beim Fruehstueck" weiterhin beruecksichtigt wird. BEWUSST
-  // schreibgeschuetzt (kein Setter mehr) - die einzige Editier-Oberflaeche
-  // dafuer war die inzwischen entfernte Einzel-Ansicht (SlotKarte-
-  // "Protein-Ziel:"-Eingabefeld), die neue Rezepte-Swipe-Ansicht bietet
-  // (noch) keinen Ersatz dafuer. Bestehende, bereits gespeicherte Werte
-  // bleiben dadurch erhalten und wirksam, koennen aber aktuell ueber keine
-  // UI mehr GEAENDERT werden - ein bekannter, absichtlich in Kauf
-  // genommener Funktionsluecke des Pivots, kein Bug.
-  const [makroZiele] = useState(makroZieleLaden)
-
   // Leeres Array [] als zweites Argument: dieser Code laeuft nur EINMAL,
   // wenn die Komponente zum ersten Mal angezeigt wird.
   useEffect(() => {
     async function zutatenLaden() {
-      // Zutaten und Rezepte parallel laden (zwei unabhaengige Tabellen) -
-      // beide muessen fertig sein, bevor "laedt" auf false geht, sonst
-      // waere die Rezepte-Ansicht kurz mit einer leeren Liste sichtbar.
-      const [zutatenErgebnis, rezepteErgebnis] = await Promise.all([
-        supabase
-          .from('zutaten')
-          // "id" brauchen wir fuer den Zutaten-Join in der Rezepte-Ansicht
-          // (jedes Rezept referenziert 4 Zutaten nur per id).
-          .select('id, name, kategorie, supermarkt_kategorie, kalorien, protein_g, carbs_g, fett_g, portion_g, mahlzeiten, diaeten, eigenschaft')
-          .eq('aktiv', true),
-        supabase
-          .from('rezepte')
-          .select(
-            'id, titel, beschreibung, bild_url, mahlzeit, eigenschaft, diaeten, ' +
-              'protein_zutat_id, carbs_zutat_id, fett_zutat_id, gemuese_obst_zutat_id, ' +
-              'anleitung, zubereitungszeit_min, ' +
-              'portionen, tipps, kcal_pro_portion, protein_pro_portion, carbs_pro_portion, fett_pro_portion, ' +
-              'rezept_zutaten(zutat_id, menge_g, anzeige_menge, anzeige_einheit, anmerkung, optional, sortierung, ' +
-              'zutaten(id, name, kategorie, supermarkt_kategorie))'
-          )
-          .order('sortierung', { referencedTable: 'rezept_zutaten' }),
-      ])
+      const rezepteErgebnis = await supabase
+        .from('rezepte')
+        .select(
+          'id, titel, beschreibung, bild_url, mahlzeit, eigenschaft, diaeten, ' +
+            'protein_zutat_id, carbs_zutat_id, fett_zutat_id, gemuese_obst_zutat_id, ' +
+            'anleitung, zubereitungszeit_min, ' +
+            'portionen, tipps, kcal_pro_portion, protein_pro_portion, carbs_pro_portion, fett_pro_portion, ' +
+            'rezept_zutaten(zutat_id, menge_g, anzeige_menge, anzeige_einheit, anmerkung, optional, sortierung, ' +
+            'zutaten(id, name, kategorie, supermarkt_kategorie))'
+        )
+        .order('sortierung', { referencedTable: 'rezept_zutaten' })
 
-      if (zutatenErgebnis.error) {
-        console.error('Fehler beim Laden der Zutaten:', zutatenErgebnis.error)
-        setLaedt(false)
-        return
-      }
       if (rezepteErgebnis.error) {
         // Rezepte sind (noch) nicht kritisch fuer die Haupt-Ansicht - ein
         // Fehler hier soll nicht die ganze App blockieren, nur die
@@ -621,7 +570,6 @@ function App() {
         console.error('Fehler beim Laden der Rezepte:', rezepteErgebnis.error)
       }
 
-      setZutatenNachId(Object.fromEntries(zutatenErgebnis.data.map((z) => [z.id, z])))
       const rezepteDaten = rezepteErgebnis.data ?? []
       setRezepte(rezepteDaten)
 
@@ -980,11 +928,8 @@ function App() {
           <RezepteSwipeAnsicht
             rezepteGeladen={!laedt}
             rezepte={rezepte}
-            zutatenNachId={zutatenNachId}
             diaeten={diaeten}
             onDiaetenAendern={diaetenAendern}
-            ziel={ziel}
-            makroZiele={makroZiele}
             aktiveMahlzeiten={aktiveMahlzeiten}
             aktuelleMahlzeit={rezepteEffektivAktuelleMahlzeit}
             onMahlzeitAendern={setRezepteAktuelleMahlzeit}
@@ -997,9 +942,7 @@ function App() {
         ) : ansicht === 'tag' ? (
           <TagAnsicht
             rezepte={rezepte}
-            zutatenNachId={zutatenNachId}
             ziel={ziel}
-            makroZiele={makroZiele}
             aktiveMahlzeiten={aktiveMahlzeiten}
             tagesauswahl={tagesauswahl}
             onZeileOeffnen={tagZeileOeffnen}

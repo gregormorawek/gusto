@@ -157,17 +157,23 @@ Rezepte sind das alleinige Kernfeature.
   Wochenplaner braucht später eigene mehrtägige Logik.
 - `TagAnsicht.jsx` — eine Zeile pro aktiver Mahlzeit, Tap springt zurück in
   den Swipe-Modus für genau diese Mahlzeit. Tages-Summe nur bei
-  `ziel.typ === 'proTag'`. "Zur Einkaufsliste" über `zutatenAusTagesauswahl()`.
+  `ziel.typ === 'proTag'`. "Zur Einkaufsliste" über
+  `zutatenUndStatusAusTagesauswahl()` (pro Mahlzeit, siehe Abschnitt 10).
 - `aktiveMahlzeiten` steuert app-weit Tag-Zeilen und Mahlzeit-Switcher.
-- `portionenRechner.js` — Makro-Rechenkern (Gaußsche Elimination, <0,2 g
-  Abweichung). War schon vor dem Pivot rezeptfähig, unverändert gültig.
+- `portionenRechner.js` — **stillgelegt** mit dem Datenmodell-Umbau (Etappe 3,
+  siehe Abschnitt 9): kein Import mehr im Baum, Nährwerte und Mengen kommen
+  seither fertig aus der DB statt live aus vier fest vorgegebenen Zutaten
+  berechnet. Datei bleibt bewusst liegen (Gaußsche Elimination als
+  Dokumentation aufbewahrt), nicht löschen.
 
 **Bewusst nicht anfassen:** die mehrfach bugreparierte Übergangs-Choreografie
 des Onboarding-Wizards. Tote, aber harmlose Zweige bleiben stehen.
 
-**Offene Funktionslücke:** Per-Mahlzeit-Makroziele (`makroZiele`) haben seit
-dem Pivot keine Editier-Oberfläche mehr — nur noch lesend wirksam für alte
-gespeicherte Werte. Muss entschieden werden: zurückbringen oder streichen.
+**Vorgemerkt, nicht gebaut:** Einstellung "Für wie viele Personen?" — eigener
+localStorage-Key `gusto-personenzahl`, Standard 1. Wirkt nur auf
+Zutatenmengen in Kochmodus und Einkaufsliste (Multiplikator auf
+`rezept_zutaten.menge_g`/`anzeige_menge`), nicht auf die Nährwertanzeige
+(bleibt `kcal_pro_portion` & Co., unabhängig von der Personenzahl).
 
 ---
 
@@ -206,9 +212,35 @@ Bekannte Fallen: Käse ist uneinheitlich kategorisiert, die Schreibweise von
 `id` verwenden, nie Namen abtippen.**
 
 **Tabelle `rezepte`** — 30 kuratierte Einträge: `titel`, `beschreibung`,
-`bild_url`, `mahlzeit`, `eigenschaft`, `diaeten` (echtes Array),
-`protein_/carbs_/fett_/gemuese_obst_zutat_id`, `anleitung`. RLS aktiv mit
-Public-Read-Policy, Schreiben nur manuell über den Table Editor.
+`bild_url`, `mahlzeit`, `eigenschaft`, `diaeten` (echtes Array), `anleitung`,
+`zubereitungszeit_min`, `portionen` (wie viele Portionen die Mengen unten
+ergeben — noch ungenutzt, siehe Personenzahl-Einstellung in Abschnitt 7),
+`tipps`, sowie die zwischengespeicherten Nährwerte pro Portion:
+`kcal_/protein_/carbs_/fett_pro_portion`. RLS aktiv mit Public-Read-Policy,
+Schreiben nur manuell über den Table Editor.
+
+Die vier alten Spalten `protein_/carbs_/fett_/gemuese_obst_zutat_id` stehen
+noch in der `select()`-Klausel (App.jsx), werden aber von der App seit dem
+Datenmodell-Umbau (Etappe 3) nicht mehr gelesen — Übergangsstand bis Etappe 4
+(dann fallen sie sowohl aus der DB als auch aus der Query).
+
+**Tabelle `rezept_zutaten`** — Verbindungstabelle, beliebig viele
+Zutaten-Zeilen pro Rezept (aktuell 4 je Rezept, das Datenmodell erlaubt
+mehr): `rezept_id`, `zutat_id`, `menge_g` (Basis für die Berechnung),
+`anzeige_menge`/`anzeige_einheit` (für die Anzeige, z. B. "1 EL"),
+`anmerkung`, `optional`, `sortierung`. `kcal_/protein_/carbs_/fett_pro_portion`
+auf `rezepte` werden aus diesen Zeilen serverseitig neu berechnet
+(`rezept_naehrwerte_neu_berechnen()`, siehe
+`supabase/migrations/20260915_rezept_zutaten_fundament.sql`), nicht mehr
+clientseitig über `portionenRechner.js`.
+
+**Falle, die man in ein paar Monaten vergessen hat:** `kcal_/protein_/
+carbs_/fett_pro_portion` sind ein reiner Cache, **kein** Trigger, keine
+generierte Spalte. Wer ein Rezept oder seine `rezept_zutaten`-Zeilen im
+Table Editor ändert (Menge, Zutat, `portionen`, neue/gelöschte Zeile), muss
+danach `select rezept_naehrwerte_neu_berechnen(<rezept_id>);` im SQL Editor
+von Hand aufrufen — sonst bleiben die alten Werte stehen und die App zeigt
+still falsche Nährwerte an, ohne dass irgendwo ein Fehler auftaucht.
 
 `anleitung` ist `jsonb`: Array aus `{ text, aktion }`, 3–6 Schritte (Beispiele
 und Ton in `supabase/migrations/20260817_rezepte_anleitung.sql`). `aktion`
@@ -218,7 +250,7 @@ muss einer dieser festen Werte sein — kein neuer ohne Rücksprache:
 
 Bei jedem **neuen** Rezept immer eine Anleitung im selben Stil mitliefern:
 klar, kein Fachjargon, Deutsch, mit Substanz pro Schritt (kein bloßer
-Halbsatz), abgeleitet aus Titel, Beschreibung und den vier Zutaten.
+Halbsatz), abgeleitet aus Titel, Beschreibung und den Zutaten des Rezepts.
 
 **Storage-Bucket `rezept-bilder`** (public) — `rezept-1.png` bis
 `rezept-30.png`, Dateiname = `id`. Alle Bilder sind komprimiert (max. 1200 px
@@ -238,6 +270,12 @@ Logik in `src/einkaufsliste.js`, Anzeige in `EinkaufslisteAnsicht.jsx`,
 localStorage unter `gusto-einkaufsliste`. Zusammenführung mit Mengen-Addition
 über `zutatId`.
 
+Mengen kommen aus `rezept_zutaten.menge_g` (`zutatenAusRezeptKarte()`), nicht
+mehr aus einer Live-Berechnung — seit dem Datenmodell-Umbau (Etappe 3, siehe
+Abschnitt 9) sind Rezept-Mengen fest in der DB hinterlegt statt über
+`portionenRechner.js` skaliert zu werden. `optional = true`-Zutaten kommen
+mit auf die Liste.
+
 Jeder Posten speichert `kategorie` 1:1 als rohen Supabase-Wert der Zutat —
 bewusst **nicht** auf Anzeige-Gruppen gemappt.
 
@@ -246,6 +284,15 @@ Die Anzeige-Gruppierung nutzt `supermarktKategorie` (1:1 aus
 → Getreide & Backwaren → Obst & Gemüse → Sonstiges. Alte localStorage-
 Einträge ohne `supermarktKategorie` fallen in `einkaufslisteLaden()` auf
 `sonstiges` zurück.
+
+**Hinzufügen aus der Tagesauswahl läuft PRO MAHLZEIT, nicht pro Tag**
+(`zutatenUndStatusAusTagesauswahl()` in `einkaufsliste.js`,
+`tagesauswahl.hinzugefuegt` in `App.jsx`): jede Mahlzeit merkt sich, welche
+`rezeptId` zuletzt tatsächlich hinzugefügt wurde — weicht sie von der aktuell
+gesetzten `rezeptId` ab (nie hinzugefügt oder Rezept seither ausgetauscht),
+gilt die Mahlzeit wieder als offen. Sind bereits alle gesetzten Mahlzeiten
+hinzugefügt, zeigt `TagAnsicht.jsx` eine Rückfrage statt stillem erneutem
+Addieren.
 
 ---
 
