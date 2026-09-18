@@ -219,11 +219,6 @@ ergeben — noch ungenutzt, siehe Personenzahl-Einstellung in Abschnitt 7),
 `kcal_/protein_/carbs_/fett_pro_portion`. RLS aktiv mit Public-Read-Policy,
 Schreiben nur manuell über den Table Editor.
 
-Die vier alten Spalten `protein_/carbs_/fett_/gemuese_obst_zutat_id` stehen
-noch in der `select()`-Klausel (App.jsx), werden aber von der App seit dem
-Datenmodell-Umbau (Etappe 3) nicht mehr gelesen — Übergangsstand bis Etappe 4
-(dann fallen sie sowohl aus der DB als auch aus der Query).
-
 **Tabelle `rezept_zutaten`** — Verbindungstabelle, beliebig viele
 Zutaten-Zeilen pro Rezept (aktuell 4 je Rezept, das Datenmodell erlaubt
 mehr): `rezept_id`, `zutat_id`, `menge_g` (Basis für die Berechnung),
