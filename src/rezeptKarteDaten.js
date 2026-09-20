@@ -26,6 +26,7 @@ export function rezeptKarteDaten(rezept) {
       name: rezeptZutat.zutaten.name,
       kategorie: rezeptZutat.zutaten.kategorie,
       supermarktKategorie: rezeptZutat.zutaten.supermarkt_kategorie,
+      istGrundzutat: rezeptZutat.zutaten.ist_grundzutat,
       mengeG: rezeptZutat.menge_g,
       anzeigeMenge: rezeptZutat.anzeige_menge,
       anzeigeEinheit: rezeptZutat.anzeige_einheit,

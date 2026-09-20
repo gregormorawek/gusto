@@ -557,7 +557,7 @@ function App() {
             'anleitung, zubereitungszeit_min, ' +
             'portionen, tipps, kcal_pro_portion, protein_pro_portion, carbs_pro_portion, fett_pro_portion, ' +
             'rezept_zutaten(zutat_id, menge_g, anzeige_menge, anzeige_einheit, anmerkung, optional, sortierung, ' +
-            'zutaten(id, name, kategorie, supermarkt_kategorie))'
+            'zutaten(id, name, kategorie, supermarkt_kategorie, ist_grundzutat))'
         )
         .order('sortierung', { referencedTable: 'rezept_zutaten' })
 

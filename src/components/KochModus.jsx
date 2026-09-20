@@ -11,6 +11,7 @@ import {
 } from 'framer-motion'
 import {
   IconBowl,
+  IconBulb,
   IconCheck,
   IconCooker,
   IconCut,
@@ -493,6 +494,29 @@ function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten
   // mehr, siehe SchrittIcon-Vergleich istAktuell unten).
   const aktuellerSchrittIndex = rezept.anleitung.findIndex((_, index) => !erledigteSchritte.has(index))
 
+  // Zutaten-Split (Design-Durchgang fuer Rezepte mit 8-14 statt vormals fest
+  // 4 Zutaten, siehe Kommentar an der Zutatenliste unten): zutaten.istGrundzutat
+  // kommt 1:1 aus der DB-Spalte zutaten.ist_grundzutat (rezeptKarteDaten.js) -
+  // KEINE Heuristik ueber Menge oder Namen, die Kuratierung liegt bewusst bei
+  // Gregor in der DB, nicht in dieser Komponente. sortierung bleibt INNERHALB
+  // jeder Gruppe erhalten (karte.zutaten kommt schon sortiert rein).
+  //
+  // Schwelle GRUNDZUTATEN_SPLIT_AB_ANZAHL statt immer zu splitten: bei
+  // Fruehstueck/Snack-Rezepten (per Stichprobe ueber alle 30 Rezepte: meist
+  // genau 1 Grundzutat, z. B. "Skyr-Snack mit Beeren" mit 6 Zutaten/1
+  // Grundzutat) waere eine eigene Ueberschrift + Chip-Zeile fuer 1-2
+  // Eintraege MEHR Struktur als die eigentliche Liste braucht - das Problem
+  // (gleich gewichtete Pillen bei vielen Zutaten) existiert dort schlicht
+  // nicht. Ab 3 Grundzutaten lohnt sich die eigene Gruppe (trifft laut
+  // Stichprobe fast alle Mittag-/Abend-Rezepte plus die zutatenreicheren
+  // Snacks wie "Kichererbsen-Snack"). Unterhalb der Schwelle bleiben ALLE
+  // Zutaten in der normalen Kartenliste, unabhaengig von istGrundzutat.
+  const GRUNDZUTATEN_SPLIT_AB_ANZAHL = 3
+  const alleGrundZutaten = karte.zutaten.filter((z) => z.istGrundzutat)
+  const splitAktiv = alleGrundZutaten.length >= GRUNDZUTATEN_SPLIT_AB_ANZAHL
+  const hauptZutaten = splitAktiv ? karte.zutaten.filter((z) => !z.istGrundzutat) : karte.zutaten
+  const grundZutaten = splitAktiv ? alleGrundZutaten : []
+
   return (
     // pb-[...]: Safe-Area unten (Home-Indicator) zusaetzlich zum bisherigen
     // pb-6 - das Sheet reicht bis bottom-0 (siehe KochModusSheet), ohne
@@ -518,23 +542,59 @@ function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten
       {/* Kompakte Zutaten-Referenz - bewusst NICHT die grossen SlotKarte-
           Kacheln aus RezeptKarte.jsx (waere eine reine Wiederholung), nur
           Name+Menge je Zutat zum schnellen Nachschauen waehrend des Kochens.
-          Funktionaler Port auf rezeptKarteDaten.zutaten (4-12 statt fest 4
-          Eintraegen) - grid-cols-2 war exakt auf 4 Kacheln ausgelegt und
-          traegt bei mehr Zutaten nicht mehr, deshalb einspaltige Liste ohne
-          feste Slot-Labels (Protein/Kohlenhydrate/... gibt es im neuen
-          Modell nicht mehr). Eigener Design-Durchgang folgt erst, wenn
-          echte Rezepte mit 8-12 Zutaten da sind. */}
+          Zwei-Gruppen-Split (Design-Durchgang, siehe hauptZutaten/
+          grundZutaten oben): bei 8-13 Zutaten machte eine einzige Liste
+          gleich grosser Karten aus "150g Kichererbsen" und "1 Prise Salz"
+          optisch dasselbe Gewicht - genau das Problem, das dieser Durchgang
+          loesen soll (siehe Aufgabenstellung). hauptZutaten bleiben volle
+          Karten (das, wofuer man tatsaechlich einkaufen/vorbereiten muss),
+          grundZutaten (Gewuerze, Bruehe, Saft, ...) wandern in eine
+          kompaktere Chip-Zeile darunter - kleiner, aber nicht versteckt. */}
       <div className="mx-4 mt-3 flex flex-col gap-2">
-        {karte.zutaten.map((z) => (
-          <div key={z.zutatId} className="rounded-lg bg-secondary/10 px-3 py-2">
-            <p className="text-sm text-text">
-              {z.name} · <AnimierteZahl wert={z.anzeigeMenge ?? 0} /> {z.anzeigeEinheit}
-              {z.optional && <span className="text-text-muted"> · optional</span>}
-            </p>
-            {z.anmerkung && <p className="text-xs text-text-muted">{z.anmerkung}</p>}
+        {hauptZutaten.map((z) => (
+          <div
+            key={z.zutatId}
+            className={`rounded-lg px-3 py-2 ${
+              // Optional bekommt jetzt eine eigene Kartenkontur (gestrichelt)
+              // statt nur eines angehaengten "· optional"-Wortes im Fliesstext
+              // - auf einen Blick erkennbar, ohne die Zeile lesen zu muessen
+              // (siehe Aufgabenstellung "klarer abgesetzt").
+              z.optional ? 'border border-dashed border-text-muted/40 bg-card' : 'bg-secondary/10'
+            }`}
+          >
+            <div className="flex items-baseline justify-between gap-3">
+              <p className="text-sm text-text">{z.name}</p>
+              <p className="shrink-0 text-sm font-medium text-text">
+                <AnimierteZahl wert={z.anzeigeMenge ?? 0} /> {z.anzeigeEinheit}
+              </p>
+            </div>
+            {(z.anmerkung || z.optional) && (
+              <p className="mt-0.5 text-xs text-text-muted">
+                {[z.anmerkung, z.optional ? 'optional' : null].filter(Boolean).join(' · ')}
+              </p>
+            )}
           </div>
         ))}
       </div>
+
+      {grundZutaten.length > 0 && (
+        <div className="mx-4 mt-3">
+          <p className="text-xs font-medium uppercase tracking-wide text-text-muted">Aus dem Vorrat</p>
+          <div className="mt-1.5 flex flex-wrap gap-1.5">
+            {grundZutaten.map((z) => (
+              <span
+                key={z.zutatId}
+                className={`rounded-full px-2.5 py-1 text-xs text-text-muted ${
+                  z.optional ? 'border border-dashed border-text-muted/40' : 'bg-secondary/10'
+                }`}
+              >
+                {z.name} · {z.anzeigeMenge ?? 0} {z.anzeigeEinheit}
+                {z.optional && ' · optional'}
+              </span>
+            ))}
+          </div>
+        </div>
+      )}
 
       <ol className="mx-4 mt-4 space-y-2">
         {rezept.anleitung.map((schritt, index) => {
@@ -578,6 +638,47 @@ function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten
           )
         })}
       </ol>
+
+      {/* Tipps bekommen einen eigenen, benannten Platz UNTERHALB der ganzen
+          Anleitung statt gar nicht angezeigt zu werden (Luecke im
+          Datenmodell-Umbau, siehe Aufgabenstellung). Bewusst NICHT einzelnen
+          Schritten zugeordnet: rezepte.tipps hat dafuer aktuell kein Feld
+          (kein schritt-Index in der jsonb-Struktur, nur { titel, text }) -
+          und inhaltlich sind nicht alle Tipps ueberhaupt schrittspezifisch
+          (z. B. "Warm oder kalt" bei der Couscous-Bowl betrifft das fertige
+          Gericht, nicht einen einzelnen Schritt). Eine Zuordnung waere reine
+          Texterkennung/Raten - genau die Art Praezision-vortaeuschende
+          Komplexitaet, die CLAUDE.md Abschnitt 6 nicht meint. Falls
+          schrittgebundene Tipps gewuenscht sind, braucht das ein eigenes
+          Feld in der jsonb-Struktur plus Neuzuordnung der bestehenden Tipps
+          in der DB - eigene Content-Aufgabe fuer Gregor, kein Rendering-Detail. */}
+      {/* Bewusst NICHT mx-4 + einzelne Karten wie Zutaten/Anleitung darueber -
+          das haette wie ein nachtraeglich angehaengter Kasten gewirkt (siehe
+          Aufgabenstellung). Stattdessen randlose, ganzflaechig eingefaerbte
+          Sektion (wie das Titelbild oben randlos ist) - das rahmt den Screen
+          bewusst: Foto oben, Tipps-Band unten, dazwischen die eigentliche
+          Arbeit. Die Icon-Badges (h-8 w-8 rounded-full bg-primary/10
+          text-primary) sind bewusst identisch zur Kreisform der
+          Schritt-Icons oben (SchrittIcon-Wrapper) - derselbe visuelle
+          Baustein, keine neu erfundene Optik nur fuer diese Sektion. */}
+      {rezept.tipps?.length > 0 && (
+        <div className="mt-6 bg-secondary/10 px-4 pt-5">
+          <h2 className="font-display text-xl font-semibold text-text">Tipps</h2>
+          <div className="mt-3 flex flex-col gap-4 pb-5">
+            {rezept.tipps.map((tipp, index) => (
+              <div key={index} className="flex gap-3">
+                <span className="flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary" aria-hidden="true">
+                  <IconBulb size={16} stroke={1.75} />
+                </span>
+                <div>
+                  <p className="text-sm font-medium text-text">{tipp.titel}</p>
+                  <p className="mt-0.5 text-sm text-text-muted">{tipp.text}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
