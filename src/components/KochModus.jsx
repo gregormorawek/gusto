@@ -44,6 +44,17 @@ const AKTION_ICON = {
 // selbst bleibt ruhig, nur die Deko-Schicht drumherum bewegt sich, siehe
 // AKTION_DEKO unten). Alle Werte bewusst dezent (siehe Aufgabenstellung
 // "subtil und ruhig") und an den bisherigen App-Ton angelehnt.
+//
+// WICHTIG (Akku-Fix, siehe PULS_RHYTHMUS unten): transition enthaelt HIER
+// bewusst KEIN repeat mehr - das war frueher repeat:Infinity und lief damit
+// nachweislich (per document.getAnimations()/getComputedStyle-Messung ueber
+// mehrere Sekunden bestaetigt) durchgehend mit voller Framerate, SOLANGE der
+// Schritt aktuell war, unabhaengig von echter Nutzerinteraktion - bei einem
+// "10 Minuten quellen lassen"-Schritt ein reales, vermeidbares Akku-Thema
+// auf dem iPhone. Die Objekte hier beschreiben jetzt nur noch EINEN
+// Bewegungs-Zyklus ("ein Ruehren", "ein Hacken", ...); SchrittIcon (unten)
+// spielt diesen per PULS_RHYTHMUS.wiederholungen-mal ab und pausiert danach
+// in ICON_RUHE_POSE, statt endlos zu wiederholen.
 const ICON_EIGENBEWEGUNG = {
   // Durchgehende, langsame volle Drehung statt Pendel - wie ein tatsaechlich
   // ruehrender Loeffel. repeatType:'loop' mit Ziel 360 statt eines Keyframe-
@@ -51,7 +62,7 @@ const ICON_EIGENBEWEGUNG = {
   // auf 0, was optisch nahtlos ist (0deg und 360deg sehen identisch aus).
   ruehren: {
     animate: { rotate: 360 },
-    transition: { duration: 2.4, repeat: Infinity, repeatType: 'loop', ease: 'linear' },
+    transition: { duration: 2.4, repeatType: 'loop', ease: 'linear' },
   },
   // Seitliches Wackeln MIT Skalierungs-Puls (leichtes Ein-/Ausatmen) - die
   // zusaetzliche scale-Dimension unterscheidet "mischen" jetzt klar von
@@ -59,16 +70,17 @@ const ICON_EIGENBEWEGUNG = {
   // (Aufgabenstellung: "etwas mehr Amplitude").
   mischen: {
     animate: { rotate: [0, -12, 9, -6, 0], x: [0, -1.5, 1.5, -1, 0], scale: [1, 1.05, 0.97, 1.02, 1] },
-    transition: { duration: 1.8, repeat: Infinity, ease: 'easeInOut' },
+    transition: { duration: 1.8, ease: 'easeInOut' },
   },
   // Ruhiger Hack-Rhythmus: leichtes Auf-und-Ab. Der Einschlag-Moment am
   // unteren Punkt (t=0.5 dieses Zyklus) bekommt zusaetzlich einen kurzen
   // Funken-Blitz, siehe SchneidenFunke/AKTION_DEKO unten - dieselbe Duration
   // (0.7s) und dieselben impliziten times [0, 0.5, 1], damit beide Schichten
-  // exakt synchron laufen.
+  // exakt synchron laufen. PULS_RHYTHMUS.schneiden spielt hiervon 3
+  // Wiederholungen pro Puls ab (ein kurzer Hack-Burst, siehe dort).
   schneiden: {
     animate: { y: [0, 3, 0] },
-    transition: { duration: 0.7, repeat: Infinity, ease: 'easeInOut' },
+    transition: { duration: 0.7, ease: 'easeInOut' },
   },
   // Periodischer Flip statt Dauerbewegung: die 180-Grad-Drehung findet nur in
   // den ersten/letzten ~6% jedes Zyklus statt (times-Array), dazwischen
@@ -77,9 +89,37 @@ const ICON_EIGENBEWEGUNG = {
   // lange Ruhephase trotzdem nicht komplett bewegungslos wirkt.
   warten: {
     animate: { rotate: [0, 180, 180, 360] },
-    transition: { duration: 3.2, repeat: Infinity, times: [0, 0.06, 0.94, 1], ease: 'easeInOut' },
+    transition: { duration: 3.2, times: [0, 0.06, 0.94, 1], ease: 'easeInOut' },
   },
 }
+
+// Duty-Cycle statt Dauerschleife: wiederholungen = wie oft EIN Zyklus aus
+// ICON_EIGENBEWEGUNG[aktion] pro Puls abgespielt wird (bei schneiden 3 kurze
+// Hacke hintereinander statt nur einem einzelnen Ausschlag - liest sich wie
+// ein echter Hack-Rhythmus statt wie ein Zucken), ruheSekunden = Pause in
+// ICON_RUHE_POSE danach, bevor der naechste Puls startet. Ergebnis pro
+// aktion bewusst NICHT auf denselben Duty-Cycle getrimmt (waere selbst schon
+// wieder ein synchrones, uniformes Muster ueber alle vier Typen hinweg) -
+// warten braucht ohnehin kaum zusaetzliche Ruhe (der eigene Zyklus ist schon
+// zu 94 % still), schneiden am meisten (kurzer knackiger Burst, dann lange
+// Pause bis zum naechsten Hack-Ansatz).
+const PULS_RHYTHMUS = {
+  ruehren: { wiederholungen: 1, ruheSekunden: 6 },
+  mischen: { wiederholungen: 1, ruheSekunden: 6 },
+  schneiden: { wiederholungen: 3, ruheSekunden: 5 },
+  warten: { wiederholungen: 1, ruheSekunden: 4 },
+}
+
+// Start-Versatz pro Schrittkarte (siehe SchrittIcon-Aufruf in
+// KochModusInhalt: versatzSekunden={(index % VERSATZ_STAFFELUNG.length) *
+// ...}) - verhindert, dass mehrere gleichzeitig sichtbare, aktive Icons im
+// exakt selben Takt zucken (wirkt sonst wie ein technischer Defekt statt wie
+// Lebendigkeit, siehe Aufgabenstellung). Nur EIN Schritt pro Rezept ist
+// aktuell "istAktuell" (siehe aktuellerSchrittIndex), der Versatz wirkt sich
+// also erst aus, wenn diese Komponente kuenftig mehrfach gleichzeitig
+// animiert dargestellt wird - bewusst trotzdem schon jetzt eingebaut, statt
+// es bis dahin zu vergessen.
+const VERSATZ_STAFFELUNG_SEKUNDEN = [0, 1.3, 2.6, 3.9]
 
 // Ruhe-Zielpose fuers Icon-Symbol, wenn KEINE Eigenbewegung laeuft (Schritt
 // war nie aktuell ODER wurde gerade abgehakt/deaktiviert) - alle Achsen
@@ -298,8 +338,16 @@ const AKTION_DEKO = {
 // Schritt-Icon inkl. Animation fuer GENAU den aktuellen Schritt (siehe
 // aktuellerSchrittIndex-Berechnung in KochModusInhalt unten).
 //
+// Duty-Cycle statt Dauerschleife (siehe ICON_EIGENBEWEGUNG/PULS_RHYTHMUS-
+// Kommentare oben): ein lokaler Timer schaltet zwischen einem kurzen
+// Bewegungs-Puls (pulsAktiv=true) und einer laengeren Ruhephase um, SOLANGE
+// dieser Schritt der aktuelle ist. versatzSekunden verschiebt den Start
+// dieses Zyklus pro Schrittkarte, damit mehrere gleichzeitig sichtbare
+// aktive Icons nicht im selben Takt zucken.
+//
 // Zwei getrennte Bewegungs-Kanaele mit unterschiedlichem Ausklinge-Verhalten
-// beim Deaktivieren (Schritt wird abgehakt oder ist nicht mehr aktuell):
+// beim Deaktivieren (Puls endet, Schritt wird abgehakt oder ist nicht mehr
+// aktuell):
 //  1. Icon-Eigenbewegung (rotate/x/y/scale auf dem Symbol selbst, siehe
 //     ICON_EIGENBEWEGUNG): bleibt PERMANENT gemountet, animate/transition-
 //     Props wechseln lediglich zur Ruhepose (ICON_RUHE_POSE) mit einer
@@ -311,13 +359,45 @@ const AKTION_DEKO = {
 //     erst ausgefadet statt sofort aus dem DOM zu verschwinden - dadurch
 //     laeuft kein neuer Partikel-Zyklus mehr an, der laufende blendet aber
 //     weich aus statt hart abzureissen.
-function SchrittIcon({ Icon, aktion, istAktuell, reduzierteBewegung }) {
-  const animiert = istAktuell && !reduzierteBewegung
+function SchrittIcon({ Icon, aktion, istAktuell, reduzierteBewegung, versatzSekunden }) {
   const eigenbewegung = ICON_EIGENBEWEGUNG[aktion]
+  const rhythmus = PULS_RHYTHMUS[aktion]
+  const [pulsAktiv, setPulsAktiv] = useState(false)
+
+  useEffect(() => {
+    if (!istAktuell || reduzierteBewegung || !eigenbewegung || !rhythmus) {
+      setPulsAktiv(false)
+      return undefined
+    }
+
+    // Puls-Dauer ergibt sich aus der Dauer EINES ICON_EIGENBEWEGUNG-Zyklus
+    // mal PULS_RHYTHMUS.wiederholungen (siehe zielTransition unten, das ist
+    // exakt dieselbe Rechnung) - der Timer und die tatsaechlich laufende
+    // Animation muessen deckungsgleich enden, sonst wuerde entweder mitten
+    // in der Bewegung hart auf Ruhepose umgeschaltet oder das Icon staende
+    // nach Animationsende noch kurz sichtbar still, bevor der Timer greift.
+    const pulsDauerMs = eigenbewegung.transition.duration * rhythmus.wiederholungen * 1000
+    const ruheDauerMs = rhythmus.ruheSekunden * 1000
+    let timeoutId
+
+    function pulsStarten() {
+      setPulsAktiv(true)
+      timeoutId = setTimeout(ruheStarten, pulsDauerMs)
+    }
+    function ruheStarten() {
+      setPulsAktiv(false)
+      timeoutId = setTimeout(pulsStarten, ruheDauerMs)
+    }
+
+    timeoutId = setTimeout(pulsStarten, versatzSekunden * 1000)
+    return () => clearTimeout(timeoutId)
+  }, [istAktuell, reduzierteBewegung, aktion, eigenbewegung, rhythmus, versatzSekunden])
+
+  const animiert = istAktuell && !reduzierteBewegung && pulsAktiv
   const zielPose = animiert && eigenbewegung ? eigenbewegung.animate : ICON_RUHE_POSE
   const zielTransition =
     animiert && eigenbewegung
-      ? eigenbewegung.transition
+      ? { ...eigenbewegung.transition, repeat: rhythmus.wiederholungen - 1 }
       : reduzierteBewegung
         ? { duration: 0 } // Reduzierte Bewegung: instantan, keine Ausklinge-Animation.
         : ICON_RUHE_SPRING
@@ -328,11 +408,14 @@ function SchrittIcon({ Icon, aktion, istAktuell, reduzierteBewegung }) {
   return (
     <span
       className={`relative mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-full bg-primary/10 text-primary ${
-        // Reduzierte Bewegung UND aktueller Schritt: da hier keine Animation
-        // laeuft, uebernimmt ein Ring die "das ist dein aktueller
-        // Schritt"-Markierung (siehe Aufgabenstellung) - bei aktiver Bewegung
-        // uebernimmt das die Animation selbst, kein zusaetzlicher Ring noetig.
-        istAktuell && reduzierteBewegung ? 'ring-2 ring-primary/50' : ''
+        // Der Ring markiert den aktuellen Schritt JETZT durchgehend, nicht
+        // mehr nur unter reduzierter Bewegung: er ist der Normalzustand, den
+        // man dank Duty-Cycle ca. 80 % der Zeit sieht (siehe Aufgabenstellung
+        // "Ruhepose muss fuer sich gut aussehen"), waehrend der kurze
+        // Bewegungs-Puls dazwischen zusaetzlich dazukommt statt die einzige
+        // "das ist dein Schritt"-Markierung zu sein - dadurch verschwindet
+        // beim Puls-Ende auch kein visuelles Signal, es wird nur ruhiger.
+        istAktuell ? 'ring-2 ring-primary/50' : ''
       }`}
       aria-hidden="true"
     >
@@ -482,6 +565,7 @@ function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten
                     aktion={schritt.aktion}
                     istAktuell={index === aktuellerSchrittIndex}
                     reduzierteBewegung={reduzierteBewegung}
+                    versatzSekunden={VERSATZ_STAFFELUNG_SEKUNDEN[index % VERSATZ_STAFFELUNG_SEKUNDEN.length]}
                   />
                 )}
 
