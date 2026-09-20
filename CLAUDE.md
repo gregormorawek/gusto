@@ -312,4 +312,8 @@ garantiert dasselbe wie das ursprüngliche reine Sitzungsverhalten.
 Wochenplaner nach demselben Swipe-Prinzip · Einkaufsliste nach Supermarkt
 (Billa/Spar/Hofer) · Budget-Tracking · Zieldatum für Gewichtsänderung ·
 Premium-Paywall (RevenueCat) · Account-System (Supabase Auth) · Dark Mode ·
-Onboarding-Wizard-Überarbeitung · mehr Rezepte · App-Store-Einreichung.
+Onboarding-Wizard-Überarbeitung · mehr Rezepte · App-Store-Einreichung ·
+Kurzname für Vorrat-Chips: manche `zutaten.name`-Werte sind für die
+Chip-Zeile zu lang ("Pfeffer, schwarz gemahlen", "Paprikapulver, edelsüß"),
+in der vollen Zutatenkarte aber richtig. Braucht ein eigenes Kurzname-Feld
+in `zutaten` — Datenarbeit, keine Rendering-Frage.
