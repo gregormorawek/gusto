@@ -250,8 +250,18 @@ Halbsatz), abgeleitet aus Titel, Beschreibung und den Zutaten des Rezepts.
 **Storage-Bucket `rezept-bilder`** (public) — `rezept-1.png` bis
 `rezept-30.png`, Dateiname = `id`. Alle Bilder sind komprimiert (max. 1200 px
 Breite, PNG-Palette-Quantisierung) über `scripts/komprimiere-rezeptbilder.js`.
-Neue Bilder vor dem Upload durch dasselbe Skript schicken — unkomprimierte
-Midjourney-Rohexporte haben schon einmal das Egress-Kontingent gesprengt.
+Neue Bilder immer über den `lokal`-Modus hochladen: lokal komprimieren,
+nur das Ergebnis geht in den Bucket — die unkomprimierten Rohexporte
+gehen nie über Supabase-Egress, das hat schon einmal das Kontingent
+gesprengt. Beispiel:
+
+```
+node scripts/komprimiere-rezeptbilder.js lokal supabase/pictures
+```
+
+Der `alle`-Modus (lädt aus dem Bucket, komprimiert, überschreibt dort)
+ist nur noch für bereits hochgeladene, unkomprimierte Bestandsbilder
+gedacht — nicht für neue Uploads.
 Vor Bulk-Aktionen, die im Bucket überschreiben, immer erst lokal sichern.
 
 30 Rezepte sind für den Swipe-Loop deutlich zu wenig. Die Erweiterung ist
