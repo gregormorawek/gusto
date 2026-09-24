@@ -26,3 +26,6 @@ dist-ssr
 
 # Playwright MCP Debug-Output (Snapshots, Screenshots, Netzwerk-Mitschnitte)
 .playwright-mcp/
+
+# Neue Rezeptbilder vor Upload (nicht ins Repo, siehe CLAUDE.md Abschnitt 9)
+supabase/pictures/

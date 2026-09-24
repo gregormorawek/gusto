@@ -309,6 +309,15 @@ garantiert dasselbe wie das ursprüngliche reine Sitzungsverhalten.
 
 ## 12. Backlog (bewusst zurückgestellt)
 
+Wettbewerbsanalyse liegt in `docs/gusto-wettbewerbsanalyse.md`
+(Referenzdokument, kein Bauauftrag — jede Umsetzung braucht Gregors
+einzelne Freigabe). Abschnitt 8 dort enthält die priorisierte
+Feature-Liste. Besonders verbindlich die Liste **"Bewusst NICHT
+übernehmen"**: Werbung, Rezept-Import aus Web oder TikTok, unkuratierte
+Community-Rezepte, Voll-Tracking (Barcode/Foto), KI-Chat-Assistent. Fragt
+Gregor künftig eines davon an, darauf hinweisen und fragen, ob sich die
+Begründung geändert hat.
+
 Wochenplaner nach demselben Swipe-Prinzip · Einkaufsliste nach Supermarkt
 (Billa/Spar/Hofer) · Budget-Tracking · Zieldatum für Gewichtsänderung ·
 Premium-Paywall (RevenueCat) · Account-System (Supabase Auth) · Dark Mode ·
