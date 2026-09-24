@@ -303,10 +303,11 @@ Mildes Curry mit Putenstreifen auf Naturreis.
 deftig
 `turkey curry with brown rice in a bowl`
 
-**84 · Ofen-Tofu mit Sesam und Brokkoli**
-Im Ofen knusprig gebackener Tofu mit Sesam und Brokkoli.
-deftig · vegan
-`baked crispy tofu cubes with sesame seeds and broccoli`
+**84 · Gefüllte Süßkartoffel mit Kichererbsen**
+Im Ofen gebackene Süßkartoffel, gefüllt mit würzigen Kichererbsen und
+Tahinisauce.
+deftig · vegan · glutenfrei
+`halved baked sweet potato stuffed with spiced roasted chickpeas, tahini drizzle and parsley`
 
 **85 · Nudelauflauf mit Pute und Paradeiser**
 Überbackener Nudelauflauf mit Putenfleisch und Käse.
