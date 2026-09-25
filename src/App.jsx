@@ -21,7 +21,7 @@ import {
 import { MAHLZEITEN, standardMahlzeit, aktiveMahlzeitenFuer } from './mahlzeiten'
 import { supabase } from './supabase'
 import { useTastaturAusgleich } from './useTastaturAusgleich'
-import { gefiltertePoolFuerRezepte, alleAktivenMahlzeitenWuerfeln } from './rezepteFilter'
+import { gefiltertePoolFuerRezepte, alleAktivenMahlzeitenWuerfeln, filterSchluesselFuer, rezeptAusStapelZiehen } from './rezepteFilter'
 import { bilderImHintergrundVorladen } from './bildVorladen'
 import { EXPO_OUT, FADE_UEBERGANG } from './motionConfig'
 
@@ -214,10 +214,24 @@ function kochschritteFortschrittLaden() {
   }
 }
 
-// Hilfsfunktion: gibt aus einer beliebigen Liste ein zufaelliges Element zurueck.
-function zufaelligesElement(liste) {
-  const zufallsIndex = Math.floor(Math.random() * liste.length)
-  return liste[zufallsIndex]
+const SWIPE_STAPEL_LOCALSTORAGE_KEY = 'gusto-swipe-stapel'
+
+// Laedt den Wiederholungsschutz-Stapel (siehe rezeptAusStapelZiehen in
+// rezepteFilter.js) aus dem localStorage. Bewusst OHNE Mitternachts-Reset
+// wie bei tagesauswahlLaden - der Stapel ist keine tagesaktuelle Merkliste,
+// sondern soll ueber Tage (und App-Neustarts) hinweg erhalten bleiben, damit
+// der Wiederholungsschutz ueberhaupt etwas bringt.
+function swipeStapelLaden() {
+  try {
+    const gespeichert = localStorage.getItem(SWIPE_STAPEL_LOCALSTORAGE_KEY)
+    if (!gespeichert) {
+      return {}
+    }
+    const geparst = JSON.parse(gespeichert)
+    return geparst && typeof geparst === 'object' ? geparst : {}
+  } catch {
+    return {}
+  }
 }
 
 function App() {
@@ -480,6 +494,16 @@ function App() {
     localStorage.setItem(TAGESAUSWAHL_LOCALSTORAGE_KEY, JSON.stringify(tagesauswahl))
   }, [tagesauswahl])
 
+  // Wiederholungsschutz-Stapel fuers Rezepte-Wischen - siehe
+  // swipeStapelLaden weiter oben und rezeptAusStapelZiehen in
+  // rezepteFilter.js. Anders als tagesauswahl bewusst ohne
+  // Mitternachts-Reset: der Stapel soll ueber Tage hinweg erhalten bleiben.
+  const [swipeStapel, setSwipeStapel] = useState(swipeStapelLaden)
+
+  useEffect(() => {
+    localStorage.setItem(SWIPE_STAPEL_LOCALSTORAGE_KEY, JSON.stringify(swipeStapel))
+  }, [swipeStapel])
+
   // Schreibt rezeptId als "fuer heute uebernommen" fuer EINE Mahlzeit fest -
   // ueberschreibt eine evtl. vorher fuer dieselbe Mahlzeit uebernommene
   // Auswahl. datum bleibt dabei unveraendert (kommt bereits mit heutigem
@@ -579,10 +603,12 @@ function App() {
       // RezepteSwipeAnsicht.jsx selbst - genau das war die Ursache des
       // Flackerns (siehe Bugfix-Hintergrund weiter oben). Verwendet bewusst
       // rezepteDaten direkt (nicht den rezepte-State, der ist in diesem
-      // Funktionsdurchlauf noch nicht aktualisiert).
-      setRezepteProMahlzeitState(
-        alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenFuer(aktiveMahlzeiten), rezepteDaten, diaeten)({})
-      )
+      // Funktionsdurchlauf noch nicht aktualisiert). swipeStapel kommt aus
+      // dem localStorage-Ladewert (swipeStapelLaden), da dieser Effekt nur
+      // einmal beim Mount laeuft.
+      const ersteAuswahl = alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenFuer(aktiveMahlzeiten), rezepteDaten, diaeten, {}, swipeStapel)
+      setRezepteProMahlzeitState(ersteAuswahl.rezepteProMahlzeitState)
+      setSwipeStapel(ersteAuswahl.stapel)
 
       setLaedt(false)
     }
@@ -676,7 +702,15 @@ function App() {
     // damit die Auswahl beim naechsten Oeffnen schon zur neuen Diaet-Auswahl
     // passt, statt veraltet im Cache zu haengen (siehe rezepteProMahlzeitState-
     // Kommentar weiter oben).
-    setRezepteProMahlzeitState(alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenFuer(aktiveMahlzeiten), rezepte, neueDiaeten))
+    const neueAuswahl = alleAktivenMahlzeitenWuerfeln(
+      aktiveMahlzeitenFuer(aktiveMahlzeiten),
+      rezepte,
+      neueDiaeten,
+      rezepteProMahlzeitState,
+      swipeStapel
+    )
+    setRezepteProMahlzeitState(neueAuswahl.rezepteProMahlzeitState)
+    setSwipeStapel(neueAuswahl.stapel)
   }
 
   // Wird von AktiveMahlzeitenFilter aufgerufen, wenn der User eine Mahlzeit
@@ -700,7 +734,15 @@ function App() {
     // Die aktiven Mahlzeit-Tabs im Rezepte-Tab richten sich nach genau
     // demselben aktiveMahlzeiten-Wert (siehe RezepteSwipeAnsicht.jsx/
     // aktiveMahlzeitenFuer) - deshalb hier ebenfalls neu wuerfeln.
-    setRezepteProMahlzeitState(alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenFuer(neueMahlzeiten), rezepte, diaeten))
+    const neueAuswahl = alleAktivenMahlzeitenWuerfeln(
+      aktiveMahlzeitenFuer(neueMahlzeiten),
+      rezepte,
+      diaeten,
+      rezepteProMahlzeitState,
+      swipeStapel
+    )
+    setRezepteProMahlzeitState(neueAuswahl.rezepteProMahlzeitState)
+    setSwipeStapel(neueAuswahl.stapel)
   }
 
   // --- Rezepte-Tab (RezepteSwipeAnsicht.jsx) ---
@@ -720,35 +762,36 @@ function App() {
       : rezepteAktiveMahlzeitenListe[0]?.slug ?? 'mittag'
 
   function rezepteEigenschaftFuerMahlzeitAendern(neueEigenschaft) {
-    setRezepteProMahlzeitState((aktuell) => {
-      if ((aktuell[rezepteEffektivAktuelleMahlzeit]?.eigenschaft ?? '') === neueEigenschaft) {
-        return aktuell
-      }
-      const pool = gefiltertePoolFuerRezepte(rezepte, rezepteEffektivAktuelleMahlzeit, diaeten, neueEigenschaft)
-      return {
-        ...aktuell,
-        [rezepteEffektivAktuelleMahlzeit]: {
-          eigenschaft: neueEigenschaft,
-          rezept: pool.length > 0 ? zufaelligesElement(pool) : null,
-        },
-      }
-    })
+    if ((rezepteProMahlzeitState[rezepteEffektivAktuelleMahlzeit]?.eigenschaft ?? '') === neueEigenschaft) {
+      return
+    }
+    const pool = gefiltertePoolFuerRezepte(rezepte, rezepteEffektivAktuelleMahlzeit, diaeten, neueEigenschaft)
+    const filterSchluessel = filterSchluesselFuer(diaeten, neueEigenschaft)
+    const { rezept, stapel } = rezeptAusStapelZiehen(swipeStapel, rezepteEffektivAktuelleMahlzeit, filterSchluessel, pool)
+    setSwipeStapel(stapel)
+    setRezepteProMahlzeitState((aktuell) => ({
+      ...aktuell,
+      [rezepteEffektivAktuelleMahlzeit]: { eigenschaft: neueEigenschaft, rezept },
+    }))
   }
 
-  // "Neu würfeln" in RezepteSwipeAnsicht.jsx - trifft NUR die gerade
-  // angezeigte Mahlzeit, alle anderen behalten ihr Rezept.
+  // "Neu würfeln" (Wisch nach links) in RezepteSwipeAnsicht.jsx - trifft NUR
+  // die gerade angezeigte Mahlzeit, alle anderen behalten ihr Rezept. Zieht
+  // aus dem Wiederholungsschutz-Stapel statt rein zufaellig (siehe
+  // rezeptAusStapelZiehen in rezepteFilter.js).
   function rezepteMahlzeitTabWuerfeln() {
-    setRezepteProMahlzeitState((aktuell) => {
-      const eigenschaftFuerMahlzeit = aktuell[rezepteEffektivAktuelleMahlzeit]?.eigenschaft ?? ''
-      const pool = gefiltertePoolFuerRezepte(rezepte, rezepteEffektivAktuelleMahlzeit, diaeten, eigenschaftFuerMahlzeit)
-      return {
-        ...aktuell,
-        [rezepteEffektivAktuelleMahlzeit]: {
-          eigenschaft: eigenschaftFuerMahlzeit,
-          rezept: pool.length > 0 ? zufaelligesElement(pool) : null,
-        },
-      }
-    })
+    const eigenschaftFuerMahlzeit = rezepteProMahlzeitState[rezepteEffektivAktuelleMahlzeit]?.eigenschaft ?? ''
+    const pool = gefiltertePoolFuerRezepte(rezepte, rezepteEffektivAktuelleMahlzeit, diaeten, eigenschaftFuerMahlzeit)
+    const filterSchluessel = filterSchluesselFuer(diaeten, eigenschaftFuerMahlzeit)
+    const { rezept, stapel } = rezeptAusStapelZiehen(swipeStapel, rezepteEffektivAktuelleMahlzeit, filterSchluessel, pool)
+    setSwipeStapel(stapel)
+    setRezepteProMahlzeitState((aktuell) => ({
+      ...aktuell,
+      [rezepteEffektivAktuelleMahlzeit]: {
+        eigenschaft: eigenschaftFuerMahlzeit,
+        rezept,
+      },
+    }))
   }
 
   // Allererster Bildschirm der App - siehe Startbildschirm.jsx. Tap auf den
