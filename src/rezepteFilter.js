@@ -25,16 +25,29 @@ export function zufaelligesElement(liste) {
   return liste[zufallsIndex]
 }
 
+// Prueft, ob ein Rezept eine einzelne gewuenschte Diaetform erfuellt. Vegan
+// ist eine Teilmenge von Vegetarisch (jedes vegane Rezept ist automatisch
+// auch vegetarisch essbar), aber die Rezepte tragen in der DB bewusst nur
+// den praezisesten Tag (nie beide gleichzeitig, siehe rezepte-neu-paket-1.sql)
+// - deshalb hier explizit statt ueber reines .includes(). Umgekehrt gilt das
+// nicht: wer Vegan filtert, soll keine nur-vegetarischen Rezepte sehen.
+function erfuelltDiaet(rezeptDiaeten, gewuenschteDiaet) {
+  if (gewuenschteDiaet === 'vegetarisch') {
+    return rezeptDiaeten.includes('vegetarisch') || rezeptDiaeten.includes('vegan')
+  }
+  return rezeptDiaeten.includes(gewuenschteDiaet)
+}
+
 // Filtert eine Rezepte-Liste auf die, deren "diaeten"-Array ALLE aktuell
-// ausgewaehlten Diaetformen enthaelt. Keine Auswahl (oder "keine" = Keine
-// Einschraenkung, kein echter DB-Tag) = Filter inaktiv, komplette Liste
-// bleibt bestehen.
+// ausgewaehlten Diaetformen erfuellt (siehe erfuelltDiaet). Keine Auswahl
+// (oder "keine" = Keine Einschraenkung, kein echter DB-Tag) = Filter
+// inaktiv, komplette Liste bleibt bestehen.
 function nachDiaetenGefiltertRezepte(liste, ausgewaehlteDiaeten) {
   const aktiveDiaeten = ausgewaehlteDiaeten.filter((d) => d !== 'keine')
   if (aktiveDiaeten.length === 0) {
     return liste
   }
-  return liste.filter((r) => aktiveDiaeten.every((d) => (r.diaeten ?? []).includes(d)))
+  return liste.filter((r) => aktiveDiaeten.every((d) => erfuelltDiaet(r.diaeten ?? [], d)))
 }
 
 // Wendet Mahlzeit-, Diaet- und Eigenschaft(Suess/Deftig)-Filter nacheinander
