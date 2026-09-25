@@ -151,6 +151,26 @@ Rezepte sind das alleinige Kernfeature.
   mit Scrim, Kicker, Titel, Makro-Pillen, Wischgeste (links = neu würfeln,
   rechts = übernehmen), zwei runde Buttons mit identischer Logik, Deck-
   Illusion, Filter-Pille.
+- `rezeptAusStapelZiehen()` + `alleAktivenMahlzeitenWuerfeln()` (beide in
+  `rezepteFilter.js`) — Wiederholungsschutz-Stapel ("Shuffle-Bag") fürs
+  Wischen: statt rein zufällig wird pro Mahlzeit UND Filterkombination
+  (Diät + Süß/Deftig, Schlüssel via `filterSchluesselFuer()`) einmal die
+  komplette Pool-Reihenfolge gemischt, jedes Rezept kommt genau einmal
+  dran, erst danach wird neu gemischt (mit Garantie: erste Karte der
+  neuen Runde ≠ letzte der alten). State `swipeStapel` in `App.jsx`,
+  persistiert unter localStorage `gusto-swipe-stapel`, überlebt App-
+  Neustarts bewusst OHNE Mitternachts-Reset (anders als `tagesauswahl`).
+  Ändert sich der gefilterte Pool (z. B. neues Rezepte-Paket), wird der
+  Stapel NICHT verworfen, sondern inkrementell abgeglichen: entfernte IDs
+  fallen raus, neue IDs landen an zufälliger Position im noch ungesehenen
+  Teil — die laufende Runde bleibt intakt. Ein künftiger budget-
+  gewichteter Filter dockt über den optionalen `passtZuBudget`-Parameter
+  beim ZIEHEN an (nicht passende Rezepte werden übersprungen, bleiben
+  aber ungesehen im Stapel) — bekommt **keinen eigenen Stapel**, weil
+  sich das Restbudget bei jedem übernommenen Rezept ändert und ein
+  eigener Budget-Stapel sich dadurch ständig neu mischen müsste.
+  Übernommene Rezepte zählen automatisch als gesehen (Ziehen passiert
+  bereits beim Anzeigen, nicht erst beim Übernehmen).
 - `tagesauswahl` (State in `App.jsx`, localStorage `gusto-tagesauswahl`) —
   tagesaktuelle Merkliste pro Mahlzeit, Mitternachts-Reset über Datums-
   vergleich beim Laden. Bewusst **kein** dauerhafter Speiseplan: der
@@ -218,6 +238,18 @@ ergeben — noch ungenutzt, siehe Personenzahl-Einstellung in Abschnitt 7),
 `tipps`, sowie die zwischengespeicherten Nährwerte pro Portion:
 `kcal_/protein_/carbs_/fett_pro_portion`. RLS aktiv mit Public-Read-Policy,
 Schreiben nur manuell über den Table Editor.
+
+**Falle bei neuen Rezepten mit expliziter ID:** `rezepte.id` ist
+`GENERATED ALWAYS AS IDENTITY` (keine einfache Spalte). Inserts mit
+expliziter ID (z. B. bei einem neuen Rezepte-Paket, IDs 41–50 statt
+automatisch vergeben) brauchen zwingend `overriding system value` in der
+`insert`-Klausel, sonst bricht Postgres mit einem Identity-Fehler ab —
+danach muss die Sequenz manuell nachgezogen werden: `select
+setval(pg_get_serial_sequence('rezepte', 'id'), (select max(id) from
+rezepte));`. Die REST-/OpenAPI-Introspektion von Supabase zeigt Identity-
+Spalten nicht als solche an — bei Fragen zur Spaltenart deshalb die
+Migrationsdateien oder den tatsächlichen Fehlertext der Datenbank als
+Quelle nehmen, nicht die OpenAPI-Beschreibung.
 
 **Tabelle `rezept_zutaten`** — Verbindungstabelle, beliebig viele
 Zutaten-Zeilen pro Rezept (aktuell 4 je Rezept, das Datenmodell erlaubt
