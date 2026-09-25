@@ -279,6 +279,17 @@ Bei jedem **neuen** Rezept immer eine Anleitung im selben Stil mitliefern:
 klar, kein Fachjargon, Deutsch, mit Substanz pro Schritt (kein bloßer
 Halbsatz), abgeleitet aus Titel, Beschreibung und den Zutaten des Rezepts.
 
+**`supabase/migrations/korrektur-getreide-gekocht.sql` ist wiederholbar**
+und soll nach jedem neuen Rezept-Paket erneut laufen: die Zutaten-Tabelle
+speichert Nährwerte für Getreide/Hülsenfrüchte im GEKOCHTEN Zustand, das
+Skript trägt bei jeder passenden `rezept_zutaten`-Zeile eine Anmerkung mit
+dem ungefähren Rohgewicht nach (z. B. "gekocht, ca. 55 g roh"), damit
+niemand rohes Gewicht abwiegt und am Ende die dreifache Menge im Topf hat.
+Die Faktoren (Verhältnis kcal roh zu kcal gekocht) sind je Zutat_id fest
+im Skript hinterlegt — bei neuen Getreidesorten/Hülsenfrüchten dort
+ergänzen. Ändert nur die Anzeige (`anzeige_menge`/`anmerkung`), nicht
+`menge_g` oder die Nährwerte selbst, keine Neuberechnung nötig.
+
 **Storage-Bucket `rezept-bilder`** (public) — `rezept-1.png` bis
 `rezept-30.png`, Dateiname = `id`. Alle Bilder sind komprimiert (max. 1200 px
 Breite, PNG-Palette-Quantisierung) über `scripts/komprimiere-rezeptbilder.js`.
