@@ -231,7 +231,7 @@ Bekannte Fallen: Käse ist uneinheitlich kategorisiert, die Schreibweise von
 `name` ist uneinheitlich (echte Umlaute vs. ASCII). **Bei Referenzen immer
 `id` verwenden, nie Namen abtippen.**
 
-**Tabelle `rezepte`** — 30 kuratierte Einträge: `titel`, `beschreibung`,
+**Tabelle `rezepte`** — 100 kuratierte Einträge: `titel`, `beschreibung`,
 `bild_url`, `mahlzeit`, `eigenschaft`, `diaeten` (echtes Array), `anleitung`,
 `zubereitungszeit_min`, `portionen` (wie viele Portionen die Mengen unten
 ergeben — noch ungenutzt, siehe Personenzahl-Einstellung in Abschnitt 7),
@@ -291,7 +291,7 @@ ergänzen. Ändert nur die Anzeige (`anzeige_menge`/`anmerkung`), nicht
 `menge_g` oder die Nährwerte selbst, keine Neuberechnung nötig.
 
 **Storage-Bucket `rezept-bilder`** (public) — `rezept-1.png` bis
-`rezept-30.png`, Dateiname = `id`. Alle Bilder sind komprimiert (max. 1200 px
+`rezept-100.png`, Dateiname = `id`. Alle Bilder sind komprimiert (max. 1200 px
 Breite, PNG-Palette-Quantisierung) über `scripts/komprimiere-rezeptbilder.js`.
 Neue Bilder immer über den `lokal`-Modus hochladen: lokal komprimieren,
 nur das Ergebnis geht in den Bucket — die unkomprimierten Rohexporte
@@ -307,8 +307,8 @@ ist nur noch für bereits hochgeladene, unkomprimierte Bestandsbilder
 gedacht — nicht für neue Uploads.
 Vor Bulk-Aktionen, die im Bucket überschreiben, immer erst lokal sichern.
 
-30 Rezepte sind für den Swipe-Loop deutlich zu wenig. Die Erweiterung ist
-Content-Arbeit von Gregor, kein Claude-Code-Thema.
+Die Rezepte-Erweiterung von 30 auf 100 (Pakete 1–7) ist abgeschlossen.
+Weitere Rezepte sind Content-Arbeit von Gregor, kein Claude-Code-Thema.
 
 ---
 
@@ -379,3 +379,8 @@ Kurzname für Vorrat-Chips: manche `zutaten.name`-Werte sind für die
 Chip-Zeile zu lang ("Pfeffer, schwarz gemahlen", "Paprikapulver, edelsüß"),
 in der vollen Zutatenkarte aber richtig. Braucht ein eigenes Kurzname-Feld
 in `zutaten` — Datenarbeit, keine Rendering-Frage.
+
+Rezept 6 (Lachs-Frischkäse-Brot) nutzt noch `zutat_id` 2 (Lachs, roh) mit
+Anmerkung "geräuchert" statt der seit Paket 7 existierenden eigenen Zutat
+Räucherlachs (`zutat_id` 234, andere Nährwerte). Bei Gelegenheit auf die
+eigene Zutat umstellen.
