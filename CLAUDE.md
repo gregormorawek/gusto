@@ -105,6 +105,7 @@ Verbindliche Farb-Tokens (definiert in `src/index.css` via `@theme`):
 | `--color-bg` | `#F7F1E6` | Hintergrund (Cream) |
 | `--color-card` | `#FFFDF8` | Karten |
 | `--color-primary` | `#C9754A` | Terrakotta, primär |
+| `--color-primary-dark` | `#A15E3B` | Terrakotta, abgedunkelt — für weißen Text/Badges auf Terrakotta-Fläche (reines `--color-primary` hat mit weißer Schrift zu wenig Kontrast, ~5:1 gegen Weiß) |
 | `--color-secondary` | `#6B7A4A` | Olive, sekundär |
 | `--color-text` | `#3E2E22` | Espresso, Text |
 | `--color-text-muted` | `#8A6B4A` | Tan, Nebentext |

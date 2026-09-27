@@ -13,7 +13,10 @@ export const DIAET_ICON = {
   keine: IconCheck,
 }
 
-const DIAETEN = [
+// Exportiert (statt lokal), damit RezepteSwipeAnsicht.jsx daraus die Labels
+// fuer die aktiven Filter-Tags ableiten kann, ohne die Labels dort ein
+// zweites Mal zu pflegen.
+export const DIAETEN = [
   { slug: 'vegan', label: 'Vegan' },
   { slug: 'vegetarisch', label: 'Vegetarisch' },
   { slug: 'glutenfrei', label: 'Glutenfrei' },
@@ -24,7 +27,13 @@ const DIAETEN = [
 // Checkbox fuer A11y bleibt erhalten, aber visuell versteckt - siehe
 // AuswahlChip). ausgewaehlt ist das Array der aktuell aktiven Slugs,
 // onAendern wird mit dem geklickten Slug aufgerufen (das eigentliche Toggle
-// passiert in App.jsx).
+// passiert in App.jsx bzw. im Entwurfs-State von FilterSheet.jsx).
+//
+// zeigeKeineOption=false blendet die 4. Zeile ("Keine Einschraenkung") aus -
+// nur von FilterSheet.jsx genutzt, dessen Entwurf laut Auftrag ausschliesslich
+// die drei echten Diaetformen als Liste zeigt. Die beiden anderen Aufrufer
+// (OnboardingWizard, EinstellungenAnsicht) lassen den Prop weg und behalten
+// damit unveraendert alle vier Zeilen.
 //
 // Chips gestapelt statt umbrechend + groesse="breit" (Redesign, siehe
 // ZielEinstellungen.jsx fuer dieselbe Aenderung an den Kalorienziel-Chips) -
@@ -34,10 +43,11 @@ const DIAETEN = [
 // fruehere zusaetzliche px-4 hier erzeugte dadurch doppeltes Padding, die
 // (jetzt volle Breite einnehmenden) Chips wirkten gegenueber der
 // "Ernaehrungsform"-Ueberschrift daneben sichtbar eingerueckt.
-function DiaetFilter({ ausgewaehlt, onAendern }) {
+function DiaetFilter({ ausgewaehlt, onAendern, zeigeKeineOption = true }) {
+  const diaeten = zeigeKeineOption ? DIAETEN : DIAETEN.filter(({ slug }) => slug !== 'keine')
   return (
     <div className="mt-2 flex flex-col gap-1">
-      {DIAETEN.map(({ slug, label }) => {
+      {diaeten.map(({ slug, label }) => {
         const aktiv = ausgewaehlt.includes(slug)
         return (
           <AuswahlChip

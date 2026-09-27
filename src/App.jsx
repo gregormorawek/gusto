@@ -21,7 +21,13 @@ import {
 import { MAHLZEITEN, standardMahlzeit, aktiveMahlzeitenFuer } from './mahlzeiten'
 import { supabase } from './supabase'
 import { useTastaturAusgleich } from './useTastaturAusgleich'
-import { gefiltertePoolFuerRezepte, alleAktivenMahlzeitenWuerfeln, filterSchluesselFuer, rezeptAusStapelZiehen } from './rezepteFilter'
+import {
+  gefiltertePoolFuerRezepte,
+  alleAktivenMahlzeitenWuerfeln,
+  filterSchluesselFuer,
+  rezeptAusStapelZiehen,
+  diaetenUmschalten,
+} from './rezepteFilter'
 import { bilderImHintergrundVorladen } from './bildVorladen'
 import { EXPO_OUT, FADE_UEBERGANG } from './motionConfig'
 
@@ -687,14 +693,7 @@ function App() {
   // setDiaeten asynchron ist und der State-Wert im selben Funktionsdurchlauf
   // noch der alte waere.
   function diaetenAendern(slug) {
-    let neueDiaeten
-    if (slug === 'keine') {
-      neueDiaeten = diaeten.includes('keine') ? [] : ['keine']
-    } else if (diaeten.includes(slug)) {
-      neueDiaeten = diaeten.filter((d) => d !== slug)
-    } else {
-      neueDiaeten = [...diaeten.filter((d) => d !== 'keine'), slug]
-    }
+    const neueDiaeten = diaetenUmschalten(diaeten, slug)
 
     setDiaeten(neueDiaeten)
 
@@ -773,6 +772,38 @@ function App() {
       ...aktuell,
       [rezepteEffektivAktuelleMahlzeit]: { eigenschaft: neueEigenschaft, rezept },
     }))
+  }
+
+  // Bestaetigen des Filter-Sheets (FilterSheet.jsx): setzt Diaet UND die
+  // Suess/Deftig-Eigenschaft der aktuell gezeigten Mahlzeit GEMEINSAM in
+  // einem Rutsch und wuerfelt genau EINMAL neu - bewusst NICHT einfach
+  // diaetenAendern gefolgt von rezepteEigenschaftFuerMahlzeitAendern
+  // aufgerufen, weil setState asynchron ist: der zweite Aufruf wuerde ueber
+  // den "diaeten"-Closure-Wert noch die ALTE Diaet-Auswahl sehen und einen
+  // Zwischen-Wuerfelwurf mit falscher Kombination ausloesen. diaeten ist
+  // unveraendert der App-weite Ernaehrungsform-Filter (identisch mit
+  // Onboarding/Einstellungen, siehe FilterSheet.jsx-Hinweistext dazu) -
+  // deshalb wuerfelt ein Diaet-Wechsel hier wie bisher ALLE aktiven
+  // Mahlzeiten neu, waehrend die Eigenschaft nur die aktuell gezeigte
+  // Mahlzeit betrifft (siehe rezepteEigenschaftFuerMahlzeitAendern oben).
+  function rezepteFilterAnwenden(neueDiaeten, neueEigenschaftFuerAktuelleMahlzeit) {
+    setDiaeten(neueDiaeten)
+    const standMitNeuerEigenschaft = {
+      ...rezepteProMahlzeitState,
+      [rezepteEffektivAktuelleMahlzeit]: {
+        ...rezepteProMahlzeitState[rezepteEffektivAktuelleMahlzeit],
+        eigenschaft: neueEigenschaftFuerAktuelleMahlzeit,
+      },
+    }
+    const neueAuswahl = alleAktivenMahlzeitenWuerfeln(
+      rezepteAktiveMahlzeitenListe,
+      rezepte,
+      neueDiaeten,
+      standMitNeuerEigenschaft,
+      swipeStapel
+    )
+    setRezepteProMahlzeitState(neueAuswahl.rezepteProMahlzeitState)
+    setSwipeStapel(neueAuswahl.stapel)
   }
 
   // "Neu würfeln" (Wisch nach links) in RezepteSwipeAnsicht.jsx - trifft NUR
@@ -977,6 +1008,7 @@ function App() {
             onMahlzeitAendern={setRezepteAktuelleMahlzeit}
             proMahlzeitState={rezepteProMahlzeitState}
             onEigenschaftAendern={rezepteEigenschaftFuerMahlzeitAendern}
+            onFilterAnwenden={rezepteFilterAnwenden}
             onWuerfeln={rezepteMahlzeitTabWuerfeln}
             onUebernehmen={(rezeptId) => tagesauswahlMahlzeitUebernehmen(rezepteEffektivAktuelleMahlzeit, rezeptId)}
             onKochModusOeffnen={kochModusOeffnen}

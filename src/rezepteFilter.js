@@ -42,6 +42,24 @@ function nachDiaetenGefiltertRezepte(liste, ausgewaehlteDiaeten) {
   return liste.filter((r) => aktiveDiaeten.every((d) => erfuelltDiaet(r.diaeten ?? [], d)))
 }
 
+// Schaltet EINE Diaetform in der aktuellen Auswahl um (An-/Abwaehlen), inkl.
+// des gegenseitigen Ausschlusses mit "keine" (Keine Einschraenkung): Anwaehlen
+// von "keine" ersetzt eine evtl. bestehende Auswahl komplett, Anwaehlen einer
+// der anderen drei entfernt ein evtl. aktives "keine" wieder. Reine Funktion
+// (keine Seiteneffekte) - EINZIGE Stelle mit dieser Umschalt-Logik, verwendet
+// sowohl von App.jsx (diaetenAendern, wirkt sofort app-weit) als auch vom
+// Entwurfs-State in FilterSheet.jsx (wirkt erst bei Bestaetigen) - beide
+// muessten sonst dieselbe Ausschluss-Logik doppelt pflegen.
+export function diaetenUmschalten(diaeten, slug) {
+  if (slug === 'keine') {
+    return diaeten.includes('keine') ? [] : ['keine']
+  }
+  if (diaeten.includes(slug)) {
+    return diaeten.filter((d) => d !== slug)
+  }
+  return [...diaeten.filter((d) => d !== 'keine'), slug]
+}
+
 // Wendet Mahlzeit-, Diaet- und Eigenschaft(Suess/Deftig)-Filter nacheinander
 // auf eine Rezepte-Liste an. Der Eigenschaft-Filter wird - wie beim
 // bestehenden Suess/Deftig-Filter fuer Zutaten - NUR bei fruehstueck/snack

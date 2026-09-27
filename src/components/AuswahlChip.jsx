@@ -6,13 +6,14 @@ import AnimatedButton from './AnimatedButton'
 // unten), dazu - falls ein Icon uebergeben wird - ein Icon-Kreis, der bei
 // Auswahl terrakotta gefuellt wird (Icon invertiert in Karten-Weiss). Diese
 // EINE Komponente ersetzt die bisher 5-fach duplizierten Pillen-Tailwind-
-// Strings in MahlzeitFilter, SuessDeftigFilter, DiaetFilter (siehe Verlauf).
+// Strings in MahlzeitFilter, DiaetFilter und dem inzwischen wieder entfernten
+// SuessDeftigFilter (abgeloest durch SegmentSchalter.jsx, siehe Git-Historie).
 //
 // Zwei Interaktions-Modi ueber den input-Prop, um die bisherige A11y-
 // Semantik pro Einsatzort zu erhalten, bei IDENTISCHER visueller
 // Darstellung:
 // - input weggelassen -> rendert als Button (Single-Select-Filter wie
-//   MahlzeitFilter/SuessDeftigFilter, Klick loest onClick aus).
+//   MahlzeitFilter, Klick loest onClick aus).
 // - input={{ type: 'checkbox'|'radio', checked, onChange, disabled, name }}
 //   -> rendert als <label> mit einem visuell versteckten (sr-only), aber
 //   fuer Screenreader/Tastatur weiterhin vorhandenen nativen Input. Der

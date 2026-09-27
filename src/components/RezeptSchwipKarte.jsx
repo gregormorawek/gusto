@@ -139,6 +139,8 @@ function RezeptSchwipKarte({
   wuerfelnDeaktiviert,
   onUebernehmen,
   onKochModusOeffnen,
+  filterAktiv = false,
+  onFilterAnpassen,
 }) {
   const reduzierteBewegung = useReducedMotion()
 
@@ -441,8 +443,23 @@ function RezeptSchwipKarte({
             </motion.div>
           </AnimatePresence>
         ) : (
-          <div className={`${KARTEN_RAHMEN} z-10 flex items-center justify-center bg-card p-6 text-center`}>
+          <div className={`${KARTEN_RAHMEN} z-10 flex flex-col items-center justify-center gap-3 bg-card p-6 text-center`}>
             <p className="text-text-muted">Für diese Filterkombination gibt es noch kein Rezept.</p>
+            {/* "Filter anpassen" statt "Filter zurücksetzen": diaeten ist
+                dieselbe Ernaehrungsform wie in Onboarding/Einstellungen - ein
+                direktes Zuruecksetzen hier wuerde z. B. einem Veganer seine
+                Profil-Einstellung stillschweigend wegnehmen und ihm
+                Fleischgerichte zeigen. Im Sheet sieht er dank Trefferzahl vor
+                jeder Aenderung, was tatsaechlich hilft (siehe FilterSheet.jsx). */}
+            {filterAktiv && (
+              <AnimatedButton
+                type="button"
+                onClick={onFilterAnpassen}
+                className="rounded-full border border-primary/40 bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm"
+              >
+                Filter anpassen
+              </AnimatedButton>
+            )}
           </div>
         )}
       </div>
