@@ -333,24 +333,47 @@ function RezeptSchwipKarte({
     // Mindestabstand von 4px - der Ueberstand bleibt als schmaler Rand
     // erkennbar, beruehrt aber nie mehr die Buttons.
     <div className="flex min-h-0 flex-1 flex-col gap-4">
-      {/* mx-8/my-4/max-h-[52dvh] statt vorher mx-4/mt-2 ohne Hoehen-Deckel:
-          zusaetzliches, von Teil 1 (natives Scroll-Lockdown in
-          MainViewController.swift) UNABHAENGIGES Sicherheitsnetz gegen die
-          seit mehreren Runden gemeldeten "Flaeche verschiebt sich"-Bugs
-          (horizontal UND, neuester Befund, auch vertikal um ~110-115px).
-          Bewusst deutlich mehr Rand als frueher (32px statt 16px seitlich,
-          16px statt 8px oben) UND ein Hoehen-Deckel (max-h, nicht nur
+      {/* my-4/max-h-[52dvh] statt vorher mt-2 ohne Hoehen-Deckel: zusaetzliches,
+          von Teil 1 (natives Scroll-Lockdown in MainViewController.swift)
+          UNABHAENGIGES Sicherheitsnetz gegen die seit mehreren Runden
+          gemeldeten "Flaeche verschiebt sich"-Bugs (horizontal UND, neuester
+          Befund, auch vertikal um ~110-115px). Bewusst deutlich mehr Rand als
+          frueher (16px statt 8px oben) UND ein Hoehen-Deckel (max-h, nicht nur
           aspect-ratio) statt vorher nahezu die gesamte verfuegbare
           Vertikalflaeche auszufuellen - damit bleibt auf JEDER Seite ein
           garantierter, sichtbarer Puffer zum Bildschirmrand, der selbst bei
-          einem trotz Teil 1 verbleibenden Rest-Ruckler von wenigen Pixeln
-          nie sichtbar "anschneidet". Behebt NICHT die Ursache (das ist
-          Teil 1) - reines Sicherheitsnetz auf Bild-Ebene, wie beauftragt.
+          einem trotz Teil 1 verbleibenden Rest-Ruckler von wenigen Pixeln nie
+          sichtbar "anschneidet". Behebt NICHT die Ursache (das ist Teil 1) -
+          reines Sicherheitsnetz auf Bild-Ebene, wie beauftragt.
           max-h-[52dvh] bleibt als GROBE Anfangsschaetzung fuer den
           allerersten JS-Durchlauf bestehen, siehe kartenMaxHoehePx-Kommentar
-          oben - der praezise gemessene Inline-Style ueberschreibt sie danach. */}
+          oben - der praezise gemessene Inline-Style ueberschreibt sie danach.
+
+          GEFUNDENE URSACHE eines DRITTEN Real-Device-Bugs ("Karte nicht
+          mittig auf breiten Geraeten, 11pt nach links versetzt bei 430pt
+          Breite"): mx-8 (feste 32px-Raender) verlaesst sich darauf, dass die
+          Karte per Flex-Stretch IMMER genau "Container minus 64px" breit
+          wird. Das stimmt in Chromium/Playwright (dort zuerst gegengeprueft),
+          aber NICHT in WebKit auf breiten Geraeten: sobald max-height (siehe
+          kartenMaxHoehePx) die per aspect-[3/4] aus der gestretchten Breite
+          errechnete Hoehe kappt, gibt WebKit zusaetzlich die Breite nach dem
+          Seitenverhaeltnis nach (schmaler als "Container minus 64px") - mit
+          FESTEN mx-8-Raendern faellt die fehlende Breite dann einseitig auf
+          der rechten Seite an, statt gleichmaessig verteilt zu werden. Fix:
+          mx-auto statt mx-8, max-w-[calc(100%-4rem)] (4rem = dieselben 64px
+          wie vorher mx-8 zusammen) statt der festen Raender - mx-auto
+          zentriert IMMER, unabhaengig davon, wie breit die Karte durch
+          aspect-ratio+max-height am Ende tatsaechlich wird (Standardverhalten
+          von auto-Raendern im Flex-Cross-Axis, ueberschreibt das normale
+          Stretch-Verhalten des flex-col-Elternelements). Ohne max-w waere die
+          Karte im Normalfall (Hoehe nicht begrenzend) unbegrenzt breit -
+          max-w-[calc(100%-4rem)] deckelt sie exakt auf denselben Wert, den
+          mx-8 vorher implizit ergab. Per WebKit (lokale Playwright-
+          Installation, nicht nur Chromium) bei 375/393/430pt Breite
+          gegengeprueft: Karte UND beide Deko-Karten dahinter bleiben in jedem
+          Fall exakt mittig (±1px). */}
       <div
-        className="relative mx-8 my-4 aspect-[3/4] max-h-[52dvh] shrink-0"
+        className="relative mx-auto my-4 aspect-[3/4] w-full max-w-[calc(100%-4rem)] max-h-[52dvh] shrink-0"
         style={kartenMaxHoehePx != null ? { maxHeight: `${kartenMaxHoehePx}px` } : undefined}
       >
         {/* Zwei rein dekorative "Stapel dahinter"-Karten - NICHT per scale()

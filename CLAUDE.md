@@ -66,6 +66,12 @@ sie die App schöner, einfacher und begehrenswerter macht.
   Sync, Gregor hat unbemerkt einen alten Stand getestet.
 - Playwright-Tests immer bei 375×812 **und** 375×700 laufen lassen. Overlay-
   und Wizard-Bugs sind nur bei schmalen Viewports reproduzierbar.
+- Gregors Testgerät ist 430 pt breit (iPhone Pro Max, Screenshot-Auflösung
+  1290 px bei 3x). Layout-/Zentrierungs-Änderungen zusätzlich bei 430 pt
+  Breite prüfen (z. B. 430×932), nicht nur bei 375/393 — auf breiten Geräten
+  können sich Aspect-Ratio- plus max-height-Kombinationen anders verhalten
+  als auf schmalen (siehe Bugfix-Historie RezeptSchwipKarte.jsx: Karte war
+  bei 430 pt Breite 11 pt nach links versetzt, bei 375/393 unauffällig).
 - Lokal ist neben Chromium auch WebKit installiert (devDependency). Für alles,
   was Flex, aspect-ratio, backdrop-filter oder Scroll betrifft: dort
   gegenprüfen, nicht nur in Chromium.
