@@ -57,6 +57,13 @@ sie die App schöner, einfacher und begehrenswerter macht.
   installieren. Ohne das testet Gregor unbemerkt einen alten Bundle-Stand.
   `npx cap sync ios` kompiliert **kein** Swift — nativer Code braucht einen
   echten Xcode-Rebuild.
+- Jede Meldung "bereit für den Gerätetest" enthält ausdrücklich den Nachweis,
+  dass `npm run build` und `npx cap sync ios` gelaufen sind UND dass der neue
+  Stand tatsächlich in `ios/App/App/public` liegt (z. B. Zeitstempel- oder
+  Byte-Vergleich zwischen `dist/` und `ios/App/App/public/`, oder ein
+  eindeutiges Code-Merkmal der Änderung im dortigen Bundle suchen). Ohne
+  diesen Nachweis ist ein Gerätetest nicht aussagekräftig — einmal fehlte der
+  Sync, Gregor hat unbemerkt einen alten Stand getestet.
 - Playwright-Tests immer bei 375×812 **und** 375×700 laufen lassen. Overlay-
   und Wizard-Bugs sind nur bei schmalen Viewports reproduzierbar.
 - Lokal ist neben Chromium auch WebKit installiert (devDependency). Für alles,
