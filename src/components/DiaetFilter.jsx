@@ -46,7 +46,11 @@ export const DIAETEN = [
 function DiaetFilter({ ausgewaehlt, onAendern, zeigeKeineOption = true }) {
   const diaeten = zeigeKeineOption ? DIAETEN : DIAETEN.filter(({ slug }) => slug !== 'keine')
   return (
-    <div className="mt-2 flex flex-col gap-1">
+    // gap-2 statt vormals gap-1 (4px): passend zur erhoehten Chip-Zeilenhoehe
+    // (siehe containerKlassen in AuswahlChip.jsx) - mehr Luft zwischen den
+    // Zeilen verringert zusaetzlich das Risiko, beim Antippen die
+    // Nachbarzeile zu treffen.
+    <div className="mt-2 flex flex-col gap-2">
       {diaeten.map(({ slug, label }) => {
         const aktiv = ausgewaehlt.includes(slug)
         return (

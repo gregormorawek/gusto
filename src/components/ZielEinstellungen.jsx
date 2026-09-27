@@ -115,7 +115,9 @@ function ZielEinstellungen({
           groesse="breit" (siehe AuswahlChip.jsx) stretcht jeden Chip auf die
           volle Kachel-Breite statt wie zuvor auf Inhalts-Breite zu schrumpfen
           und unsauber (2 nebeneinander, 1 allein) umzubrechen. */}
-      <div className="mt-1.5 flex flex-col gap-1">
+      {/* gap-2 statt vormals gap-1: passend zur auf 44pt erhoehten
+          Chip-Zeilenhoehe der "breit"-Variante, siehe AuswahlChip.jsx. */}
+      <div className="mt-1.5 flex flex-col gap-2">
         {ZIEL_OPTIONEN.map(({ typ, label, Icon }) => (
           <AuswahlChip
             key={typ}

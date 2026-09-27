@@ -59,7 +59,15 @@ function containerKlassen({ aktiv, groesse, deaktiviert }) {
     groesse === 'gross'
       ? 'flex-col gap-1.5 rounded-2xl px-4 py-3 w-full'
       : groesse === 'breit'
-        ? 'w-full gap-2.5 rounded-full px-4 py-1'
+        ? // py-2.5 statt vormals py-1: mit dem 24px-Icon-Kreis + 1px Rand ergab
+          // py-1 nur 34px Zeilenhoehe - unter Apples 44pt-Mindest-Tapflaeche
+          // (HIG). Real-Device-Bugreport im Filter-Sheet (FilterSheet.jsx):
+          // zu knappe Zeilen bei einem gleichzeitigen Sheet-Drag-Bug fuehrten
+          // dazu, dass ein simples Antippen die Nachbarzeile traf bzw. den
+          // Tap ganz verschluckte. py-2.5 ergibt 46px, sicher ueber 44pt -
+          // global hier statt nur im Sheet, weil DiaetFilter/ZielEinstellungen
+          // (beide "breit") laut Auftrag konsistent bleiben sollen.
+          'w-full gap-2.5 rounded-full px-4 py-2.5'
         : 'gap-1.5 rounded-full px-3 py-1.5'
   const rand = aktiv
     ? 'border-primary bg-primary/20 shadow-[inset_0_0_6px_0_rgba(62,46,34,0.35)] translate-y-0.5'
