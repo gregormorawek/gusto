@@ -380,11 +380,6 @@ Chip-Zeile zu lang ("Pfeffer, schwarz gemahlen", "Paprikapulver, edelsüß"),
 in der vollen Zutatenkarte aber richtig. Braucht ein eigenes Kurzname-Feld
 in `zutaten` — Datenarbeit, keine Rendering-Frage.
 
-Rezept 6 (Lachs-Frischkäse-Brot) nutzt noch `zutat_id` 2 (Lachs, roh) mit
-Anmerkung "geräuchert" statt der seit Paket 7 existierenden eigenen Zutat
-Räucherlachs (`zutat_id` 234, andere Nährwerte). Bei Gelegenheit auf die
-eigene Zutat umstellen.
-
 Tipps einem Kochschritt zuordnen — bräuchte ein optionales Feld (z. B.
 `schritt`) in der `tipps`-jsonb-Struktur plus inhaltliche Neuzuordnung der
 bestehenden Tipps. Content-Arbeit, keine Rendering-Frage. Nicht alle
