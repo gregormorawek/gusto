@@ -1,4 +1,4 @@
-import { useEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { IconAdjustmentsHorizontal, IconX } from '@tabler/icons-react'
 import SegmentSchalter from './SegmentSchalter'
 import FilterSheet, { GESCHMACK_OPTIONEN } from './FilterSheet'
@@ -36,13 +36,38 @@ import { gefiltertePoolFuerRezepte } from '../rezepteFilter'
 // treffen, ohne entweder bei kurzen Viewports zu ueberlaufen
 // (siehe Bugreport) oder bei jedem Filter-Zustand grosszuegig Luft zu
 // verschenken. Deshalb wird die tatsaechlich verfuegbare Hoehe hier LIVE
-// gemessen (per ResizeObserver, gleiches Muster wie sheetHoehe in
-// KochModus.jsx) und als Budget an RezeptSchwipKarte durchgereicht, die
-// daraus (abzueglich ihrer EIGENEN Margins/Gap/Mindesthoehe der Buttons-
-// Reihe) die exakte maximale Kartenhoehe berechnet - "die Karte gibt nach",
-// nicht die Seite. max-h-[52dvh] bleibt dort als grobe Anfangsschaetzung fuer
-// den allerersten Render (bevor der ResizeObserver einmal gefeuert hat)
-// bestehen, exakt derselbe Kompromiss wie sheetHoehe dort.
+// gemessen (per ResizeObserver) und als Budget an RezeptSchwipKarte
+// durchgereicht, die daraus (abzueglich ihrer EIGENEN Margins/Gap/
+// Mindesthoehe der Buttons-Reihe) die exakte maximale Kartenhoehe berechnet -
+// "die Karte gibt nach", nicht die Seite.
+//
+// GEFUNDENE URSACHE eines ZWEITEN gemeldeten Real-Device-Bugs ("Karte rueckt
+// beim Tab-Wechsel sichtbar nach" + "Karte nicht mittig, rechts mehr Abstand
+// als links"): kopfHoehe/verfuegbareHoehe starten bei jedem Mount (der
+// Rezepte-Tab wird beim Tab-Wechsel komplett neu gemountet) bei 0, solange
+// die Messung noch nicht vorliegt faellt RezeptSchwipKarte auf ihre grobe
+// max-h-[52dvh]-Schaetzung zurueck. Per MutationObserver/ResizeObserver-
+// Protokollierung ueber die ersten Frames nach einem Tab-Wechsel gemessen
+// (nicht vermutet): computed transform blieb waehrend der GESAMTEN Messung
+// "none" - keine Animation beteiligt. Stattdessen aendern sich Hoehe UND
+// Breite der Karte zwischen zwei echten Paints (z. B. 375x700 mit aktiven
+// Filter-Tags: erster Paint bei Hoehe 364px/Breite 296px aus der reinen
+// CSS-Schaetzung, zweiter Paint bei Hoehe 324px/Breite 311px aus der
+// gemessenen kartenBudgetPx) - die schmalere Breite im ersten Paint sitzt
+// wegen der festen mx-8-Raender links buendig statt zentriert (32px links,
+// 47px rechts), genau das gemeldete Zentrierungsproblem. Beide Symptome sind
+// also dieselbe Ursache aus zwei Blickwinkeln.
+//
+// Der Grund, warum die synchrone berechnen()-Messung in den Effekten unten
+// den ersten Paint trotzdem nicht abfaengt: einfaches useEffect laeuft
+// IMMER erst NACH dem ersten Browser-Paint (das ist der ganze Sinn von
+// useEffect gegenueber useLayoutEffect). Fix: useLayoutEffect statt
+// useEffect - das laeuft synchron NACH den DOM-Mutationen, aber VOR dem
+// Paint, ein darin synchron aufgerufenes setState committet die korrekten
+// Werte also noch VOR dem allerersten sichtbaren Frame. Der ResizeObserver
+// bleibt fuer SPAETERE echte Aenderungen (Filter-Tags aendern die
+// Kopfzeilen-Hoehe, Geraet wird gedreht) weiterhin bestehen - nur der
+// initiale Messwert wird jetzt zusaetzlich synchron vorweggenommen.
 const KOPF_MARGIN_TOP_PX = 4 // mt-1 auf dem Kopf-Container unten
 
 function RezepteSwipeAnsicht({
@@ -77,17 +102,21 @@ function RezepteSwipeAnsicht({
   const [kopfHoehe, setKopfHoehe] = useState(0)
   const [verfuegbareHoehe, setVerfuegbareHoehe] = useState(0)
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const kopfEl = kopfRef.current
     if (!kopfEl) {
       return undefined
     }
+    // Synchrone Erstmessung VOR dem ersten Paint (siehe Kommentar oben) -
+    // der ResizeObserver darunter uebernimmt danach nur noch SPAETERE
+    // Aenderungen (z. B. Filter-Tags wechseln die Zeilenanzahl).
+    setKopfHoehe(kopfEl.getBoundingClientRect().height)
     const beobachter = new ResizeObserver(([eintrag]) => setKopfHoehe(eintrag.contentRect.height))
     beobachter.observe(kopfEl)
     return () => beobachter.disconnect()
   }, [])
 
-  useEffect(() => {
+  useLayoutEffect(() => {
     const scrollContainer = wurzelRef.current?.parentElement
     if (!scrollContainer) {
       return undefined

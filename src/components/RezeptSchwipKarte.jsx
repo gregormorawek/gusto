@@ -160,10 +160,11 @@ function RezeptSchwipKarte({
   onFilterAnpassen,
   kartenBudgetPx = null,
 }) {
-  // null solange RezepteSwipeAnsicht noch nicht gemessen hat (allererster
-  // Render) - dann greift unten die grobe max-h-[52dvh]-Tailwind-Klasse als
-  // Anfangsschaetzung, exakt wie sheetHoehe in KochModus.jsx vor dessen
-  // erstem ResizeObserver-Callback.
+  // null nur fuer den allerersten JS-Durchlauf, bevor RezepteSwipeAnsicht's
+  // useLayoutEffect-Messung gelaufen ist (siehe dortiger Kommentar - laeuft
+  // synchron VOR dem ersten Paint, ist also praktisch nie sichtbar). Bis
+  // dahin greift unten die grobe max-h-[52dvh]-Tailwind-Klasse als
+  // Anfangsschaetzung.
   const kartenMaxHoehePx =
     kartenBudgetPx != null ? Math.max(KARTE_MINDESTHOEHE_PX, kartenBudgetPx - KARTE_MARGIN_PX - GAP_PX - BUTTONS_BEREICH_MIN_PX) : null
   const reduzierteBewegung = useReducedMotion()
@@ -346,10 +347,8 @@ function RezeptSchwipKarte({
           nie sichtbar "anschneidet". Behebt NICHT die Ursache (das ist
           Teil 1) - reines Sicherheitsnetz auf Bild-Ebene, wie beauftragt.
           max-h-[52dvh] bleibt als GROBE Anfangsschaetzung fuer den
-          allerersten Render bestehen - sobald kartenMaxHoehePx vorliegt
-          (siehe oben), ueberschreibt der praezise gemessene Inline-Style
-          diese Tailwind-Klasse (Inline-Styles gewinnen immer gegen
-          Klassen). */}
+          allerersten JS-Durchlauf bestehen, siehe kartenMaxHoehePx-Kommentar
+          oben - der praezise gemessene Inline-Style ueberschreibt sie danach. */}
       <div
         className="relative mx-8 my-4 aspect-[3/4] max-h-[52dvh] shrink-0"
         style={kartenMaxHoehePx != null ? { maxHeight: `${kartenMaxHoehePx}px` } : undefined}
