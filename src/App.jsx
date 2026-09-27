@@ -500,6 +500,24 @@ function App() {
     localStorage.setItem(TAGESAUSWAHL_LOCALSTORAGE_KEY, JSON.stringify(tagesauswahl))
   }, [tagesauswahl])
 
+  // Hinweis-Badge am Tag-Tab (TabLeiste.jsx): Set der Mahlzeit-Slugs, die seit
+  // dem letzten Oeffnen des Tag-Tabs per "Uebernehmen" neu gesetzt wurden -
+  // siehe tagesauswahlMahlzeitUebernehmen weiter unten fuers Befuellen.
+  // Bewusst REIN In-Memory (kein localStorage, anders als tagesauswahl
+  // selbst) - "seit dem letzten Oeffnen" ist ein Session-Konzept, das eine
+  // App-Neuinstallation/einen Neustart nicht ueberleben muss.
+  const [tagBadgeMahlzeiten, setTagBadgeMahlzeiten] = useState(() => new Set())
+
+  // Leert das Badge, sobald der Tag-Tab tatsaechlich geoeffnet wird. Guard
+  // gegen size===0 verhindert ein unnoetiges Set(0)->Set(0)-Update (neue
+  // Referenz, aber inhaltlich unveraendert) bei jedem Verweilen auf dem
+  // Tag-Tab oder erneuten Anklicken desselben Tabs.
+  useEffect(() => {
+    if (ansicht === 'tag' && tagBadgeMahlzeiten.size > 0) {
+      setTagBadgeMahlzeiten(new Set())
+    }
+  }, [ansicht, tagBadgeMahlzeiten])
+
   // Wiederholungsschutz-Stapel fuers Rezepte-Wischen - siehe
   // swipeStapelLaden weiter oben und rezeptAusStapelZiehen in
   // rezepteFilter.js. Anders als tagesauswahl bewusst ohne
@@ -519,6 +537,13 @@ function App() {
       ...aktuell,
       mahlzeiten: { ...aktuell.mahlzeiten, [mahlzeitTyp]: rezeptId },
     }))
+    // Hinweis-Badge am Tag-Tab (TabLeiste.jsx) - zaehlt Mahlzeiten, nicht
+    // Klicks: ist mahlzeitTyp schon im Set, wird dieselbe Set-Referenz
+    // zurueckgegeben, React ueberspringt den Re-Render dafuer komplett
+    // (Object.is-Vergleich bei useState-Updatern) - ein zweimaliges
+    // Austauschen desselben Slots loest also weder eine hoehere Zahl noch
+    // einen erneuten Pop aus.
+    setTagBadgeMahlzeiten((aktuell) => (aktuell.has(mahlzeitTyp) ? aktuell : new Set(aktuell).add(mahlzeitTyp)))
   }
 
   // Wird von TagAnsicht.jsx aufgerufen (Wisch-nach-links-Aktion auf einer
@@ -881,7 +906,7 @@ function App() {
             am unteren Rand ersetzt - 'einstellungen' ist dort ein ganz
             normaler ansicht-Wert wie 'rezepte'/'tag'/'einkaufsliste', siehe
             Rendering-Weiche unten. */}
-        <TabLeiste aktiverTab={ansicht} onTabWaehlen={setAnsicht} />
+        <TabLeiste aktiverTab={ansicht} onTabWaehlen={setAnsicht} tagBadgeAnzahl={tagBadgeMahlzeiten.size} />
 
         <Toast nachricht={toast} />
 

@@ -1,7 +1,7 @@
 import { IconBook2, IconChecklist, IconSettings, IconShoppingCart } from '@tabler/icons-react'
 import { motion, useReducedMotion } from 'framer-motion'
 import AnimatedButton from './AnimatedButton'
-import { EXPO_OUT } from '../motionConfig'
+import { EXPO_OUT, SPRING_REVEAL } from '../motionConfig'
 
 // Die vier Tabs der schwebenden Bottom-Navigation, in Anzeige-Reihenfolge.
 // key entspricht 1:1 dem ansicht-State in App.jsx - 'einstellungen' zeigt
@@ -41,7 +41,16 @@ const TABS = [
 // Wischs.
 const TAB_PILLE_UEBERGANG = { duration: 0.28, ease: EXPO_OUT }
 
-function TabLeiste({ aktiverTab, onTabWaehlen }) {
+// Ringfarbe des Tag-Tab-Hinweis-Badges - bewusst VOLLES, deckendes
+// --color-card (Karten-Weiss) statt eines transluzenten Tons: ein
+// durchscheinender Ring liess das Badge auf dem Icon kaum vom Untergrund
+// abstechen (Feedback nach Real-Device-Test), ein deckender Ring setzt es
+// dagegen klar ab, wie bei iOS-App-Icon-Badges. Kein neuer Farbwert (CLAUDE.md)
+// - per box-shadow statt border, damit die Badge-Groesse dadurch nicht
+// veraendert wird.
+const TAG_BADGE_RING = '0 0 0 1.5px var(--color-card)'
+
+function TabLeiste({ aktiverTab, onTabWaehlen, tagBadgeAnzahl = 0 }) {
   // Reduzierte Bewegung: die Pille soll NICHT mehr gleiten, sondern direkt
   // am neuen Tab erscheinen - framer-motions layoutId-Animation (siehe
   // unten) wird dafuer per transition={{ duration: 0 }} auf "kein
@@ -116,7 +125,51 @@ function TabLeiste({ aktiverTab, onTabWaehlen }) {
                 Hintergrund zu kontrastarm, bleibt aber klar gedaempfter als
                 der aktive Terracotta-Ton. */}
             <span className="relative z-10 flex h-8 w-12 items-center justify-center rounded-full">
-              <Icon size={22} stroke={1.75} className={`transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/55'}`} />
+              {/* Eigener, eng am Icon anliegender relative-Wrapper (statt den
+                  ganzen 48x32-Button als Bezugsrahmen zu nehmen) - das Badge
+                  soll direkt am Icon-Rand sitzen, nicht an der viel
+                  breiteren Button-Ecke. */}
+              <span className="relative">
+                <Icon size={22} stroke={1.75} className={`transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/55'}`} />
+                {/* Hinweis-Badge NUR am Tag-Tab (siehe App.jsx
+                    tagBadgeMahlzeiten) - zaehlt seit dem letzten Oeffnen des
+                    Tag-Tabs neu gesetzte Mahlzeiten. key={tagBadgeAnzahl}
+                    erzwingt bei jeder Zahlaenderung einen frischen Mount
+                    dieses motion.span, wodurch initial->animate JEDES Mal
+                    neu abspielt ("Pop": kurz groesser, dann normal) - auch
+                    das erste Erscheinen (0->1 Mahlzeiten) ist dadurch
+                    automatisch ein Pop, ganz ohne Sonderfall. bg-secondary/
+                    text-card (Oliv/Weiss) = derselbe Farbkontrast wie am
+                    "Uebernehmen"-Knopf der Swipe-Karte (4,65:1, ueber der
+                    WCAG-AA-Schwelle von 4,5:1 fuer Fliesstext) - bewusst
+                    KEIN neuer, dunklerer Farbton, da schon ausreichend
+                    Kontrast UND Konsistenz mit dem Knopf wichtiger ist.
+                    boxShadow statt border: setzt das Badge optisch vom
+                    darunterliegenden Icon ab (wie ein iOS-App-Icon-Badge),
+                    ohne durch eine echte border die Badge-Groesse zu
+                    veraendern - Ringfarbe ist TAG_BADGE_RING (siehe dort fuer
+                    die Herleitung: deckendes Karten-Weiss statt eines
+                    transluzenten Tons). Der Scale-Transform sitzt auf diesem
+                    Badge - einem
+                    NACHFAHREN der fixed positionierten <nav> - und erzeugt
+                    dadurch keinen neuen Containing Block fuer irgendetwas
+                    (die <nav> selbst bleibt unveraendert fixed, das Badge
+                    hat keine eigenen fixed-Nachfahren) - siehe CLAUDE.md
+                    Abschnitt 4 zur eigentlichen Falle (transform auf einem
+                    VORFAHREN von fixed-Elementen). */}
+                {key === 'tag' && tagBadgeAnzahl > 0 && (
+                  <motion.span
+                    key={tagBadgeAnzahl}
+                    initial={reduzierteBewegung ? { scale: 1 } : { scale: 1.35 }}
+                    animate={{ scale: 1 }}
+                    transition={reduzierteBewegung ? { duration: 0 } : SPRING_REVEAL}
+                    style={{ boxShadow: TAG_BADGE_RING }}
+                    className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-semibold text-card"
+                  >
+                    {tagBadgeAnzahl}
+                  </motion.span>
+                )}
+              </span>
             </span>
             <span
               className={`relative z-10 font-sans transition-colors duration-150 ${

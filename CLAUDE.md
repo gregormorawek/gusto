@@ -392,3 +392,9 @@ Tipps einem Kochschritt zuordnen — bräuchte ein optionales Feld (z. B.
 `schritt`) in der `tipps`-jsonb-Struktur plus inhaltliche Neuzuordnung der
 bestehenden Tipps. Content-Arbeit, keine Rendering-Frage. Nicht alle
 Tipps gehören zu einem Schritt, manche betreffen das ganze Gericht.
+
+Flug-Animation "übernommenes Rezept fliegt als Kugel in die Tab-Leiste" —
+soll auf dem Hinweis-Badge am Tag-Tab aufbauen (`TabLeiste.jsx`,
+`tagBadgeAnzahl`-Prop, State `tagBadgeMahlzeiten` in `App.jsx`): die Kugel
+landet dort, wo das Badge sitzt, und der Pop des Badges (Scale-Spring bei
+Zahländerung) ist der natürliche Zielpunkt der Flugbahn.
