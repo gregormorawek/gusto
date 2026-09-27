@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { IconAdjustmentsHorizontal, IconX } from '@tabler/icons-react'
 import SegmentSchalter from './SegmentSchalter'
 import FilterSheet, { GESCHMACK_OPTIONEN } from './FilterSheet'
@@ -25,6 +25,26 @@ import { gefiltertePoolFuerRezepte } from '../rezepteFilter'
 //    aktivierten Mahlzeiten (aktiveMahlzeitenListe).
 // 2. Aktive Filter als entfernbare Tags (links) + ein runder Filter-Knopf mit
 //    Zaehler-Badge (rechts), der FilterSheet.jsx oeffnet.
+//
+// GEFUNDENE URSACHE eines gemeldeten Real-Device-Bugs ("Rezepte-Ansicht ist
+// minimal scrollbar, soll sie nicht sein"): RezeptSchwipKarte.jsx deckelt die
+// Karte auf max-h-[52dvh] - ein fester Anteil der Viewport-Hoehe, kalibriert
+// auf die FRUEHERE einzeilige Ueberschrift. Die neue zweizeilige Kopfzeile
+// hier (Segment-Schalter + Tag-Zeile) ist ca. 48px hoeher, UND ihre Hoehe
+// variiert zusaetzlich mit der Anzahl aktiver Filter-Tags (Umbruch auf 2
+// Zeilen bei vielen langen Labels) - ein fester dvh-Wert kann das nicht mehr
+// treffen, ohne entweder bei kurzen Viewports zu ueberlaufen
+// (siehe Bugreport) oder bei jedem Filter-Zustand grosszuegig Luft zu
+// verschenken. Deshalb wird die tatsaechlich verfuegbare Hoehe hier LIVE
+// gemessen (per ResizeObserver, gleiches Muster wie sheetHoehe in
+// KochModus.jsx) und als Budget an RezeptSchwipKarte durchgereicht, die
+// daraus (abzueglich ihrer EIGENEN Margins/Gap/Mindesthoehe der Buttons-
+// Reihe) die exakte maximale Kartenhoehe berechnet - "die Karte gibt nach",
+// nicht die Seite. max-h-[52dvh] bleibt dort als grobe Anfangsschaetzung fuer
+// den allerersten Render (bevor der ResizeObserver einmal gefeuert hat)
+// bestehen, exakt derselbe Kompromiss wie sheetHoehe dort.
+const KOPF_MARGIN_TOP_PX = 4 // mt-1 auf dem Kopf-Container unten
+
 function RezepteSwipeAnsicht({
   rezepteGeladen,
   rezepte,
@@ -41,6 +61,51 @@ function RezepteSwipeAnsicht({
   onKochModusOeffnen,
 }) {
   const [filterSheetOffen, setFilterSheetOffen] = useState(false)
+
+  // kopfRef misst die tatsaechliche Hoehe der Kopfzeile (Segment-Schalter +
+  // Tag-Zeile), scrollContainerRef.current?.parentElement ist der App.jsx-
+  // Scroll-Wrapper (".flex-1.min-h-0.overflow-y-auto...", direktes Eltern-
+  // Element dieser Komponente) - dessen clientHeight minus seiner eigenen
+  // (Safe-Area-abhaengigen) Padding-Werte ist die WIRKLICH verfuegbare Hoehe,
+  // unabhaengig davon, ob der eigene Inhalt gerade ueberlaeuft (overflow-
+  // y-auto aendert die eigene Groesse des Containers nicht). getComputedStyle
+  // loest env(safe-area-inset-*) automatisch in echte Pixel auf - auf dem
+  // Geraet (Notch/Home-Indicator) automatisch korrekt, ohne dass diese Werte
+  // hier dupliziert werden muessten.
+  const wurzelRef = useRef(null)
+  const kopfRef = useRef(null)
+  const [kopfHoehe, setKopfHoehe] = useState(0)
+  const [verfuegbareHoehe, setVerfuegbareHoehe] = useState(0)
+
+  useEffect(() => {
+    const kopfEl = kopfRef.current
+    if (!kopfEl) {
+      return undefined
+    }
+    const beobachter = new ResizeObserver(([eintrag]) => setKopfHoehe(eintrag.contentRect.height))
+    beobachter.observe(kopfEl)
+    return () => beobachter.disconnect()
+  }, [])
+
+  useEffect(() => {
+    const scrollContainer = wurzelRef.current?.parentElement
+    if (!scrollContainer) {
+      return undefined
+    }
+    const berechnen = () => {
+      const stil = getComputedStyle(scrollContainer)
+      setVerfuegbareHoehe(scrollContainer.clientHeight - parseFloat(stil.paddingTop) - parseFloat(stil.paddingBottom))
+    }
+    berechnen()
+    const beobachter = new ResizeObserver(berechnen)
+    beobachter.observe(scrollContainer)
+    return () => beobachter.disconnect()
+  }, [])
+
+  // null solange noch nicht beide Messungen vorliegen (allererster Render,
+  // vor dem ersten ResizeObserver-Callback) - RezeptSchwipKarte faellt dann
+  // auf ihre eigene grobe max-h-[52dvh]-Anfangsschaetzung zurueck.
+  const kartenBudgetPx = kopfHoehe > 0 && verfuegbareHoehe > 0 ? verfuegbareHoehe - kopfHoehe - KOPF_MARGIN_TOP_PX : null
 
   const aktiveMahlzeitenListe = aktiveMahlzeitenFuer(aktiveMahlzeiten)
 
@@ -88,8 +153,8 @@ function RezepteSwipeAnsicht({
     // Viewports darf der Inhalt (Kopfzeile + Karte + Buttons) trotzdem ueber
     // diese Mindesthoehe hinauswachsen und im Scroll-Container scrollen,
     // statt hart abgeschnitten zu werden.
-    <div className="flex min-h-full flex-col">
-      <div className="mx-4 mt-1 shrink-0">
+    <div ref={wurzelRef} className="flex min-h-full flex-col">
+      <div ref={kopfRef} className="mx-4 mt-1 shrink-0">
         <SegmentSchalter optionen={aktiveMahlzeitenListe} aktuell={aktuelleMahlzeit} onAendern={onMahlzeitAendern} />
 
         <div className="mt-3 flex items-center gap-2">
@@ -136,6 +201,7 @@ function RezepteSwipeAnsicht({
         onKochModusOeffnen={onKochModusOeffnen}
         filterAktiv={filterAktiv}
         onFilterAnpassen={() => setFilterSheetOffen(true)}
+        kartenBudgetPx={kartenBudgetPx}
       />
 
       <FilterSheet

@@ -132,6 +132,23 @@ function KartenSkeleton() {
 // loeste faelschlich den Kochmodus mit aus) - Rezepte kommen ohnehin per
 // "Uebernehmen" in den Tag, von dort fuehrt TagAnsicht.jsx's "Zur
 // Einkaufsliste"-Button weiter, das war immer nur eine Nebenhandlung hier.
+// Eigene Layout-Konstanten dieser Komponente (Margins/Gap/Buttons-
+// Mindesthoehe), fuer die Kartenhoehen-Berechnung unten als benannte Werte
+// statt nur als Tailwind-Klassen-Strings - siehe kartenBudgetPx-Kommentar in
+// RezepteSwipeAnsicht.jsx fuer die Herleitung des GESAMTEN Mechanismus.
+const KARTE_MARGIN_PX = 32 // my-4 oben+unten auf dem Kartenrahmen
+const GAP_PX = 16 // gap-4 zwischen Kartenrahmen und Buttons-Bereich
+// Mindesthoehe des Buttons-Bereichs: der groessere "Uebernehmen"-Button
+// (82px) + gap-2 (8px) zum Hinweistext + eine Zeile Hinweistext (text-xs,
+// 16px Zeilenhoehe) - per Playwright/getBoundingClientRect nachgemessen.
+const BUTTONS_BEREICH_MIN_PX = 106
+// Nie unter diese Hoehe deckeln, selbst wenn das gemessene Budget (extremer
+// Ausnahmefall, z. B. sehr kurzer Viewport UND mehrzeilig umgebrochene
+// Filter-Tags) rechnerisch weniger ergaebe - lieber ein klein wenig Scroll
+// (siehe "min-h-full"-Kommentar in RezepteSwipeAnsicht.jsx, bewusster
+// Fallback fuer genau solche Extremfaelle) als eine kaum noch erkennbare Karte.
+const KARTE_MINDESTHOEHE_PX = 200
+
 function RezeptSchwipKarte({
   rezepteGeladen = true,
   rezept,
@@ -141,7 +158,14 @@ function RezeptSchwipKarte({
   onKochModusOeffnen,
   filterAktiv = false,
   onFilterAnpassen,
+  kartenBudgetPx = null,
 }) {
+  // null solange RezepteSwipeAnsicht noch nicht gemessen hat (allererster
+  // Render) - dann greift unten die grobe max-h-[52dvh]-Tailwind-Klasse als
+  // Anfangsschaetzung, exakt wie sheetHoehe in KochModus.jsx vor dessen
+  // erstem ResizeObserver-Callback.
+  const kartenMaxHoehePx =
+    kartenBudgetPx != null ? Math.max(KARTE_MINDESTHOEHE_PX, kartenBudgetPx - KARTE_MARGIN_PX - GAP_PX - BUTTONS_BEREICH_MIN_PX) : null
   const reduzierteBewegung = useReducedMotion()
 
   // Merkt sich die zuletzt FEHLGESCHLAGENE bild_url (statt eines simplen
@@ -320,8 +344,16 @@ function RezeptSchwipKarte({
           garantierter, sichtbarer Puffer zum Bildschirmrand, der selbst bei
           einem trotz Teil 1 verbleibenden Rest-Ruckler von wenigen Pixeln
           nie sichtbar "anschneidet". Behebt NICHT die Ursache (das ist
-          Teil 1) - reines Sicherheitsnetz auf Bild-Ebene, wie beauftragt. */}
-      <div className="relative mx-8 my-4 aspect-[3/4] max-h-[52dvh] shrink-0">
+          Teil 1) - reines Sicherheitsnetz auf Bild-Ebene, wie beauftragt.
+          max-h-[52dvh] bleibt als GROBE Anfangsschaetzung fuer den
+          allerersten Render bestehen - sobald kartenMaxHoehePx vorliegt
+          (siehe oben), ueberschreibt der praezise gemessene Inline-Style
+          diese Tailwind-Klasse (Inline-Styles gewinnen immer gegen
+          Klassen). */}
+      <div
+        className="relative mx-8 my-4 aspect-[3/4] max-h-[52dvh] shrink-0"
+        style={kartenMaxHoehePx != null ? { maxHeight: `${kartenMaxHoehePx}px` } : undefined}
+      >
         {/* Zwei rein dekorative "Stapel dahinter"-Karten - NICHT per scale()
             auf einer inset-0-Flaeche (das haette sie exakt zentriert hinter
             der gleich grossen Vorderkarte verschwinden lassen, komplett
