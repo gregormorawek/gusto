@@ -59,7 +59,7 @@ function EinkaufslistenPosten({ posten, onAbhaken }) {
         aria-pressed={posten.abgehakt}
         aria-label={posten.abgehakt ? `${posten.name} wieder auf die Liste setzen` : `${posten.name} abhaken`}
         className={`flex h-6 w-6 shrink-0 items-center justify-center rounded-full transition-colors duration-150 ${
-          posten.abgehakt ? 'bg-primary text-card' : 'bg-text-muted/10 text-transparent'
+          posten.abgehakt ? 'bg-primary text-on-primary' : 'bg-text-muted/10 text-transparent'
         }`}
       >
         <IconCheck size={14} stroke={3} />
@@ -96,7 +96,7 @@ function ListeLeerenBestaetigung({ offen, onAbbrechen, onBestaetigen }) {
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={transitionFuer(reduzierteBewegung, FADE_UEBERGANG)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-text/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 p-4"
           onClick={onAbbrechen}
         >
           <motion.div
@@ -122,7 +122,7 @@ function ListeLeerenBestaetigung({ offen, onAbbrechen, onBestaetigen }) {
               <AnimatedButton
                 type="button"
                 onClick={onBestaetigen}
-                className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-card"
+                className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-on-primary"
               >
                 Leeren
               </AnimatedButton>

@@ -22,7 +22,7 @@ function SegmentSchalter({ optionen, aktuell, onAendern }) {
   const reduzierteBewegung = useReducedMotion()
 
   return (
-    <div role="tablist" className="flex gap-0.5 rounded-full bg-text-muted/15 p-1">
+    <div role="tablist" className="flex gap-0.5 rounded-full bg-surface p-1">
       {optionen.map(({ slug, label }) => {
         const aktiv = slug === aktuell
         return (
@@ -38,7 +38,7 @@ function SegmentSchalter({ optionen, aktuell, onAendern }) {
               <motion.span
                 layoutId={`${instanzId}-aktiv`}
                 transition={reduzierteBewegung ? { duration: 0.15 } : SPRING_REVEAL}
-                className="absolute inset-0 rounded-full bg-card shadow-sm"
+                className="absolute inset-0 rounded-full bg-surface-raised shadow-sm"
               />
             )}
             <span className={`relative z-10 ${aktiv ? 'font-semibold text-text' : 'font-medium text-text-muted'}`}>{label}</span>

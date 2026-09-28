@@ -133,11 +133,79 @@ Inter (400/500, UI und Fließtext).
 - Zentrales Auswahl-Element app-weit ist `AuswahlChip.jsx` (Keramik-Design:
   Einsink-Effekt statt Farbfüllung, durchgezogene Ränder). Neue Auswahl-
   Elemente nutzen ihn, statt eigene Varianten zu bauen.
-- Dark Mode ist geplant, aber nicht gebaut. Vorgesehene Palette: "Abendküche"
-  (dunkel mit Gold und Salbeigrün). Dafür muss die aktuelle native Fixierung
-  auf Light Mode wieder dynamisch werden (`Info.plist`
-  `UIUserInterfaceStyle=Light` plus hartcodierte Cream-Hintergründe auf
-  `UIWindow`/`WKWebView`).
+- **Farb-Tokens statt Farbwerte (Regel, ab sofort):** Neue und umgebaute
+  Screens verwenden ausschließlich Farb-Tokens — keine hart gesetzten
+  Farbwerte (kein Hex, `rgb()`/`rgba()`, kein `white`/`black`, keine
+  Tailwind-Standardpalette) — und werden in hellem UND dunklem Modus
+  getestet. Der Neubau des Onboarding-Wizards folgt dieser Regel von
+  Anfang an.
+  Prüfung: `npm run pruefe:farben` (statisch, findet Hex/`rgb()`/`white`/
+  Standardpalette sowie Token-Muster, die im Dunkeln kippen, z. B. `text-card`
+  als Weiß, `bg-text/NN` als Abdunklung); Pixelvergleich des hellen Modus:
+  `scripts/screens-erfassen.mjs` + `scripts/screens-vergleichen.mjs`.
+
+### Dark Mode ("Terrakotta bleibt") — Palette entschieden, noch nicht gebaut
+
+Aktivierung: folgt standardmäßig der iPhone-Einstellung, zusätzlich in den
+Einstellungen ein Schalter "Darstellung: System / Hell / Dunkel" (eigener
+localStorage-Key). **Der Onboarding-Wizard ist ausgeklammert** — er wird
+später komplett neu gebaut und bleibt bis dahin im hellen Modus, auch wenn
+das iPhone dunkel eingestellt ist.
+
+Verbindliche dunkle Tokens (gleiche Token-Namen wie oben, andere Werte im
+dunklen Modus):
+
+| Token | Dunkel | Verwendung |
+|---|---|---|
+| Hintergrund (`--color-bg`) | `#1D1714` | warmes Dunkelbraun, bewusst kein Schwarz |
+| Karte (`--color-card`) | `#2A211C` | Karten |
+| Fläche | `#382D26` | Segment-Leiste, Tag-gesamt-Karte, Tabs |
+| Fläche erhöht | `#45382F` | aktives Segment, aktiver Tab |
+| Text (`--color-text`) | `#F3E9DA` | |
+| Nebentext (`--color-text-muted`) | `#B7A188` | |
+| Primär (`--color-primary`) | `#E0875A` | Terrakotta hell, bleibt Hauptfarbe |
+| Sekundär (`--color-secondary`) | `#A4B27C` | Moosgrün hell |
+| Rand | `rgba(243,233,218,0.10)` | |
+
+Zusätzliche Tokens (freigegeben 28.09.2026; im Hellen sind die Werte so
+gewählt, dass sich am bisherigen Aussehen nichts ändert). Werte mit "(Start)"
+sind Startwerte, die in Schritt 4 am Gerät kalibriert werden:
+
+| Token | Hell | Dunkel | Verwendung |
+|---|---|---|---|
+| `--color-on-primary` | `#FFFDF8` | `#1D1714` | Schrift/Icons auf Terrakotta-Flächen (`bg-primary`, `bg-primary-dark`) |
+| `--color-on-secondary` | `#FFFDF8` | `#1D1714` | Schrift/Icons auf Olivflächen (`bg-secondary`) |
+| `--color-surface` | Tan 15 % (`text-muted` transparent gemischt) | `#382D26` | Segment-Leiste, Tag-gesamt-Karte, Tabs |
+| `--color-surface-raised` | `#FFFDF8` (= Karte) | `#45382F` | aktives Segment, aktiver Tab |
+| `--color-border` | Tan 30 % | `rgba(243,233,218,0.10)` | feine Ränder |
+| `--color-scrim` | `#3E2E22` | `#1D1714` (Start) | Abdunklungen: Foto-Balken, Sheet-/Dialog-Backdrops — nie `text` dafür nehmen (wird im Dunkeln hell) |
+| `--color-on-photo` | `#FFFDF8` | `#FFFDF8` | konstant helle Schrift/Glanzlichter auf Fotos und Akzent-Glanzstreifen |
+| `--color-shadow-base` | `#3E2E22` | `#0D0907` (Start) | Farbe aller Schatten — nie `text` dafür nehmen |
+| `--color-shadow-einsink` | Espresso 35 % | `shadow-base` 60 % (Start) | Innenschatten des Keramik-Einsink-Effekts (`AuswahlChip`, Kalorienrechner) |
+
+Im Dunkeln gilt außerdem `--color-primary-dark` = `#E0875A` (Akzentfläche mit
+Beschriftung nutzt dort das normale Primär, Schrift `on-primary`).
+Mode-Ausnahmen einzelner Klassen laufen über die Tailwind-Variante `dark:`
+(Selektor `data-theme=dark`, im hell gezwungenen Wizard-Teilbaum wirkungslos).
+
+Weitere Vorgaben:
+
+- **Schrift auf Akzentflächen:** im hellen Modus weiße Zeichen auf
+  Terrakotta-/Olivflächen, im dunklen Modus dunkle Zeichen (`#1D1714`) auf
+  `#E0875A` bzw. `#A4B27C`. Dafür eigene, je Modus
+  wechselnde Tokens (z. B. `--color-on-primary`, `--color-on-secondary`)
+  statt hart gesetztem Weiß. Betrifft Übernehmen-Knopf, Badges, Primärknopf
+  im Filter-Sheet u. a.
+- Rezeptfotos bleiben unverändert; der dunkle Balken unter dem Titel wird
+  im Dark Mode etwas kräftiger.
+- Schatten im Dunkeln dunkler und weicher, nicht einfach invertiert.
+- Alle Texte mindestens 4,5:1 Kontrast (Nachweis im Umsetzungsplan, wird
+  beim Bau per Skript geprüft).
+- Umsetzungsreihenfolge, Native-Anteil (Swift/Xcode-Rebuild) und Testplan
+  stehen im Chat-Plan vom 28.09.2026 (Rücksprache-Stand: Plan gezeigt,
+  Freigabe offen). Der native Teil ersetzt die aktuelle Light-Fixierung
+  (`Info.plist` `UIUserInterfaceStyle=Light` plus hartcodierte Cream-
+  Hintergründe auf `UIWindow`/`WKWebView`, siehe Abschnitt 8).
 
 ---
 
@@ -441,7 +509,8 @@ Begründung geändert hat.
 
 Wochenplaner nach demselben Swipe-Prinzip · Einkaufsliste nach Supermarkt
 (Billa/Spar/Hofer) · Budget-Tracking · Zieldatum für Gewichtsänderung ·
-Premium-Paywall (RevenueCat) · Account-System (Supabase Auth) · Dark Mode ·
+Premium-Paywall (RevenueCat) · Account-System (Supabase Auth) · Dark Mode
+(Palette entschieden, Umsetzungsplan gezeigt, siehe Abschnitt 5) ·
 Onboarding-Wizard-Überarbeitung · mehr Rezepte · App-Store-Einreichung ·
 Kurzname für Vorrat-Chips: manche `zutaten.name`-Werte sind für die
 Chip-Zeile zu lang ("Pfeffer, schwarz gemahlen", "Paprikapulver, edelsüß"),
@@ -505,3 +574,15 @@ und 347–406, also nichts dazwischen), Mittag 9 (458–686). Neue Rezepte
 möglichst auch vegan an den Rändern (vegane Snacks 150–330, vegane
 Frühstücke unter 550). Nach jedem neuen Paket `npm run schnappschuss` und
 diese Tabelle prüfen (siehe Abschnitt 9).
+
+Kontrast im hellen Modus (Befund beim Dark-Mode-Plan, 28.09.2026, nicht
+angefasst — ändert freigegebene Marken-Tokens, braucht Rücksprache): WCAG-
+Messung des Ist-Stands unter 4,5:1: Nebentext auf `--color-bg` 4,36 (auf
+Karte 4,82 ok), Terrakotta-Text (`text-primary`) auf Cream 3,05, Olive-Text
+4,14, weiße Schrift auf `bg-primary` 3,37 (betrifft u. a. Primärbuttons in
+Tag, Einkaufsliste, Einstellungen; `bg-primary-dark` mit 4,94 und Olive-
+Flächen mit 4,58 sind ok), Nebentext auf `bg-text-muted/15` 3,65
+(Segment-Leiste). Mögliche Abhilfe: Buttons auf `primary-dark`, Nebentext
+etwas dunkler. **Priorität: eigener Schritt DIREKT nach dem Dark Mode**
+(Gregor, 28.09.2026), nicht irgendwann — erst Dark Mode fertig und
+bestätigt, dann diese Kontrastanhebung mit Rücksprache zu den Werten.

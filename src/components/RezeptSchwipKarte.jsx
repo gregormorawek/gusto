@@ -100,7 +100,7 @@ function KartenBild({ url, alt, onError }) {
 // kochen"/die Einkaufsliste weiterhin einsehbar.
 function MakroPille({ label, wertGramm }) {
   return (
-    <span className="rounded-full bg-card/20 px-2.5 py-1 text-xs font-medium text-card backdrop-blur-sm">
+    <span className="rounded-full bg-on-photo/20 px-2.5 py-1 text-xs font-medium text-on-photo backdrop-blur-sm">
       {label} {wertGramm.toFixed(0)}g
     </span>
   )
@@ -458,10 +458,10 @@ function RezeptSchwipKarte({
               {/* Scrim: dunkler Espresso-Verlauf (--color-text, kein neuer
                   Farbwert, siehe CLAUDE.md) am unteren Kartenrand, sorgt fuer
                   Lesbarkeit von Kicker/Titel/Makro-Pillen auf jedem Foto. */}
-              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-text/90 to-transparent" />
+              <div className="pointer-events-none absolute inset-x-0 bottom-0 h-2/3 bg-gradient-to-t from-scrim/90 to-transparent" />
 
               <div className="absolute inset-x-0 bottom-0 p-4">
-                <p className="text-xs font-semibold uppercase tracking-wide text-card/80">
+                <p className="text-xs font-semibold uppercase tracking-wide text-on-photo/80">
                   {karte.summeKalorien.toFixed(0)} kcal
                   {/* zubereitungszeit_min ist optional (Supabase-Spalte, siehe
                       supabase/migrations/20260913_rezepte_zubereitungszeit.sql)
@@ -470,7 +470,7 @@ function RezeptSchwipKarte({
                       noch nicht ausgefuehrt ist. */}
                   {angezeigtesRezept.zubereitungszeit_min != null && ` · ${angezeigtesRezept.zubereitungszeit_min} min`}
                 </p>
-                <h2 className="mt-0.5 font-display text-2xl font-semibold text-card">{angezeigtesRezept.titel}</h2>
+                <h2 className="mt-0.5 font-display text-2xl font-semibold text-on-photo">{angezeigtesRezept.titel}</h2>
                 <div className="mt-2 flex flex-wrap gap-1.5">
                   <MakroPille label="P" wertGramm={karte.summeProtein} />
                   <MakroPille label="K" wertGramm={karte.summeCarbs} />
@@ -549,7 +549,7 @@ function RezeptSchwipKarte({
             onClick={() => kartenAustreten(1)}
             disabled={!angezeigtesRezept}
             aria-label="Übernehmen"
-            className="flex h-[82px] w-[82px] items-center justify-center rounded-full bg-secondary text-card shadow-md disabled:opacity-40"
+            className="flex h-[82px] w-[82px] items-center justify-center rounded-full bg-secondary text-on-secondary shadow-md disabled:opacity-40"
           >
             <IconCheck size={34} stroke={2} />
           </AnimatedButton>

@@ -1,9 +1,17 @@
 @import "tailwindcss";
 
-/* Marken-Tokens "Warm & natuerlich". Aenderungen an diesen Werten wirken
-   sich ueber @theme automatisch auf alle Tailwind-Utility-Klassen aus
-   (z. B. bg-primary, text-text-muted, font-display). */
-@theme {
+/* Marken-Tokens "Warm & natuerlich" - HELLE Werte (Standard). Aenderungen an
+   diesen Werten wirken sich ueber @theme automatisch auf alle Tailwind-
+   Utility-Klassen aus (z. B. bg-primary, text-text-muted, font-display).
+   "static": alle Tokens werden IMMER ausgegeben, auch die, die nur per
+   var(--color-...) in CSS/JS-Strings (nicht als Utility-Klasse) genutzt
+   werden (z. B. scrim/shadow-base in color-mix()).
+
+   Die dunklen Werte stehen weiter unten (":root[data-theme='dark']"), siehe
+   CLAUDE.md Abschnitt 5. Die neuen Tokens (on-*, surface*, border, scrim,
+   on-photo, shadow-*) sind im Hellen so gewaehlt, dass sich am bisherigen
+   Aussehen NICHTS aendert (Pixelvergleich, siehe scripts/screens-*.mjs). */
+@theme static {
   --color-bg: #f7f1e6;
   --color-card: #fffdf8;
   --color-primary: #c9754a;
@@ -12,8 +20,61 @@
   --color-text: #3e2e22;
   --color-text-muted: #8a6b4a;
 
+  /* Schrift/Icons AUF Akzentflaechen (bg-primary, bg-primary-dark,
+     bg-secondary) - hell weiss, dunkel dunkle Zeichen. Nicht text-card
+     verwenden: `card` wird im Dunkeln selbst dunkel und ist die Flaechenfarbe. */
+  --color-on-primary: #fffdf8;
+  --color-on-secondary: #fffdf8;
+
+  /* Flaechen: hell = Tan mit 15 % Deckkraft (exakt das bisherige
+     bg-text-muted/15 der Segment-Leiste) bzw. die Kartenfarbe (aktives
+     Segment); dunkel = eigene, blickdichte Toene. */
+  --color-surface: color-mix(in srgb, var(--color-text-muted) 15%, transparent);
+  --color-surface-raised: #fffdf8;
+  --color-border: color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+
+  /* Abdunklung (Foto-Balken, Sheet-/Dialog-Backdrops) - NICHT `text`: das
+     wird im Dunkeln hell und wuerde die Abdunklung in eine Aufhellung
+     verkehren. */
+  --color-scrim: #3e2e22;
+
+  /* Konstant helle Schrift/Glanzlichter (auf Fotos, auf Akzent-Glanzstreifen)
+     - in beiden Modi gleich, im Gegensatz zu `card`. */
+  --color-on-photo: #fffdf8;
+
+  /* Farbe ALLER Schatten (warm-braun statt Neutralschwarz, im Dunkeln
+     dunkler) und der Einsink-Innenschatten des Keramik-Designs
+     (AuswahlChip, Kalorienrechner). */
+  --color-shadow-base: #3e2e22;
+  --color-shadow-einsink: color-mix(in srgb, var(--color-shadow-base) 35%, transparent);
+
   --font-display: "Fraunces", serif;
   --font-sans: "Inter", sans-serif;
+}
+
+/* DUNKLE Werte (Palette "Terrakotta bleibt", CLAUDE.md Abschnitt 5).
+   Greifen, sobald <html data-theme="dark"> gesetzt ist (Schritt 2 des Dark-
+   Mode-Umbaus - bis dahin unerreichbar). Werte mit "Start" werden am Geraet
+   kalibriert. */
+:root[data-theme='dark'] {
+  color-scheme: dark;
+  --color-bg: #1d1714;
+  --color-card: #2a211c;
+  --color-primary: #e0875a;
+  /* Akzentflaeche mit Beschriftung nutzt im Dunkeln das normale Primaer
+     (Schrift dann on-primary), der abgedunkelte Ton entfaellt. */
+  --color-primary-dark: #e0875a;
+  --color-secondary: #a4b27c;
+  --color-text: #f3e9da;
+  --color-text-muted: #b7a188;
+  --color-on-primary: #1d1714;
+  --color-on-secondary: #1d1714;
+  --color-surface: #382d26;
+  --color-surface-raised: #45382f;
+  --color-border: rgba(243, 233, 218, 0.1);
+  --color-scrim: #1d1714;
+  --color-shadow-base: #0d0907;
+  --color-shadow-einsink: color-mix(in srgb, var(--color-shadow-base) 60%, transparent);
 }
 
 body {
@@ -241,9 +302,9 @@ input[type='number'] {
     inset 0 0.5px 0 color-mix(in srgb, var(--color-card) 35%, transparent),
     /* NEU: enger Kontaktschatten - simuliert, dass die Bar knapp ueber
        dem Screen-Inhalt schwebt, nicht weit darueber. */
-    0 1px 3px color-mix(in srgb, var(--color-text) 14%, transparent),
+    0 1px 3px color-mix(in srgb, var(--color-shadow-base) 14%, transparent),
     /* Bisheriger weicher Umgebungsschatten, unveraendert. */
-    0 4px 20px color-mix(in srgb, var(--color-text) 18%, transparent);
+    0 4px 20px color-mix(in srgb, var(--color-shadow-base) 18%, transparent);
   backdrop-filter: blur(14px) saturate(180%);
   -webkit-backdrop-filter: blur(14px) saturate(180%);
   isolation: isolate;
@@ -265,7 +326,7 @@ input[type='number'] {
     to bottom,
     color-mix(in srgb, var(--color-card) 14%, transparent),
     transparent 45%,
-    color-mix(in srgb, var(--color-text) 8%, transparent) 100%
+    color-mix(in srgb, var(--color-shadow-base) 8%, transparent) 100%
   );
   pointer-events: none;
 }

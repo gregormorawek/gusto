@@ -213,7 +213,7 @@ function RezepteSwipeAnsicht({
           >
             <IconAdjustmentsHorizontal size={20} stroke={1.75} />
             {filterAktiv && (
-              <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary-dark px-1 text-[10px] font-semibold text-card">
+              <span className="absolute -right-1 -top-1 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-primary-dark px-1 text-[10px] font-semibold text-on-primary">
                 {aktiveTags.length}
               </span>
             )}

@@ -445,7 +445,7 @@ function Startbildschirm({ onWeiter }) {
             disabled={wirdAusgeblendet}
             whileTap={reduzierteBewegung ? undefined : HERO_BUTTON_PRESS}
             transition={HERO_BUTTON_RELEASE_SPRING}
-            className="relative overflow-hidden rounded-full bg-secondary px-10 py-4 text-base font-medium text-card"
+            className="relative overflow-hidden rounded-full bg-secondary px-10 py-4 text-base font-medium text-on-secondary"
             style={{
               boxShadow: '0 14px 34px -12px color-mix(in srgb, var(--color-secondary) 55%, transparent)',
             }}
@@ -459,7 +459,7 @@ function Startbildschirm({ onWeiter }) {
             {!reduzierteBewegung && (
               <motion.span
                 aria-hidden="true"
-                className="pointer-events-none absolute inset-y-0 left-0 w-1/4 -skew-x-12 bg-gradient-to-r from-transparent via-card/35 to-transparent"
+                className="pointer-events-none absolute inset-y-0 left-0 w-1/4 -skew-x-12 bg-gradient-to-r from-transparent via-on-photo/35 to-transparent"
                 animate={{ x: ['-150%', '450%'] }}
                 transition={{
                   duration: SHIMMER_SWEEP_DAUER_S,

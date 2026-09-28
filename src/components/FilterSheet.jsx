@@ -90,7 +90,7 @@ function FilterSheetInhalt({ onSchliessen, aktuelleMahlzeit, diaeten, eigenschaf
   const blurPx = useTransform(y, [0, sheetHoehe], [BACKDROP_BLUR_MAX_PX, 0])
   const dimPercent = useTransform(y, [0, sheetHoehe], [BACKDROP_DIM_MAX_PERCENT, 0])
   const backdropFilterWert = useMotionTemplate`blur(${blurPx}px)`
-  const backdropHintergrundWert = useMotionTemplate`color-mix(in srgb, var(--color-text) ${dimPercent}%, transparent)`
+  const backdropHintergrundWert = useMotionTemplate`color-mix(in srgb, var(--color-scrim) ${dimPercent}%, transparent)`
 
   // EINZIGER Schliess-Pfad fuer Drag-Wegziehen UND Hintergrund-Tap - siehe
   // Kommentar oben, warum hier bewusst NIE onFilterAnwenden aufgerufen wird.
@@ -169,20 +169,20 @@ function FilterSheetInhalt({ onSchliessen, aktuelleMahlzeit, diaeten, eigenschaf
         }
         initial={
           reduzierteBewegung
-            ? { backgroundColor: 'color-mix(in srgb, var(--color-text) 0%, transparent)', backdropFilter: 'blur(0px)' }
+            ? { backgroundColor: 'color-mix(in srgb, var(--color-scrim) 0%, transparent)', backdropFilter: 'blur(0px)' }
             : undefined
         }
         animate={
           reduzierteBewegung
             ? {
-                backgroundColor: `color-mix(in srgb, var(--color-text) ${BACKDROP_DIM_MAX_PERCENT}%, transparent)`,
+                backgroundColor: `color-mix(in srgb, var(--color-scrim) ${BACKDROP_DIM_MAX_PERCENT}%, transparent)`,
                 backdropFilter: `blur(${BACKDROP_BLUR_MAX_PX}px)`,
               }
             : undefined
         }
         exit={
           reduzierteBewegung
-            ? { backgroundColor: 'color-mix(in srgb, var(--color-text) 0%, transparent)', backdropFilter: 'blur(0px)' }
+            ? { backgroundColor: 'color-mix(in srgb, var(--color-scrim) 0%, transparent)', backdropFilter: 'blur(0px)' }
             : undefined
         }
         transition={reduzierteBewegung ? { duration: 0.15 } : undefined}
@@ -260,7 +260,7 @@ function FilterSheetInhalt({ onSchliessen, aktuelleMahlzeit, diaeten, eigenschaf
               type="button"
               onClick={bestaetigen}
               disabled={trefferAnzahl === 0}
-              className="mt-5 w-full rounded-full bg-primary-dark py-3 text-center text-sm font-semibold text-card shadow-sm disabled:opacity-40"
+              className="mt-5 w-full rounded-full bg-primary-dark py-3 text-center text-sm font-semibold text-on-primary shadow-sm disabled:opacity-40"
             >
               {trefferAnzahl === 0 ? 'Keine Rezepte für diese Auswahl' : `${trefferAnzahl} ${trefferAnzahl === 1 ? 'Rezept' : 'Rezepte'} anzeigen`}
             </AnimatedButton>

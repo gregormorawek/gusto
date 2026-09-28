@@ -317,7 +317,7 @@ function ServierDeko() {
       <span className="absolute inset-0 overflow-hidden rounded-full">
         <span className="absolute -inset-y-3 left-0 h-[150%] w-3 -rotate-12">
           <motion.span
-            className="block h-full w-full bg-gradient-to-r from-transparent via-card/90 to-transparent"
+            className="block h-full w-full bg-gradient-to-r from-transparent via-on-photo/90 to-transparent"
             animate={{ x: ['-150%', '250%'] }}
             transition={{ duration: 1.6, repeat: Infinity, repeatDelay: 1.4, ease: 'easeInOut' }}
           />
@@ -455,11 +455,12 @@ const SCHLIESS_DISTANZ_PX = 120
 const SCHLIESS_GESCHWINDIGKEIT_PX_S = 500
 
 // Maximale Backdrop-Intensitaet bei voll geoeffnetem Sheet (y=0) - espresso-
-// farben statt neutral-schwarz: --color-text ist bereits der dunkle Warmton
-// (#3E2E22) aus dem Marken-Farbschema, hier per color-mix() mit reduzierter
-// Deckkraft als Abdunklung verwendet. KEIN neuer Farbwert (siehe CLAUDE.md).
+// farben statt neutral-schwarz: --color-scrim ist der dunkle Warmton (hell
+// #3E2E22, dunkel #1D1714) aus dem Marken-Farbschema, hier per color-mix() mit
+// reduzierter Deckkraft als Abdunklung verwendet. NICHT --color-text: das wird
+// im Dark Mode hell. KEIN neuer Farbwert (siehe CLAUDE.md).
 //
-// BEWUSST color-mix(in srgb, var(--color-text) X%, transparent) als
+// BEWUSST color-mix(in srgb, var(--color-scrim) X%, transparent) als
 // background-color statt (wie urspruenglich) die CSS-Eigenschaft "opacity"
 // auf dem ganzen Backdrop-Element: opacity wirkt auf das GESAMTE Element
 // INKLUSIVE seines eigenen backdrop-filter-Ergebnisses und "verduennt" den
@@ -612,7 +613,7 @@ function KochModusInhalt({ rezept, karte, erledigteSchritte, onSchrittUmschalten
               >
                 <span
                   className={`mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full border transition-colors duration-150 ${
-                    erledigt ? 'border-secondary bg-secondary text-card' : 'border-text-muted/40'
+                    erledigt ? 'border-secondary bg-secondary text-on-secondary' : 'border-text-muted/40'
                   }`}
                   aria-hidden="true"
                 >
@@ -724,7 +725,7 @@ function KochModusSheet({ eintrag, onZurueck, erledigteSchritte, onSchrittUmscha
   const blurPx = useTransform(y, [0, sheetHoehe], [BACKDROP_BLUR_MAX_PX, 0])
   const dimPercent = useTransform(y, [0, sheetHoehe], [BACKDROP_DIM_MAX_PERCENT, 0])
   const backdropFilterWert = useMotionTemplate`blur(${blurPx}px)`
-  const backdropHintergrundWert = useMotionTemplate`color-mix(in srgb, var(--color-text) ${dimPercent}%, transparent)`
+  const backdropHintergrundWert = useMotionTemplate`color-mix(in srgb, var(--color-scrim) ${dimPercent}%, transparent)`
 
   // EINZIGER Schliess-Pfad fuer alle drei Ausloeser (Drag-Wegziehen, "←
   // Zurück"-Button, Tap auf den Hintergrund-Streifen) - alle rufen diese
@@ -824,20 +825,20 @@ function KochModusSheet({ eintrag, onZurueck, erledigteSchritte, onSchrittUmscha
         }
         initial={
           reduzierteBewegung
-            ? { backgroundColor: 'color-mix(in srgb, var(--color-text) 0%, transparent)', backdropFilter: 'blur(0px)' }
+            ? { backgroundColor: 'color-mix(in srgb, var(--color-scrim) 0%, transparent)', backdropFilter: 'blur(0px)' }
             : undefined
         }
         animate={
           reduzierteBewegung
             ? {
-                backgroundColor: `color-mix(in srgb, var(--color-text) ${BACKDROP_DIM_MAX_PERCENT}%, transparent)`,
+                backgroundColor: `color-mix(in srgb, var(--color-scrim) ${BACKDROP_DIM_MAX_PERCENT}%, transparent)`,
                 backdropFilter: `blur(${BACKDROP_BLUR_MAX_PX}px)`,
               }
             : undefined
         }
         exit={
           reduzierteBewegung
-            ? { backgroundColor: 'color-mix(in srgb, var(--color-text) 0%, transparent)', backdropFilter: 'blur(0px)' }
+            ? { backgroundColor: 'color-mix(in srgb, var(--color-scrim) 0%, transparent)', backdropFilter: 'blur(0px)' }
             : undefined
         }
         transition={reduzierteBewegung ? { duration: 0.15 } : undefined}

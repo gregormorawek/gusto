@@ -74,7 +74,7 @@ export function OptionZeile({ aktiv, label, erklaerung, onClick }) {
       onClick={onClick}
       className={`flex w-full items-center gap-3 rounded-2xl border px-4 py-3 text-left transition-[transform,box-shadow,border-color] duration-150 ease-out motion-reduce:transition-none ${
         aktiv
-          ? 'translate-y-0.5 border-primary bg-primary/20 shadow-[inset_0_0_6px_0_rgba(62,46,34,0.35)]'
+          ? 'translate-y-0.5 border-primary bg-primary/20 shadow-[inset_0_0_6px_0_var(--color-shadow-einsink)]'
           : 'border-text-muted/30 bg-card shadow-sm hover:border-primary/50'
       }`}
     >
@@ -83,7 +83,7 @@ export function OptionZeile({ aktiv, label, erklaerung, onClick }) {
         <span className="mt-0.5 block text-xs text-text-muted">{erklaerung}</span>
       </span>
       {aktiv && (
-        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-card">
+        <span className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-primary text-on-primary">
           <IconCheck size={14} stroke={3} />
         </span>
       )}
@@ -102,12 +102,12 @@ export function GeschlechtKarte({ Icon, label, aktiv, onClick }) {
       onClick={onClick}
       className={`flex flex-1 flex-col items-center gap-2 rounded-2xl border px-4 py-6 transition-[transform,box-shadow,border-color] duration-150 ease-out motion-reduce:transition-none ${
         aktiv
-          ? 'translate-y-0.5 border-primary bg-primary/20 shadow-[inset_0_0_6px_0_rgba(62,46,34,0.35)]'
+          ? 'translate-y-0.5 border-primary bg-primary/20 shadow-[inset_0_0_6px_0_var(--color-shadow-einsink)]'
           : 'border-text-muted/30 bg-card shadow-sm hover:border-primary/50'
       }`}
     >
       <span
-        className={`flex h-14 w-14 items-center justify-center rounded-full ${aktiv ? 'bg-primary text-card' : 'bg-text-muted/10 text-text-muted'}`}
+        className={`flex h-14 w-14 items-center justify-center rounded-full ${aktiv ? 'bg-primary text-on-primary' : 'bg-text-muted/10 text-text-muted'}`}
       >
         <Icon size={28} stroke={1.75} />
       </span>
@@ -481,7 +481,7 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
             type="button"
             onClick={weiter}
             disabled={!kannWeiter}
-            className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-on-primary shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
             {schritt === ANZAHL_FRAGEN ? 'Ziel berechnen' : 'Weiter'}
           </AnimatedButton>
@@ -506,7 +506,7 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
                 koerperdatenSpeichern(antworten)
                 onUebernehmen(ergebnis, { fokussieren: false })
               }}
-              className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-card shadow-sm"
+              className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-on-primary shadow-sm"
             >
               Werte übernehmen
             </AnimatedButton>

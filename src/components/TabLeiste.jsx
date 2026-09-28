@@ -108,7 +108,7 @@ function TabLeiste({ aktiverTab, onTabWaehlen, tagBadgeAnzahl = 0 }) {
                 // komplett flachen Farbflaeche. Bewusst sehr dezent (kleine
                 // Blur-/Alpha-Werte) - soll als Tiefe wahrgenommen werden,
                 // nicht als eigener sichtbarer Rand.
-                className="absolute inset-0 rounded-2xl bg-card/38 shadow-[inset_0_0.5px_0_color-mix(in_srgb,var(--color-card)_50%,transparent),0_1px_2px_color-mix(in_srgb,var(--color-text)_8%,transparent)]"
+                className="absolute inset-0 rounded-2xl bg-card/38 shadow-[inset_0_0.5px_0_color-mix(in_srgb,var(--color-card)_50%,transparent),0_1px_2px_color-mix(in_srgb,var(--color-shadow-base)_8%,transparent)]"
                 transition={reduzierteBewegung ? { duration: 0 } : TAB_PILLE_UEBERGANG}
               />
             )}
@@ -164,7 +164,7 @@ function TabLeiste({ aktiverTab, onTabWaehlen, tagBadgeAnzahl = 0 }) {
                     animate={{ scale: 1 }}
                     transition={reduzierteBewegung ? { duration: 0 } : SPRING_REVEAL}
                     style={{ boxShadow: TAG_BADGE_RING }}
-                    className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-semibold text-card"
+                    className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-semibold text-on-secondary"
                   >
                     {tagBadgeAnzahl}
                   </motion.span>

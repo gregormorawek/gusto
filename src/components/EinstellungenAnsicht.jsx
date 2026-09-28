@@ -142,7 +142,7 @@ function KalorienzielNeuBerechnenDialog({ empfehlung, onUebernehmen, onBehalten 
           animate={{ opacity: 1 }}
           exit={{ opacity: 0 }}
           transition={transitionFuer(reduzierteBewegung, FADE_UEBERGANG)}
-          className="fixed inset-0 z-50 flex items-center justify-center bg-text/40 p-4"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-scrim/40 p-4"
           onClick={onBehalten}
         >
           <motion.div
@@ -170,7 +170,7 @@ function KalorienzielNeuBerechnenDialog({ empfehlung, onUebernehmen, onBehalten 
               <AnimatedButton
                 type="button"
                 onClick={onUebernehmen}
-                className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-card"
+                className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-on-primary"
               >
                 Übernehmen
               </AnimatedButton>

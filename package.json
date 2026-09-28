@@ -9,7 +9,8 @@
     "lint": "oxlint",
     "preview": "vite preview",
     "test:budget": "node --test scripts/teste-budget-filter.mjs",
-    "schnappschuss": "node scripts/erzeuge-rezepte-schnappschuss.mjs"
+    "schnappschuss": "node scripts/erzeuge-rezepte-schnappschuss.mjs",
+    "pruefe:farben": "node scripts/pruefe-farben.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.0",

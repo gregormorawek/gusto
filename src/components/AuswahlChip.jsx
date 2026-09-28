@@ -70,7 +70,7 @@ function containerKlassen({ aktiv, groesse, deaktiviert }) {
           'w-full gap-2.5 rounded-full px-4 py-2.5'
         : 'gap-1.5 rounded-full px-3 py-1.5'
   const rand = aktiv
-    ? 'border-primary bg-primary/20 shadow-[inset_0_0_6px_0_rgba(62,46,34,0.35)] translate-y-0.5'
+    ? 'border-primary bg-primary/20 shadow-[inset_0_0_6px_0_var(--color-shadow-einsink)] translate-y-0.5'
     : 'border-text-muted/30 bg-card shadow-sm hover:border-primary/50'
   const deaktivierung = deaktiviert ? 'opacity-40 cursor-not-allowed' : 'cursor-pointer'
   return `relative flex items-center ${form} border ${rand} ${deaktivierung} ${RAND_UND_SCHATTEN}`
@@ -78,7 +78,7 @@ function containerKlassen({ aktiv, groesse, deaktiviert }) {
 
 function iconKreisKlassen(aktiv, groesse) {
   const groessenKlasse = groesse === 'gross' ? 'h-9 w-9' : 'h-6 w-6'
-  const farbe = aktiv ? 'bg-primary text-card' : 'bg-text-muted/10 text-text-muted'
+  const farbe = aktiv ? 'bg-primary text-on-primary' : 'bg-text-muted/10 text-text-muted'
   return `flex shrink-0 items-center justify-center rounded-full ${groessenKlasse} ${farbe}`
 }
 
