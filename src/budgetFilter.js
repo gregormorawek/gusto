@@ -48,6 +48,35 @@ function zielKorridor(ziel) {
   return { min, max }
 }
 
+// Summe der kcal aller uebernommenen Rezepte AKTIVER Mahlzeiten (deaktivierte
+// zaehlen nicht). ausgenommenSlug: eine Mahlzeit, deren eigene Auswahl
+// ignoriert wird (bei mahlzeitBudget: eine schon gewaehlte Mahlzeit gilt fuer
+// ihr eigenes Budget als offen). EINZIGE Stelle dieser Summe - sowohl das
+// Budget der Auswahl (mahlzeitBudget) als auch die "Noch X kcal"-Zeile im
+// Tag-Tab (tagesRestStatus) rechnen darueber, damit beide nie auseinander-
+// laufen.
+function kcalDerUebernommenen(aktiveSlugs, uebernommeneKcal, ausgenommenSlug = null) {
+  return aktiveSlugs
+    .filter((slug) => slug !== ausgenommenSlug && uebernommeneKcal[slug] != null)
+    .reduce((summe, slug) => summe + Number(uebernommeneKcal[slug]), 0)
+}
+
+// { [slug]: kcal_pro_portion } der in tagesauswahl.mahlzeiten gewaehlten
+// Rezepte (nicht mehr auffindbare Rezept-IDs werden ignoriert).
+function uebernommeneKcalAus(tagesauswahlMahlzeiten, rezepte) {
+  const uebernommeneKcal = {}
+  for (const [slug, rezeptId] of Object.entries(tagesauswahlMahlzeiten ?? {})) {
+    if (rezeptId == null) {
+      continue
+    }
+    const rezept = rezepte.find((r) => r.id === rezeptId)
+    if (rezept) {
+      uebernommeneKcal[slug] = Number(rezept.kcal_pro_portion)
+    }
+  }
+  return uebernommeneKcal
+}
+
 // Budget-Korridor { min, max } fuer EINE Mahlzeit, oder null (= kein Filter).
 //
 // - 'proMahlzeit': der Korridor gilt direkt pro Mahlzeit, keine Verteilung,
@@ -73,9 +102,7 @@ export function mahlzeitBudget(ziel, aktiveSlugs, uebernommeneKcal, mahlzeitSlug
     return korridor
   }
 
-  const bereitsGegessen = aktiveSlugs
-    .filter((slug) => slug !== mahlzeitSlug && uebernommeneKcal[slug] != null)
-    .reduce((summe, slug) => summe + Number(uebernommeneKcal[slug]), 0)
+  const bereitsGegessen = kcalDerUebernommenen(aktiveSlugs, uebernommeneKcal, mahlzeitSlug)
   const offeneSlugs = aktiveSlugs.filter((slug) => slug === mahlzeitSlug || uebernommeneKcal[slug] == null)
   const anteilSumme = offeneSlugs.reduce((summe, slug) => summe + (BUDGET_ANTEIL[slug] ?? 0), 0)
   const anteil = anteilSumme > 0 ? (BUDGET_ANTEIL[mahlzeitSlug] ?? 0) / anteilSumme : 1
@@ -142,15 +169,84 @@ export function budgetSchluessel(korridor) {
 // tagesauswahl.mahlzeiten ({ [slug]: rezeptId | null }), rezepte die
 // komplette Rezepte-Liste (fuer die kcal der uebernommenen Rezepte).
 export function korridorFuerMahlzeit(ziel, aktiveSlugs, tagesauswahlMahlzeiten, rezepte, mahlzeitSlug) {
-  const uebernommeneKcal = {}
-  for (const [slug, rezeptId] of Object.entries(tagesauswahlMahlzeiten ?? {})) {
-    if (rezeptId == null) {
-      continue
-    }
-    const rezept = rezepte.find((r) => r.id === rezeptId)
-    if (rezept) {
-      uebernommeneKcal[slug] = Number(rezept.kcal_pro_portion)
-    }
+  return mahlzeitBudget(ziel, aktiveSlugs, uebernommeneKcalAus(tagesauswahlMahlzeiten, rezepte), mahlzeitSlug)
+}
+
+// ------------------------------------------------------------------
+// "Noch X kcal"-Zeile im Tag-Tab (TagAnsicht.jsx, Karte "Tag gesamt")
+// ------------------------------------------------------------------
+
+function aufZehnGerundet(kcal) {
+  return Math.round(kcal / 10) * 10
+}
+
+// Status des Tagesbudgets fuer die Zeile unter "Ziel ... kcal" - NUR bei
+// ziel.typ === 'proTag' mit gueltigem Korridor (sonst null: bei proMahlzeit
+// gibt es kein Tagesziel, siehe TagAnsicht). Rechnet mit denselben
+// Bausteinen wie mahlzeitBudget (zielKorridor, kcalDerUebernommenen), damit
+// die Zeile nie etwas anderes behauptet, als die Auswahl tatsaechlich tut.
+//
+// - art 'offen': noch Mahlzeiten offen, kcal = Korridor-Mitte minus Summe der
+//   gewaehlten, auf 10 gerundet.
+// - art 'aufgebraucht': Mahlzeiten offen, aber dieser Rest ist (gerundet)
+//   <= 0 - genau der Fall, in dem mahlzeitBudget fuer die offenen Mahlzeiten
+//   ein Budget um/unter 0 liefert und passendeRezeptIds auf die leichtesten
+//   Rezepte zurueckfaellt.
+// - alle Mahlzeiten gewaehlt: 'erreicht' (Summe im Korridor bzw. Abstand
+//   gerundet 0), 'darunter'/'darueber' mit kcal = Abstand zur NAECHSTEN
+//   Korridorgrenze (nicht zur Mitte), auf 10 gerundet.
+//
+// offeneSlugs behaelt die Reihenfolge von aktiveSlugs.
+export function tagesRestStatus(ziel, aktiveSlugs, uebernommeneKcal) {
+  const korridor = zielKorridor(ziel)
+  if (!korridor || ziel.typ !== 'proTag') {
+    return null
   }
-  return mahlzeitBudget(ziel, aktiveSlugs, uebernommeneKcal, mahlzeitSlug)
+  const gegessen = kcalDerUebernommenen(aktiveSlugs, uebernommeneKcal)
+  const offeneSlugs = aktiveSlugs.filter((slug) => uebernommeneKcal[slug] == null)
+
+  if (offeneSlugs.length > 0) {
+    const rest = aufZehnGerundet((korridor.min + korridor.max) / 2 - gegessen)
+    return rest > 0 ? { art: 'offen', kcal: rest, offeneSlugs } : { art: 'aufgebraucht', offeneSlugs }
+  }
+  if (gegessen < korridor.min) {
+    const abstand = aufZehnGerundet(korridor.min - gegessen)
+    return abstand > 0 ? { art: 'darunter', kcal: abstand, offeneSlugs } : { art: 'erreicht', offeneSlugs }
+  }
+  if (gegessen > korridor.max) {
+    const abstand = aufZehnGerundet(gegessen - korridor.max)
+    return abstand > 0 ? { art: 'darueber', kcal: abstand, offeneSlugs } : { art: 'erreicht', offeneSlugs }
+  }
+  return { art: 'erreicht', offeneSlugs }
+}
+
+// Wrapper fuer TagAnsicht: Status direkt aus den App-States.
+export function tagesRestStatusFuer(ziel, aktiveSlugs, tagesauswahlMahlzeiten, rezepte) {
+  return tagesRestStatus(ziel, aktiveSlugs, uebernommeneKcalAus(tagesauswahlMahlzeiten, rezepte))
+}
+
+// Text der Zeile. labelFuer: slug -> Anzeigename. Bewusst sachlich: keine
+// Warnwoerter, kein Ausrufezeichen - die Zeile informiert, sie bewertet nicht.
+// Bis zwei offene Mahlzeiten werden namentlich genannt, ab drei nur gezaehlt.
+export function tagesRestText(status, labelFuer) {
+  if (!status) {
+    return ''
+  }
+  const mahlzeiten =
+    status.offeneSlugs.length >= 3
+      ? `${status.offeneSlugs.length} Mahlzeiten`
+      : status.offeneSlugs.map(labelFuer).join(' und ')
+
+  switch (status.art) {
+    case 'offen':
+      return `Noch ${status.kcal} kcal für ${mahlzeiten}`
+    case 'aufgebraucht':
+      return `Tagesziel bereits erreicht — für ${mahlzeiten} kommen die leichtesten Vorschläge.`
+    case 'darunter':
+      return `${status.kcal} kcal unter dem Ziel`
+    case 'darueber':
+      return `${status.kcal} kcal über dem Ziel`
+    default:
+      return 'Tagesziel erreicht'
+  }
 }

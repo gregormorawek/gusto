@@ -211,8 +211,8 @@ Rezepte sind das alleinige Kernfeature.
   entfernt, Mahlzeit umgeschaltet), wird ihr bereits gezogener Kandidat
   nur ersetzt, wenn er nicht mehr passt. Die sichtbare Karte ändert sich
   dabei nie unter den Fingern (ihr Budget hängt nur von den anderen
-  Mahlzeiten und vom Ziel ab). Bewusst **kein sichtbarer Hinweis** in
-  der App (siehe Backlog Abschnitt 12). Tests: `npm run test:budget`
+  Mahlzeiten und vom Ziel ab). Sichtbar wird das Budget nur über die Restzeile im Tag-Tab
+  (siehe unten), nicht an der Swipe-Karte. Tests: `npm run test:budget`
   (Logik, `node:test`, gegen den Schnappschuss) und
   `node scripts/teste-budget-app.mjs` (Browser, Chromium + WebKit,
   375×812 / 375×700 / 430×932; Dev-Server muss laufen, z. B.
@@ -225,6 +225,18 @@ Rezepte sind das alleinige Kernfeature.
   den Swipe-Modus für genau diese Mahlzeit. Tages-Summe nur bei
   `ziel.typ === 'proTag'`. "Zur Einkaufsliste" über
   `zutatenUndStatusAusTagesauswahl()` (pro Mahlzeit, siehe Abschnitt 10).
+  Unter "Ziel … kcal" in der Karte "Tag gesamt" steht (nur bei `proTag`)
+  eine sachliche Restzeile: "Noch 780 kcal für Abend und Snack" (ab drei
+  offenen "für 3 Mahlzeiten"), "Tagesziel erreicht", "90 kcal unter dem
+  Ziel" / "60 kcal über dem Ziel" (Abstand zur nächsten Korridorgrenze,
+  auf 10 gerundet) oder — Mahlzeiten offen, Rest aufgebraucht — "Tagesziel
+  bereits erreicht — für Snack kommen die leichtesten Vorschläge." Keine
+  Warnfarbe, kein Ausrufezeichen: Information, keine Bewertung. Zahlen
+  und Text kommen aus `tagesRestStatus()`/`tagesRestText()` in
+  `budgetFilter.js`, die dieselben Bausteine wie `mahlzeitBudget()` nutzen
+  (Summe der gewählten Rezepte nur über aktive Mahlzeiten) — die Zeile
+  darf nie etwas anderes zeigen als die Auswahl tut, deshalb nicht in
+  `TagAnsicht` neu rechnen. Browser-Test: `scripts/teste-tagesrest-app.mjs`.
 - `aktiveMahlzeiten` steuert app-weit Tag-Zeilen und Mahlzeit-Switcher.
 - `portionenRechner.js` — **stillgelegt** mit dem Datenmodell-Umbau (Etappe 3,
   siehe Abschnitt 9): kein Import mehr im Baum, Nährwerte und Mengen kommen
@@ -466,15 +478,6 @@ Verwandt mit der vorgemerkten "Für wie viele Personen?"-Einstellung
 Skalierungsmechanismus, deshalb gemeinsam entwerfen. Alternative bzw.
 Ergänzung: mehr kcal-starke Rezepte (Content-Arbeit). Braucht Gregors
 Freigabe und einen eigenen Plan.
-
-Hinweis-Zeile "Noch X kcal für Abend" im Tag-Tab (kleiner Folgeschritt
-zur budget-gewichteten Auswahl): zeigt bei `ziel.typ === 'proTag'` das
-Restbudget der nächsten offenen Mahlzeit; die Zahl liefert
-`mahlzeitBudget()` in `budgetFilter.js` bereits (Mitte des Korridors).
-Sinnvoll auch als ehrlicher Hinweis, wenn der Fallback greift ("Dein Ziel
-liegt außerhalb dessen, was unsere Rezepte bieten"). Bewusst vorerst
-nicht gebaut, weil der Tagesziel-Ring im Tag-Tab das Ergebnis bereits
-zeigt.
 
 Content-Lücken (Stand 28.09.2026, Abfrage über den Rezepte-Schnappschuss,
 100 Rezepte) — **belegt durch den Gerätetest der Budget-Auswahl:** zwei

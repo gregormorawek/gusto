@@ -12,6 +12,7 @@ import {
 import AnimatedButton from './AnimatedButton'
 import AnimierteZahl from './AnimierteZahl'
 import { aktiveMahlzeitenFuer } from '../mahlzeiten'
+import { tagesRestStatusFuer, tagesRestText } from '../budgetFilter'
 import { rezeptKarteDaten } from '../rezeptKarteDaten'
 import { FADE_UEBERGANG, motionPropsFuer, SPRING_REVEAL, transitionFuer } from '../motionConfig'
 
@@ -337,6 +338,31 @@ function TagesZielRing({ kalorien, min, max }) {
   )
 }
 
+// Zeile "Noch 780 kcal fuer Abend und Snack" & Co. unter der Ziel-Zeile der
+// Karte "Tag gesamt" (nur bei proTag, siehe Verwendung). Reine Information,
+// bewusst neutrale Textfarbe wie die Ziel-Zeile darueber - keine Warnfarbe,
+// auch beim Ueberschreiten (siehe tagesRestText in budgetFilter.js). Beim
+// Wechsel des Texts (Rezept uebernommen/entfernt) blendet sie kurz um; das
+// erste Erscheinen beim Oeffnen des Tabs ist bewusst OHNE Animation
+// (initial={false}), sonst blitzte sie bei jedem Tab-Wechsel neu auf.
+function TagesRestZeile({ text }) {
+  const reduzierteBewegung = useReducedMotion()
+  return (
+    <AnimatePresence initial={false} mode="wait">
+      <motion.p
+        key={text}
+        initial={{ opacity: 0 }}
+        animate={{ opacity: 1 }}
+        exit={{ opacity: 0 }}
+        transition={transitionFuer(reduzierteBewegung, { duration: 0.18 })}
+        className="mt-0.5 text-xs text-text-muted"
+      >
+        {text}
+      </motion.p>
+    </AnimatePresence>
+  )
+}
+
 // Warmer, einladender Einstieg statt der bisherigen 4 gestrichelten
 // Platzhalter-Zeilen ohne jede Einordnung + einer entmutigenden "0 kcal"-
 // Grosszahl (Bugreport "leerer Zustand ist gar nicht gestaltet"). Nur
@@ -515,6 +541,17 @@ function TagAnsicht({
       ? { min: Number(ziel.kalorien.min), max: Number(ziel.kalorien.max) }
       : null
 
+  // "Noch X kcal"-Zeile: Zahlen und Text kommen aus budgetFilter.js, also aus
+  // derselben Logik wie die budget-gewichtete Rezeptauswahl (deaktivierte
+  // Mahlzeiten zaehlen dort wie hier nicht). null bei allem ausser proTag
+  // mit gueltigem Korridor.
+  const tagesRestZeile = tagesZielKalorien
+    ? tagesRestText(
+        tagesRestStatusFuer(ziel, aktiveMahlzeiten, tagesauswahl.mahlzeiten, rezepte),
+        (slug) => aktiveMahlzeitenListe.find((m) => m.slug === slug)?.label ?? slug
+      )
+    : ''
+
   return (
     <>
       <h1 className="mx-4 mt-1 font-display text-2xl font-semibold text-text">Heute</h1>
@@ -555,6 +592,7 @@ function TagAnsicht({
                   <p className="text-xs text-text-muted">
                     Ziel {tagesZielKalorien.min.toFixed(0)}–{tagesZielKalorien.max.toFixed(0)} kcal
                   </p>
+                  {tagesRestZeile && <TagesRestZeile text={tagesRestZeile} />}
                   <p className="mt-1 text-sm text-text-muted">
                     P {tagesSumme.protein.toFixed(0)}g · K {tagesSumme.carbs.toFixed(0)}g · F {tagesSumme.fett.toFixed(0)}g
                   </p>

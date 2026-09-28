@@ -13,6 +13,9 @@ import {
   korridorFuerMahlzeit,
   mahlzeitBudget,
   passendeRezeptIds,
+  tagesRestStatus,
+  tagesRestStatusFuer,
+  tagesRestText,
 } from '../src/budgetFilter.js'
 import {
   alleAktivenMahlzeitenWuerfeln,
@@ -230,4 +233,82 @@ test('Schnappschuss ist plausibel (100 Rezepte, alle mit kcal)', () => {
   assert.ok(rezepte.length >= 100)
   assert.ok(rezepte.every((r) => r.kcal_pro_portion > 0))
   assert.ok(kcalVon(rezepte[0].id) > 0)
+})
+
+// ------------------------------------------------------------------
+// "Noch X kcal"-Zeile im Tag-Tab
+// ------------------------------------------------------------------
+
+const LABELS = { fruehstueck: 'Frühstück', mittag: 'Mittag', abend: 'Abend', snack: 'Snack' }
+const text = (zielWert, aktive, kcal) => tagesRestText(tagesRestStatus(zielWert, aktive, kcal), (slug) => LABELS[slug])
+const Z = proTag(2150, 2250) // Mitte 2200
+
+test('Tages-Rest: nur bei proTag mit gueltigem Korridor', () => {
+  assert.equal(tagesRestStatus({ typ: 'kein', kalorien: { min: '', max: '' } }, ALLE, {}), null)
+  assert.equal(tagesRestStatus({ typ: 'proMahlzeit', kalorien: { min: '500', max: '700' } }, ALLE, { mittag: 600 }), null)
+  assert.equal(tagesRestStatus(proTag(2250, 2150), ALLE, { mittag: 600 }), null)
+  assert.equal(tagesRestText(null, (s) => s), '')
+})
+
+test('Tages-Rest: offene Mahlzeiten - Korridor-Mitte minus Summe, auf 10 gerundet, Namen bis 2 offen', () => {
+  // 2200 - (500 + 600 + 320) = 780
+  assert.equal(text(Z, ALLE, { fruehstueck: 500, mittag: 600 }), 'Noch 1100 kcal für Abend und Snack')
+  assert.equal(text(Z, ALLE, { fruehstueck: 500, mittag: 600, abend: 320 }), 'Noch 780 kcal für Snack')
+  assert.equal(text(Z, ALLE, { fruehstueck: 503, mittag: 600, abend: 317 }), 'Noch 780 kcal für Snack') // Rundung 10
+  assert.equal(text(Z, ALLE, { fruehstueck: 500 }), 'Noch 1700 kcal für 3 Mahlzeiten')
+  assert.equal(text(Z, ALLE, {}), 'Noch 2200 kcal für 4 Mahlzeiten')
+})
+
+test('Tages-Rest: alle gewaehlt - im Korridor, darunter, darueber (Abstand zur naechsten Grenze)', () => {
+  const alle = (summe) => ({ fruehstueck: summe / 4, mittag: summe / 4, abend: summe / 4, snack: summe / 4 })
+  assert.equal(text(Z, ALLE, alle(2150)), 'Tagesziel erreicht') // genau auf der Grenze
+  assert.equal(text(Z, ALLE, alle(2200)), 'Tagesziel erreicht')
+  assert.equal(text(Z, ALLE, alle(2250)), 'Tagesziel erreicht')
+  assert.equal(text(Z, ALLE, alle(2060)), '90 kcal unter dem Ziel') // 2150 - 2060, nicht zur Mitte
+  assert.equal(text(Z, ALLE, alle(2310)), '60 kcal über dem Ziel') // 2310 - 2250
+  assert.equal(text(Z, ALLE, alle(2147)), 'Tagesziel erreicht') // Abstand 3 kcal rundet auf 0
+  assert.equal(text(Z, ALLE, alle(2253)), 'Tagesziel erreicht')
+})
+
+test('Tages-Rest: Mahlzeiten offen, Rest aufgebraucht', () => {
+  assert.equal(
+    text(Z, ALLE, { fruehstueck: 700, mittag: 720, abend: 784 }),
+    'Tagesziel bereits erreicht — für Snack kommen die leichtesten Vorschläge.'
+  )
+  assert.equal(
+    text(Z, ALLE, { fruehstueck: 900, mittag: 720, abend: 784 }), // deutlich drueber, 1 offen
+    'Tagesziel bereits erreicht — für Snack kommen die leichtesten Vorschläge.'
+  )
+  assert.equal(
+    text(Z, ALLE, { mittag: 1200, fruehstueck: 1000 }),
+    'Tagesziel bereits erreicht — für Abend und Snack kommen die leichtesten Vorschläge.'
+  )
+  assert.equal(
+    text(proTag(1000, 1100), ALLE, { fruehstueck: 1100 }),
+    'Tagesziel bereits erreicht — für 3 Mahlzeiten kommen die leichtesten Vorschläge.'
+  )
+  // Rest 4 kcal rundet auf 0 -> aufgebraucht statt "Noch 0 kcal"
+  assert.equal(tagesRestStatus(Z, ALLE, { fruehstueck: 500, mittag: 600, abend: 1096 }).art, 'aufgebraucht')
+})
+
+test('Tages-Rest: deaktivierte Mahlzeiten zaehlen nicht (wie beim Budget)', () => {
+  // Snack deaktiviert, sein Rezept (400 kcal) wird ignoriert
+  const aktiv = ['fruehstueck', 'mittag', 'abend']
+  assert.equal(text(Z, aktiv, { fruehstueck: 500, mittag: 600, snack: 400 }), 'Noch 1100 kcal für Abend')
+  const alle3 = { fruehstueck: 700, mittag: 800, abend: 700, snack: 999 }
+  assert.equal(text(Z, aktiv, alle3), 'Tagesziel erreicht')
+})
+
+test('Tages-Rest und Budget-Auswahl teilen dieselbe Rechnung', () => {
+  // Was die Zeile als Rest nennt, ist die Mitte dessen, was die Auswahl auf die offenen Mahlzeiten verteilt.
+  const rezept = (mahlzeit) => rezepte.find((r) => r.mahlzeit === mahlzeit)
+  const auswahl = { fruehstueck: rezept('fruehstueck').id, mittag: rezept('mittag').id }
+  const status = tagesRestStatusFuer(Z, ALLE, auswahl, rezepte)
+  const summeAnteile = 0.3 + 0.15 // offen: Abend + Snack
+  const verteilt = ['abend', 'snack'].map((slug) => {
+    const b = korridorFuerMahlzeit(Z, ALLE, auswahl, rezepte, slug)
+    return ((b.min + b.max) / 2 / ({ abend: 0.3, snack: 0.15 }[slug])) * summeAnteile
+  })
+  for (const v of verteilt) assert.ok(Math.abs(Math.round(v / 10) * 10 - status.kcal) <= 10)
+  assert.deepEqual(status.offeneSlugs, ['abend', 'snack'])
 })
