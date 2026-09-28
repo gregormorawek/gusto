@@ -177,14 +177,46 @@ Rezepte sind das alleinige Kernfeature.
   Ändert sich der gefilterte Pool (z. B. neues Rezepte-Paket), wird der
   Stapel NICHT verworfen, sondern inkrementell abgeglichen: entfernte IDs
   fallen raus, neue IDs landen an zufälliger Position im noch ungesehenen
-  Teil — die laufende Runde bleibt intakt. Ein künftiger budget-
-  gewichteter Filter dockt über den optionalen `passtZuBudget`-Parameter
-  beim ZIEHEN an (nicht passende Rezepte werden übersprungen, bleiben
-  aber ungesehen im Stapel) — bekommt **keinen eigenen Stapel**, weil
-  sich das Restbudget bei jedem übernommenen Rezept ändert und ein
-  eigener Budget-Stapel sich dadurch ständig neu mischen müsste.
-  Übernommene Rezepte zählen automatisch als gesehen (Ziehen passiert
-  bereits beim Anzeigen, nicht erst beim Übernehmen).
+  Teil — die laufende Runde bleibt intakt. Das Budget (siehe
+  Absatz unten) dockt über den optionalen `passtZuBudget`-Parameter beim
+  ZIEHEN an (nicht passende Rezepte werden übersprungen, bleiben aber
+  ungesehen im Stapel) — bekommt **keinen eigenen Stapel**, weil sich
+  das Restbudget bei jedem übernommenen Rezept ändert und ein eigener
+  Budget-Stapel sich dadurch ständig neu mischen müsste. Passt im noch
+  ungesehenen Teil nichts mehr zum Budget, wird eine neue Runde gemischt
+  (statt einer leeren Karte; das zuletzt gezogene Rezept kommt dabei nur
+  dran, wenn es das einzig passende ist). Übernommene Rezepte zählen
+  automatisch als gesehen (Ziehen passiert bereits beim Anzeigen, nicht
+  erst beim Übernehmen).
+- **Budget-gewichtete Auswahl** (`budgetFilter.js`, reine Funktionen, plus
+  Anbindung in `App.jsx`): Das Kalorienziel (Korridor Min/Max) beeinflusst,
+  welche Rezepte gezogen werden. Ernährungsform und Süß/Deftig bleiben
+  harte Filter, das Budget ist ein weicher Filter obendrauf.
+  `ziel.typ === 'kein'` oder ungültiger Korridor → alles wie ohne Budget.
+  `proMahlzeit`: Korridor gilt direkt pro Mahlzeit. `proTag`: Korridor ×
+  Anteil (`BUDGET_ANTEIL` 25/30/30/15 %, datenbasiert aus den Rezept-
+  Medianen, NICHT die alten 25/35/30/10 aus `portionenRechner.js`),
+  auf die aktiven Mahlzeiten umverteilt. Dynamisch: übernommene Rezepte
+  anderer Mahlzeiten werden vom Korridor abgezogen, der Rest verteilt sich
+  anteilig auf die offenen; die letzte offene Mahlzeit bekommt den ganzen
+  Rest. Die eigene Auswahl einer Mahlzeit zählt für ihr Budget als offen.
+  Ein Rezept "passt", wenn es höchstens `max(15 %, 75 kcal)` vom Korridor
+  entfernt liegt; passen weniger als `MINDEST_TREFFER` (6, oder der ganze
+  Pool, falls kleiner), kommen die 6 nächstliegenden (Rang statt
+  aufgeweitetem Spielraum, sonst filtert es bei extremen Zielen nichts
+  mehr). Der Bildschirm ist wegen des Budgets nie leer. **Stilles
+  Neuziehen** (Effekt in `App.jsx`, bewusst nicht in
+  `RezepteSwipeAnsicht`, sonst kommt das Tab-Flackern zurück): ändert
+  sich das Budget einer Mahlzeit (Ziel geändert, anderswo übernommen/
+  entfernt, Mahlzeit umgeschaltet), wird ihr bereits gezogener Kandidat
+  nur ersetzt, wenn er nicht mehr passt. Die sichtbare Karte ändert sich
+  dabei nie unter den Fingern (ihr Budget hängt nur von den anderen
+  Mahlzeiten und vom Ziel ab). Bewusst **kein sichtbarer Hinweis** in
+  der App (siehe Backlog Abschnitt 12). Tests: `npm run test:budget`
+  (Logik, `node:test`, gegen den Schnappschuss) und
+  `node scripts/teste-budget-app.mjs` (Browser, Chromium + WebKit,
+  375×812 / 375×700 / 430×932; Dev-Server muss laufen, z. B.
+  `npm run dev -- --port 5199`).
 - `tagesauswahl` (State in `App.jsx`, localStorage `gusto-tagesauswahl`) —
   tagesaktuelle Merkliste pro Mahlzeit, Mitternachts-Reset über Datums-
   vergleich beim Laden. Bewusst **kein** dauerhafter Speiseplan: der
@@ -321,6 +353,16 @@ ist nur noch für bereits hochgeladene, unkomprimierte Bestandsbilder
 gedacht — nicht für neue Uploads.
 Vor Bulk-Aktionen, die im Bucket überschreiben, immer erst lokal sichern.
 
+**Test-Schnappschuss der Rezepte** (`scripts/testdaten/rezepte-schnappschuss.json`,
+Grundlage von `npm run test:budget` und `scripts/teste-budget-app.mjs`)
+wird mit `npm run schnappschuss` aus der Live-DB neu erzeugt (nur Lesen
+über den Anon-Key). **Wann laufen lassen:** nach jedem neuen Rezepte-Paket
+und nach jeder Änderung an Mengen, Zutaten oder `portionen` (also immer
+nach `rezept_naehrwerte_neu_berechnen()`), danach die Tests erneut
+laufen lassen und die geänderte JSON-Datei committen. Ohne das prüfen
+die Tests gegen veraltete kcal-Werte — der Browser-Test schlägt dann
+mit "ausserhalb des Budgets" fehl, obwohl die App stimmt.
+
 Die Rezepte-Erweiterung von 30 auf 100 (Pakete 1–7) ist abgeschlossen.
 Weitere Rezepte sind Content-Arbeit von Gregor, kein Claude-Code-Thema.
 
@@ -404,3 +446,59 @@ soll auf dem Hinweis-Badge am Tag-Tab aufbauen (`TabLeiste.jsx`,
 `tagBadgeAnzahl`-Prop, State `tagBadgeMahlzeiten` in `App.jsx`): die Kugel
 landet dort, wo das Badge sitzt, und der Pop des Badges (Scale-Spring bei
 Zahländerung) ist der natürliche Zielpunkt der Flugbahn.
+
+**Katalog-Grenze bei hohen Kalorienzielen (wichtig, Kernzielgruppe
+Muskelaufbau/High-Protein)** — die Rezepte sind auf grob 1.500–2.600
+kcal/Tag ausgelegt (Median-Tagessumme ≈ 2.090 kcal; größtes Rezept je
+Mahlzeit: Frühstück 618, Mittag 720, Abend 784, Snack 420 kcal). Wer ein
+Ziel ab ca. 2.700 kcal hat (typisch im Muskelaufbau), landet bei der
+budget-gewichteten Auswahl in JEDER Mahlzeit im Fallback und sieht immer
+nur dieselben 6 größten Rezepte pro Mahlzeit — die Auswahl wirkt dann
+eingeschränkt, und selbst die größten Rezepte bleiben unter dem Budget
+(bei 3.000 kcal wären es z. B. 900 kcal für Mittag gegen max. 720). Der
+Filter kann daran nichts ändern, es fehlt ein Größenhebel.
+Lösungsidee **Portionsfaktor**: zu jedem Rezept einen Faktor (z. B. ×1,25
+oder ×1,5) vorschlagen, dessen skalierte kcal am besten zum Budget
+passen; Mengen (`menge_g`/`anzeige_menge`) und Nährwerte werden
+entsprechend skaliert (Karte, Kochmodus, Einkaufsliste, Tages-Summe).
+Verwandt mit der vorgemerkten "Für wie viele Personen?"-Einstellung
+(Abschnitt 7, `gusto-personenzahl`) — beide brauchen denselben
+Skalierungsmechanismus, deshalb gemeinsam entwerfen. Alternative bzw.
+Ergänzung: mehr kcal-starke Rezepte (Content-Arbeit). Braucht Gregors
+Freigabe und einen eigenen Plan.
+
+Hinweis-Zeile "Noch X kcal für Abend" im Tag-Tab (kleiner Folgeschritt
+zur budget-gewichteten Auswahl): zeigt bei `ziel.typ === 'proTag'` das
+Restbudget der nächsten offenen Mahlzeit; die Zahl liefert
+`mahlzeitBudget()` in `budgetFilter.js` bereits (Mitte des Korridors).
+Sinnvoll auch als ehrlicher Hinweis, wenn der Fallback greift ("Dein Ziel
+liegt außerhalb dessen, was unsere Rezepte bieten"). Bewusst vorerst
+nicht gebaut, weil der Tagesziel-Ring im Tag-Tab das Ergebnis bereits
+zeigt.
+
+Content-Lücken (Stand 28.09.2026, Abfrage über den Rezepte-Schnappschuss,
+100 Rezepte) — **belegt durch den Gerätetest der Budget-Auswahl:** zwei
+ganze Tage mit je dem ersten übernommenen Rezept ergaben bei Ziel
+1.500–1.700 → 1.759 kcal und bei 2.400–2.600 → 2.293 kcal (beide etwa
+4 % daneben). Die Abweichung entstand beide Male beim **Snack als letzter
+Mahlzeit**: er muss den ganzen Rest auffangen, der Katalog deckt dort nur
+122–420 kcal ab. Für die nächste Rezeptrunde gezielt die Ränder füllen
+(Zielwerte von Gregor, Ist-Stand daneben):
+
+| Mahlzeit | Bereich heute | Ziel für neue Rezepte | Ist heute |
+|---|---|---|---|
+| Snack | 122–420 | unter 150 **und** über 450 kcal | 1 Rezept unter 150 (122), keins über 420; **kein** Rezept zwischen 123 und 199 |
+| Abendessen | 412–784 | unter 500 kcal | nur 4 Rezepte (412, 475, 478, 495) |
+| Frühstück | 308–618 | unter 400 **und** über 650 kcal | 2 Rezepte unter 400 (308, 399), keins über 618 |
+| Mittag | 433–720 | (kein Auftrag) | Ränder dünn: nur 1 Rezept unter 450, 1 über 700 |
+
+Verteilung je 50-kcal-Band (Anzahl Rezepte): Frühstück 300:1 350:1 400:3
+450:5 500:5 550:4 600:3 · Mittag 400:1 450:6 500:5 550:3 600:7 650:6 700:1 ·
+Abend 400:1 450:3 500:2 550:1 600:6 650:12 700:2 750:1 · Snack 100:1
+200:4 250:1 300:8 350:5 400:2 (alle anderen Bänder 0). Dazu die kleinen
+Pools bei Ernährungsform Vegan (dort filtert das Budget praktisch
+nichts): Frühstück 1 Rezept (594 kcal), Abend 5 (475–741), Snack 5 (122
+und 347–406, also nichts dazwischen), Mittag 9 (458–686). Neue Rezepte
+möglichst auch vegan an den Rändern (vegane Snacks 150–330, vegane
+Frühstücke unter 550). Nach jedem neuen Paket `npm run schnappschuss` und
+diese Tabelle prüfen (siehe Abschnitt 9).

@@ -1,0 +1,1009 @@
+[
+ {
+  "id": 1,
+  "titel": "Beeriges Bircher-Frühstück",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 606.04
+ },
+ {
+  "id": 2,
+  "titel": "Griechisches Joghurt-Müsli",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 618.14
+ },
+ {
+  "id": 3,
+  "titel": "Skyr-Bowl mit Erdbeeren",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 504.8
+ },
+ {
+  "id": 4,
+  "titel": "Kirsch-Kokos-Joghurt",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 523.14
+ },
+ {
+  "id": 5,
+  "titel": "Avocado-Toast mit Ei",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 482.555
+ },
+ {
+  "id": 6,
+  "titel": "Lachs-Frischkäse-Brot",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "deftig",
+  "diaeten": [],
+  "kcal_pro_portion": 461.955
+ },
+ {
+  "id": 7,
+  "titel": "Hüttenkäse-Brot mediterran",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 468.665
+ },
+ {
+  "id": 8,
+  "titel": "Klassiker: Hähnchen, Reis, Brokkoli",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 551.915
+ },
+ {
+  "id": 9,
+  "titel": "Asiatische Tofu-Bowl",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 458.11
+ },
+ {
+  "id": 10,
+  "titel": "Lachs mit Süßkartoffel",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 604.175
+ },
+ {
+  "id": 11,
+  "titel": "Bolognese-Style mit Zucchini",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 720.465
+ },
+ {
+  "id": 12,
+  "titel": "Orientalische Couscous-Bowl",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan"
+  ],
+  "kcal_pro_portion": 638.155
+ },
+ {
+  "id": 13,
+  "titel": "Putenbrust nach Hausmannsart",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 497.28
+ },
+ {
+  "id": 14,
+  "titel": "Linsen-Reis-Teller",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 528.955
+ },
+ {
+  "id": 15,
+  "titel": "Garnelen asiatisch",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 528.01
+ },
+ {
+  "id": 16,
+  "titel": "Tempeh-Buchweizen-Bowl",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan"
+  ],
+  "kcal_pro_portion": 523.465
+ },
+ {
+  "id": 17,
+  "titel": "Hähnchen mit Kohlsprossen",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 494.915
+ },
+ {
+  "id": 18,
+  "titel": "Griechische Quinoa-Bowl",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 783.705
+ },
+ {
+  "id": 19,
+  "titel": "Steak mit Erdäpfeln",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 651.675
+ },
+ {
+  "id": 20,
+  "titel": "Tofu-Pfanne mit Brokkoli",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 475.11
+ },
+ {
+  "id": 21,
+  "titel": "Lachs mit Spargel",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 683.815
+ },
+ {
+  "id": 22,
+  "titel": "Rote-Linsen-Curry-Bowl",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 741.465
+ },
+ {
+  "id": 23,
+  "titel": "Pute mit Champignons",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 660.715
+ },
+ {
+  "id": 24,
+  "titel": "Eier-Erdäpfel-Pfanne",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 477.795
+ },
+ {
+  "id": 25,
+  "titel": "Skyr-Snack mit Beeren",
+  "mahlzeit": "snack",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 380.89
+ },
+ {
+  "id": 26,
+  "titel": "Hüttenkäse-Snack",
+  "mahlzeit": "snack",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 420.24
+ },
+ {
+  "id": 27,
+  "titel": "Kichererbsen-Snack",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegan"
+  ],
+  "kcal_pro_portion": 406.285
+ },
+ {
+  "id": 28,
+  "titel": "Thunfisch-Snack",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 341.755
+ },
+ {
+  "id": 29,
+  "titel": "Edamame-Snack asiatisch",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 362.75
+ },
+ {
+  "id": 30,
+  "titel": "Ricotta-Rucola-Brot",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 307.155
+ },
+ {
+  "id": 31,
+  "titel": "Protein-Pancakes mit Beeren",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 515.94
+ },
+ {
+  "id": 32,
+  "titel": "Hüttenkäse-Fladenbrot mit Ei",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 399.105
+ },
+ {
+  "id": 33,
+  "titel": "Overnight Oats mit Erdnussbutter",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 616.5
+ },
+ {
+  "id": 34,
+  "titel": "Rührei mit Spinat und Feta",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 440.105
+ },
+ {
+  "id": 35,
+  "titel": "Beeren-Smoothie-Bowl mit Skyr",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 427.85
+ },
+ {
+  "id": 36,
+  "titel": "Vollkorntoast mit Ricotta und Banane",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 512.77
+ },
+ {
+  "id": 37,
+  "titel": "Quark-Porridge mit Apfel und Zimt",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 512.44
+ },
+ {
+  "id": 38,
+  "titel": "Shakshuka mit Kichererbsen",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 575.755
+ },
+ {
+  "id": 39,
+  "titel": "Eiklar-Wrap mit Putenbrust",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 307.655
+ },
+ {
+  "id": 40,
+  "titel": "Joghurt-Parfait mit Granola",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 423.3
+ },
+ {
+  "id": 41,
+  "titel": "Avocado-Brot mit pochiertem Ei",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 556.555
+ },
+ {
+  "id": 42,
+  "titel": "Protein-French-Toast",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 465.22
+ },
+ {
+  "id": 43,
+  "titel": "Haferflocken-Waffeln mit Skyr",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 484.91
+ },
+ {
+  "id": 44,
+  "titel": "Frühstücks-Burrito mit Rührei",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 592.455
+ },
+ {
+  "id": 45,
+  "titel": "Bananen-Haferbrei mit Walnüssen",
+  "mahlzeit": "fruehstueck",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegan"
+  ],
+  "kcal_pro_portion": 594.17
+ },
+ {
+  "id": 46,
+  "titel": "Hühnergulasch mit Semmelknödeln",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 655.82
+ },
+ {
+  "id": 47,
+  "titel": "Putenfleischbällchen in Tomatensauce",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 487.865
+ },
+ {
+  "id": 48,
+  "titel": "Hähnchen-Reispfanne süßsauer",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 593.81
+ },
+ {
+  "id": 49,
+  "titel": "Gnocchi-Pfanne mit Spinat und Parmesan",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 619.44
+ },
+ {
+  "id": 50,
+  "titel": "Thunfisch-Quinoa-Salat",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 483.455
+ },
+ {
+  "id": 51,
+  "titel": "Linsensuppe mit Wurzelgemüse",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 512.971
+ },
+ {
+  "id": 52,
+  "titel": "Hähnchen-Wrap mit Joghurtsauce",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 467.875
+ },
+ {
+  "id": 53,
+  "titel": "Ofengemüse mit Feta und Couscous",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 669.955
+ },
+ {
+  "id": 54,
+  "titel": "Rindsgulasch mit Polenta",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 632.885
+ },
+ {
+  "id": 55,
+  "titel": "Lachs-Bowl mit Avocado und Reis",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 690.75
+ },
+ {
+  "id": 56,
+  "titel": "Spätzle mit Champignonrahm",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 627.38
+ },
+ {
+  "id": 57,
+  "titel": "Kichererbsen-Curry mit Reis",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 685.91
+ },
+ {
+  "id": 58,
+  "titel": "Putenstreifen mit Paprikagemüse",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 572.115
+ },
+ {
+  "id": 59,
+  "titel": "Nudelsalat mit Pute und Paradeisern",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 541.855
+ },
+ {
+  "id": 60,
+  "titel": "Cremige Paradeisersuppe mit Hüttenkäse",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 432.715
+ },
+ {
+  "id": 61,
+  "titel": "Reispfanne mit Edamame und Ei",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 654.41
+ },
+ {
+  "id": 62,
+  "titel": "Erdäpfel-Paprika-Gulasch",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 602.661
+ },
+ {
+  "id": 63,
+  "titel": "Hähnchen-Caesar-Bowl",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 466.375
+ },
+ {
+  "id": 64,
+  "titel": "Buchweizen-Bowl mit Ofenkarotten",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 616.93
+ },
+ {
+  "id": 65,
+  "titel": "Tofu-Curry mit Kokosmilch",
+  "mahlzeit": "mittag",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 672.76
+ },
+ {
+  "id": 66,
+  "titel": "Lachsfilet mit Ofengemüse",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 610.475
+ },
+ {
+  "id": 67,
+  "titel": "Zucchini-Lasagne mit Faschiertem",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 689.765
+ },
+ {
+  "id": 68,
+  "titel": "Gefüllte Paprika mit Reis und Pute",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 603.655
+ },
+ {
+  "id": 69,
+  "titel": "Hähnchen-Spieße mit Erdnusssauce",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 663.28
+ },
+ {
+  "id": 70,
+  "titel": "Cremige Nudeln mit Hüttenkäse",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 596.315
+ },
+ {
+  "id": 71,
+  "titel": "Steak mit Ofenkarotten und Kräuterbutter",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 664.335
+ },
+ {
+  "id": 72,
+  "titel": "Tempeh-Pfanne mit Brokkoli",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan"
+  ],
+  "kcal_pro_portion": 652.7
+ },
+ {
+  "id": 73,
+  "titel": "Ofenlachs mit Spargel und Erdäpfeln",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 632.715
+ },
+ {
+  "id": 74,
+  "titel": "Putenrouladen mit Gemüsereis",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 675.655
+ },
+ {
+  "id": 75,
+  "titel": "Auberginen-Auflauf mit Feta",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 631.965
+ },
+ {
+  "id": 76,
+  "titel": "Garnelenpfanne mit Knoblauch und Zucchini",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 411.665
+ },
+ {
+  "id": 77,
+  "titel": "Chili sin Carne mit roten Linsen",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 628.05
+ },
+ {
+  "id": 78,
+  "titel": "Hähnchenbrust mit Champignonrahm und Spätzle",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 666.515
+ },
+ {
+  "id": 79,
+  "titel": "Fischfilet mit Kräuterkruste und Erdäpfeln",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 507.035
+ },
+ {
+  "id": 80,
+  "titel": "Quinoa-Pfanne mit Gemüse und Ei",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 538.245
+ },
+ {
+  "id": 81,
+  "titel": "Rindfleisch-Wok mit Paprika und Reis",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 684.11
+ },
+ {
+  "id": 82,
+  "titel": "Gemüselasagne mit Ricotta",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 656.865
+ },
+ {
+  "id": 83,
+  "titel": "Putencurry mit Naturreis",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 704.01
+ },
+ {
+  "id": 84,
+  "titel": "Gefüllte Süßkartoffel mit Kichererbsen",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 686.57
+ },
+ {
+  "id": 85,
+  "titel": "Nudelauflauf mit Pute und Paradeiser",
+  "mahlzeit": "abend",
+  "eigenschaft": null,
+  "diaeten": [],
+  "kcal_pro_portion": 640.465
+ },
+ {
+  "id": 86,
+  "titel": "Protein-Shake mit Banane und Erdnussbutter",
+  "mahlzeit": "snack",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 338.2
+ },
+ {
+  "id": 87,
+  "titel": "Hüttenkäse mit Paradeiser und Schnittlauch",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 325.855
+ },
+ {
+  "id": 88,
+  "titel": "Skyr mit Kirschen und Mandeln",
+  "mahlzeit": "snack",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 319.87
+ },
+ {
+  "id": 89,
+  "titel": "Hummus mit Gemüsesticks",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 394.08
+ },
+ {
+  "id": 90,
+  "titel": "Protein-Energy-Balls",
+  "mahlzeit": "snack",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 354.3
+ },
+ {
+  "id": 91,
+  "titel": "Vollkornbrot mit Avocado und Ei",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 233.015
+ },
+ {
+  "id": 92,
+  "titel": "Quark-Dip mit Karottensticks",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 214.835
+ },
+ {
+  "id": 93,
+  "titel": "Joghurt mit Apfel und Zimt",
+  "mahlzeit": "snack",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 308.47
+ },
+ {
+  "id": 94,
+  "titel": "Edamame mit Meersalz",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 122
+ },
+ {
+  "id": 95,
+  "titel": "Reiswaffeln mit Frischkäse und Lachs",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 250.615
+ },
+ {
+  "id": 96,
+  "titel": "Protein-Mug-Cake",
+  "mahlzeit": "snack",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch"
+  ],
+  "kcal_pro_portion": 377.76
+ },
+ {
+  "id": 97,
+  "titel": "Thunfisch-Gurken-Boote",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 203.955
+ },
+ {
+  "id": 98,
+  "titel": "Beeren-Quark mit Walnüssen",
+  "mahlzeit": "snack",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 330.8
+ },
+ {
+  "id": 99,
+  "titel": "Gebackene Kichererbsen",
+  "mahlzeit": "snack",
+  "eigenschaft": "deftig",
+  "diaeten": [
+   "vegan",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 346.61
+ },
+ {
+  "id": 100,
+  "titel": "Protein-Eiskaffee mit Banane",
+  "mahlzeit": "snack",
+  "eigenschaft": "suess",
+  "diaeten": [
+   "vegetarisch",
+   "glutenfrei"
+  ],
+  "kcal_pro_portion": 223.4
+ }
+]

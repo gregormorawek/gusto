@@ -7,7 +7,9 @@
     "dev": "vite",
     "build": "vite build",
     "lint": "oxlint",
-    "preview": "vite preview"
+    "preview": "vite preview",
+    "test:budget": "node --test scripts/teste-budget-filter.mjs",
+    "schnappschuss": "node scripts/erzeuge-rezepte-schnappschuss.mjs"
   },
   "dependencies": {
     "@capacitor/core": "^8.5.0",

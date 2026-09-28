@@ -29,6 +29,7 @@ import {
   diaetenUmschalten,
 } from './rezepteFilter'
 import { bilderImHintergrundVorladen } from './bildVorladen'
+import { budgetPruefer, budgetSchluessel, korridorFuerMahlzeit } from './budgetFilter'
 import { EXPO_OUT, FADE_UEBERGANG } from './motionConfig'
 
 // Gestaffelte Fade-Choreografie Startbildschirm -> naechste Ansicht (Wizard
@@ -637,7 +638,14 @@ function App() {
       // Funktionsdurchlauf noch nicht aktualisiert). swipeStapel kommt aus
       // dem localStorage-Ladewert (swipeStapelLaden), da dieser Effekt nur
       // einmal beim Mount laeuft.
-      const ersteAuswahl = alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenFuer(aktiveMahlzeiten), rezepteDaten, diaeten, {}, swipeStapel)
+      const ersteAuswahl = alleAktivenMahlzeitenWuerfeln(
+        aktiveMahlzeitenFuer(aktiveMahlzeiten),
+        rezepteDaten,
+        diaeten,
+        {},
+        swipeStapel,
+        (slug, pool) => budgetPrueferFuerMahlzeit(slug, pool, aktiveMahlzeiten, rezepteDaten)
+      )
       setRezepteProMahlzeitState(ersteAuswahl.rezepteProMahlzeitState)
       setSwipeStapel(ersteAuswahl.stapel)
 
@@ -731,7 +739,8 @@ function App() {
       rezepte,
       neueDiaeten,
       rezepteProMahlzeitState,
-      swipeStapel
+      swipeStapel,
+      (slug, pool) => budgetPrueferFuerMahlzeit(slug, pool, aktiveMahlzeiten)
     )
     setRezepteProMahlzeitState(neueAuswahl.rezepteProMahlzeitState)
     setSwipeStapel(neueAuswahl.stapel)
@@ -763,11 +772,74 @@ function App() {
       rezepte,
       diaeten,
       rezepteProMahlzeitState,
-      swipeStapel
+      swipeStapel,
+      (slug, pool) => budgetPrueferFuerMahlzeit(slug, pool, neueMahlzeiten)
     )
     setRezepteProMahlzeitState(neueAuswahl.rezepteProMahlzeitState)
     setSwipeStapel(neueAuswahl.stapel)
   }
+
+  // --- Budget-gewichtete Auswahl (siehe budgetFilter.js) ---
+
+  // passtZuBudget-Pruefer fuer EINE Mahlzeit auf Basis des aktuellen Ziels
+  // und der tagesaktuellen Auswahl (undefined = kein Budget, alles passt).
+  // aktiveSlugs/rezepteListe sind ueberschreibbar, weil manche Aufrufer
+  // (Mahlzeiten-Wechsel, erstes Laden) mit NEUEREN Werten arbeiten, als der
+  // State im aktuellen Funktionsdurchlauf schon hergibt.
+  function budgetPrueferFuerMahlzeit(slug, pool, aktiveSlugs = aktiveMahlzeiten, rezepteListe = rezepte) {
+    return budgetPruefer(pool, korridorFuerMahlzeit(ziel, aktiveSlugs, tagesauswahl.mahlzeiten, rezepteListe, slug))
+  }
+
+  // Stilles Neuziehen: aendert sich das Budget einer Mahlzeit (Ziel geaendert,
+  // anderswo ein Rezept uebernommen/entfernt, Mahlzeit ein-/ausgeschaltet),
+  // wird ihr bereits gezogener Kandidat NUR dann ersetzt, wenn er nicht mehr
+  // zum neuen Budget passt - passt er noch, bleibt er stehen. Die aktuell
+  // sichtbare Karte kann sich dabei nie unter den Fingern aendern: das Budget
+  // einer Mahlzeit haengt nur von den Auswahlen der ANDEREN Mahlzeiten und
+  // vom Ziel ab (siehe mahlzeitBudget), beides passiert nicht auf ihrer
+  // eigenen Karte - Uebernehmen aendert nur die Budgets der uebrigen.
+  // BEWUSST hier auf App-Ebene als Effekt (nicht in RezepteSwipeAnsicht):
+  // die Ansicht unmountet bei jedem Tab-Wechsel, ein Effekt dort wuerde
+  // genau das Flackern zurueckbringen, siehe rezepteProMahlzeitState-Kommentar.
+  // budgetSchluesselRef merkt sich den zuletzt verarbeiteten Korridor pro
+  // Mahlzeit, damit nur ECHTE Aenderungen etwas ziehen (und ein doppelter
+  // Effekt-Lauf in StrictMode nichts doppelt verbrennt).
+  const budgetSchluesselRef = useRef({})
+  useEffect(() => {
+    if (rezepte.length === 0 || Object.keys(rezepteProMahlzeitState).length === 0) {
+      return
+    }
+    let laufenderStapel = swipeStapel
+    let neuerStand = rezepteProMahlzeitState
+    for (const { slug } of aktiveMahlzeitenFuer(aktiveMahlzeiten)) {
+      const korridor = korridorFuerMahlzeit(ziel, aktiveMahlzeiten, tagesauswahl.mahlzeiten, rezepte, slug)
+      const schluessel = budgetSchluessel(korridor)
+      if (budgetSchluesselRef.current[slug] === schluessel) {
+        continue
+      }
+      const warVorher = slug in budgetSchluesselRef.current
+      budgetSchluesselRef.current[slug] = schluessel
+      const eintrag = neuerStand[slug]
+      if (!warVorher || !eintrag?.rezept) {
+        // Erster Lauf nach dem Laden: der Kandidat wurde bereits mit genau
+        // diesem Budget gezogen (siehe zutatenLaden).
+        continue
+      }
+      const eigenschaft = eintrag.eigenschaft ?? ''
+      const pool = gefiltertePoolFuerRezepte(rezepte, slug, diaeten, eigenschaft)
+      const pruefer = budgetPruefer(pool, korridor)
+      if (!pruefer || pruefer(eintrag.rezept)) {
+        continue
+      }
+      const ergebnis = rezeptAusStapelZiehen(laufenderStapel, slug, filterSchluesselFuer(diaeten, eigenschaft), pool, pruefer)
+      laufenderStapel = ergebnis.stapel
+      neuerStand = { ...neuerStand, [slug]: { eigenschaft, rezept: ergebnis.rezept } }
+    }
+    if (neuerStand !== rezepteProMahlzeitState) {
+      setSwipeStapel(laufenderStapel)
+      setRezepteProMahlzeitState(neuerStand)
+    }
+  }, [ziel, tagesauswahl.mahlzeiten, aktiveMahlzeiten, rezepte, rezepteProMahlzeitState])
 
   // --- Rezepte-Tab (RezepteSwipeAnsicht.jsx) ---
 
@@ -791,7 +863,13 @@ function App() {
     }
     const pool = gefiltertePoolFuerRezepte(rezepte, rezepteEffektivAktuelleMahlzeit, diaeten, neueEigenschaft)
     const filterSchluessel = filterSchluesselFuer(diaeten, neueEigenschaft)
-    const { rezept, stapel } = rezeptAusStapelZiehen(swipeStapel, rezepteEffektivAktuelleMahlzeit, filterSchluessel, pool)
+    const { rezept, stapel } = rezeptAusStapelZiehen(
+      swipeStapel,
+      rezepteEffektivAktuelleMahlzeit,
+      filterSchluessel,
+      pool,
+      budgetPrueferFuerMahlzeit(rezepteEffektivAktuelleMahlzeit, pool, aktiveMahlzeiten)
+    )
     setSwipeStapel(stapel)
     setRezepteProMahlzeitState((aktuell) => ({
       ...aktuell,
@@ -825,7 +903,8 @@ function App() {
       rezepte,
       neueDiaeten,
       standMitNeuerEigenschaft,
-      swipeStapel
+      swipeStapel,
+      (slug, pool) => budgetPrueferFuerMahlzeit(slug, pool, aktiveMahlzeiten)
     )
     setRezepteProMahlzeitState(neueAuswahl.rezepteProMahlzeitState)
     setSwipeStapel(neueAuswahl.stapel)
@@ -839,7 +918,13 @@ function App() {
     const eigenschaftFuerMahlzeit = rezepteProMahlzeitState[rezepteEffektivAktuelleMahlzeit]?.eigenschaft ?? ''
     const pool = gefiltertePoolFuerRezepte(rezepte, rezepteEffektivAktuelleMahlzeit, diaeten, eigenschaftFuerMahlzeit)
     const filterSchluessel = filterSchluesselFuer(diaeten, eigenschaftFuerMahlzeit)
-    const { rezept, stapel } = rezeptAusStapelZiehen(swipeStapel, rezepteEffektivAktuelleMahlzeit, filterSchluessel, pool)
+    const { rezept, stapel } = rezeptAusStapelZiehen(
+      swipeStapel,
+      rezepteEffektivAktuelleMahlzeit,
+      filterSchluessel,
+      pool,
+      budgetPrueferFuerMahlzeit(rezepteEffektivAktuelleMahlzeit, pool, aktiveMahlzeiten)
+    )
     setSwipeStapel(stapel)
     setRezepteProMahlzeitState((aktuell) => ({
       ...aktuell,

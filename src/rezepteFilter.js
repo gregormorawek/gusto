@@ -184,8 +184,8 @@ function stapelMitEintragErsetzt(gesamtStapel, mahlzeitSlug, filterSchluessel, e
 // tatsaechlichen Uebernehmen - Uebernehmen zeigt in RezepteSwipeAnsicht.jsx
 // ohnehin nur das schon gezogene Rezept an, ohne selbst erneut zu ziehen.
 //
-// passtZuBudget ist ein Erweiterungspunkt fuer einen KUENFTIGEN
-// budget-gewichteten Filter (noch nicht gebaut): Rezepte, die ihn nicht
+// passtZuBudget ist der Andockpunkt des budget-gewichteten Filters (siehe
+// budgetFilter.js, budgetPruefer): Rezepte, die ihn nicht
 // erfuellen, werden uebersprungen OHNE als gesehen zu gelten - sie bleiben
 // unveraendert im ungesehenen Teil des Stapels fuer einen spaeteren Zug,
 // wenn das Restbudget wieder passt. Absichtlich KEIN eigener Stapel pro
@@ -205,25 +205,60 @@ export function rezeptAusStapelZiehen(gesamtStapel, mahlzeitSlug, filterSchluess
     ? stapelMitPoolAbgeglichen(bisherigerEintrag, poolIds)
     : { reihenfolge: [], position: 0 }
 
-  if (position >= reihenfolge.length) {
+  // Erstes Rezept ab startPosition, das passtZuBudget erfuellt (-1 = keins).
+  // vermeideId (nur beim Start einer neuen Runde gesetzt): das zuletzt
+  // gezogene Rezept der vorigen Runde wird nur genommen, wenn es das EINZIG
+  // passende ist - sonst koennte das Budget-Ueberspringen genau die
+  // Wiederholung an der Rundengrenze wieder einfuehren, die neuGemischt
+  // verhindert.
+  function ersterTreffer(startPosition, vermeideId) {
+    let ausweich = -1
+    for (let i = startPosition; i < reihenfolge.length; i++) {
+      if (!passtZuBudget(rezeptNachId.get(reihenfolge[i]))) {
+        continue
+      }
+      if (reihenfolge[i] !== vermeideId) {
+        return i
+      }
+      if (ausweich === -1) {
+        ausweich = i
+      }
+    }
+    return ausweich
+  }
+
+  function neueRundeMischen() {
     const letzteGezogeneId = reihenfolge[position - 1] ?? null
     reihenfolge = neuGemischt(poolIds, letzteGezogeneId)
     position = 0
+    return letzteGezogeneId
   }
 
-  // Erstes Rezept ab position suchen, das passtZuBudget erfuellt - per
-  // Tausch an die aktuelle Position geschoben (Fisher-Yates-"Ziehen ohne
-  // Zuruecklegen"-Trick), damit uebersprungene Rezepte ihre relative
-  // Reihenfolge im ungesehenen Teil behalten statt verworfen zu werden.
+  // Erstes passendes Rezept ab position - per Tausch an die aktuelle
+  // Position geschoben (Fisher-Yates-"Ziehen ohne Zuruecklegen"-Trick),
+  // damit uebersprungene Rezepte ihre relative Reihenfolge im ungesehenen
+  // Teil behalten statt verworfen zu werden.
+  //
+  // Neue Runde gibt es in ZWEI Faellen: (1) alle Rezepte der Runde sind
+  // gezogen, (2) im noch UNGESEHENEN Teil passt nichts mehr zum Budget - dann
+  // waere die Karte leer, obwohl im Pool (bereits gesehene) passende Rezepte
+  // existieren. Der Bildschirm darf wegen des Budgets nie leer sein, also
+  // wird neu gemischt statt null geliefert.
   let treffer = -1
-  for (let i = position; i < reihenfolge.length; i++) {
-    if (passtZuBudget(rezeptNachId.get(reihenfolge[i]))) {
-      treffer = i
-      break
+  if (position >= reihenfolge.length) {
+    const vermeideId = neueRundeMischen()
+    treffer = ersterTreffer(0, vermeideId)
+  } else {
+    treffer = ersterTreffer(position, null)
+    if (treffer === -1) {
+      const vermeideId = neueRundeMischen()
+      treffer = ersterTreffer(0, vermeideId)
     }
   }
 
   if (treffer === -1) {
+    // Pruefer laesst NICHTS aus dem Pool durch (mit budgetPruefer aus
+    // budgetFilter.js nicht moeglich, dort gibt es immer einen Fallback).
     return { rezept: null, stapel: stapelMitEintragErsetzt(gesamtStapel, mahlzeitSlug, filterSchluessel, { reihenfolge, position }) }
   }
 
@@ -246,14 +281,31 @@ export function rezeptAusStapelZiehen(gesamtStapel, mahlzeitSlug, filterSchluess
 // aufgerufen (statt per Effekt in der bei Tab-Wechsel unmountenden
 // Rezepte-Ansicht) - siehe App.jsx-Kommentar zur Bugfix-Begruendung
 // ("Rezepte-Tab-Flackern").
-export function alleAktivenMahlzeitenWuerfeln(aktiveMahlzeitenListe, rezepte, diaeten, vorherigerStand, stapel) {
+//
+// budgetPrueferFuer(slug, pool) liefert pro Mahlzeit den passtZuBudget-
+// Pruefer (siehe budgetFilter.js) oder undefined = kein Budget. Ohne Angabe
+// wird nicht nach Budget gefiltert.
+export function alleAktivenMahlzeitenWuerfeln(
+  aktiveMahlzeitenListe,
+  rezepte,
+  diaeten,
+  vorherigerStand,
+  stapel,
+  budgetPrueferFuer = () => undefined
+) {
   let laufenderStapel = stapel
   const neuerStand = {}
   for (const { slug } of aktiveMahlzeitenListe) {
     const eigenschaftFuerMahlzeit = vorherigerStand[slug]?.eigenschaft ?? ''
     const pool = gefiltertePoolFuerRezepte(rezepte, slug, diaeten, eigenschaftFuerMahlzeit)
     const filterSchluessel = filterSchluesselFuer(diaeten, eigenschaftFuerMahlzeit)
-    const { rezept, stapel: naechsterStapel } = rezeptAusStapelZiehen(laufenderStapel, slug, filterSchluessel, pool)
+    const { rezept, stapel: naechsterStapel } = rezeptAusStapelZiehen(
+      laufenderStapel,
+      slug,
+      filterSchluessel,
+      pool,
+      budgetPrueferFuer(slug, pool)
+    )
     laufenderStapel = naechsterStapel
     neuerStand[slug] = { eigenschaft: eigenschaftFuerMahlzeit, rezept }
   }
