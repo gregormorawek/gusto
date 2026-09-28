@@ -6,6 +6,8 @@ import RadPicker from './RadPicker'
 import Kalorienrechner, { GeschlechtKarte, OptionZeile } from './Kalorienrechner'
 import ZielEinstellungen from './ZielEinstellungen'
 import AktiveMahlzeitenFilter from './AktiveMahlzeitenFilter'
+import SegmentSchalter from './SegmentSchalter'
+import { DARSTELLUNGEN } from '../theme'
 import DiaetFilter from './DiaetFilter'
 import {
   AKTIVITAETEN,
@@ -198,6 +200,8 @@ function EinstellungenAnsicht({
   onAktiveMahlzeitenAendern,
   kochschrittePersistent,
   onKochschrittePersistentUmschalten,
+  darstellung,
+  onDarstellungAendern,
 }) {
   // Koerperdaten-Profil (Sektion 1) - eigenstaendiger, lokaler State analog
   // zu z. B. aktiveMahlzeiten in App.jsx: lazy initializer laedt den
@@ -444,6 +448,14 @@ function EinstellungenAnsicht({
               aktiv={kochschrittePersistent}
               onClick={onKochschrittePersistentUmschalten}
             />
+          </div>
+        </div>
+
+        <div className="p-4">
+          <SektionTitel>Darstellung</SektionTitel>
+          <p className="mt-1 text-xs text-text-muted">System folgt der Einstellung deines iPhones.</p>
+          <div className="mt-3">
+            <SegmentSchalter optionen={DARSTELLUNGEN} aktuell={darstellung} onAendern={onDarstellungAendern} />
           </div>
         </div>
 

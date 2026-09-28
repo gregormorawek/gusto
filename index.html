@@ -55,6 +55,22 @@
       name="viewport"
       content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, interactive-widget=resizes-content, viewport-fit=cover"
     />
+    <!-- Darstellung Hell/Dunkel (siehe src/theme.js, CLAUDE.md Abschnitt 5):
+         data-theme wird HIER vor dem ersten Paint gesetzt (dieselbe Aufloesung
+         wie themeAufloesen in theme.js - beide muessen uebereinstimmen), sonst
+         blitzt beim App-Start kurz der falsche Modus auf. color-scheme sagt
+         dem Browser, dass beide Modi unterstuetzt werden (native Formular-
+         elemente, Scrollleisten). -->
+    <meta name="color-scheme" content="light dark" />
+    <script>
+      try {
+        var d = localStorage.getItem('gusto-darstellung')
+        var dunkel = d === 'dunkel' || (d !== 'hell' && window.matchMedia('(prefers-color-scheme: dark)').matches)
+        document.documentElement.dataset.theme = dunkel ? 'dark' : 'light'
+      } catch (e) {
+        document.documentElement.dataset.theme = 'light'
+      }
+    </script>
     <title>gusto</title>
     <link rel="preconnect" href="https://fonts.googleapis.com" />
     <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />

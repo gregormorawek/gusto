@@ -83,6 +83,28 @@ function ohneKommentare(text) {
 }
 
 const funde = []
+
+// Konsistenz der Theme-Saetze in index.css: der "immer hell"-Block
+// ([data-theme='light'], fuer den Wizard-Teilbaum) muss exakt die Werte des
+// @theme-static-Blocks (Standard = hell) wiederholen, sonst zeigt der Wizard
+// im Dunkeln falsche Farben. Ebenso muss jeder Token des hellen Satzes einen
+// dunklen Gegenpart haben.
+{
+  const css = readFileSync('src/index.css', 'utf8')
+  const tokens = (block) =>
+    Object.fromEntries([...block.matchAll(/(--color-[a-z-]+):\s*([^;]+);/g)].map((m) => [m[1], m[2].replace(/\s+/g, ' ').trim()]))
+  const block = (start) => {
+    const i = css.indexOf(start)
+    return css.slice(i, css.indexOf('\n}', i))
+  }
+  const hell = tokens(block('@theme static {'))
+  const hellScope = tokens(block("[data-theme='light'] {"))
+  const dunkel = tokens(block(":root[data-theme='dark'] {"))
+  for (const [name, wert] of Object.entries(hell)) {
+    if (hellScope[name] !== wert) funde.push(`src/index.css  [theme]  ${name}: [data-theme='light'] weicht vom @theme-Block ab (${hellScope[name]} vs ${wert})`)
+    if (!(name in dunkel)) funde.push(`src/index.css  [theme]  ${name}: kein dunkler Wert in :root[data-theme='dark']`)
+  }
+}
 for (const datei of [...dateien('src'), 'index.html']) {
   const ausnahmen = AUSNAHMEN[datei] ?? []
   ohneKommentare(readFileSync(datei, 'utf8')).forEach((zeile, i) => {

@@ -30,6 +30,7 @@ import {
 } from './rezepteFilter'
 import { bilderImHintergrundVorladen } from './bildVorladen'
 import { budgetPruefer, budgetSchluessel, korridorFuerMahlzeit } from './budgetFilter'
+import { useDarstellung } from './theme'
 import { EXPO_OUT, FADE_UEBERGANG } from './motionConfig'
 
 // Gestaffelte Fade-Choreografie Startbildschirm -> naechste Ansicht (Wizard
@@ -282,6 +283,9 @@ function App() {
   // Kalorienziel-Einstellung: { typ: 'kein' | 'proMahlzeit' | 'proTag', kalorien }.
   // Lazy initializer laedt den zuletzt gespeicherten Wert aus dem localStorage.
   const [ziel, setZiel] = useState(zielLaden)
+
+  // Darstellung Hell/Dunkel/System (siehe theme.js) - setzt data-theme am <html>.
+  const { darstellung, setDarstellung } = useDarstellung()
 
   // Speichert das Ziel bei jeder Aenderung im localStorage, damit es beim
   // naechsten Oeffnen der App erhalten bleibt.
@@ -959,19 +963,26 @@ function App() {
   const naechsteAnsicht = (() => {
     if (!onboardingAbgeschlossen) {
       return (
-        <OnboardingWizard
-          ziel={ziel}
-          onTypAendern={zielTypAendern}
-          onKalorienAendern={zielKalorienAendern}
-          onMakroAendern={zielMakroAendern}
-          mahlzeit={mahlzeit}
-          onMahlzeitAendern={setMahlzeit}
-          diaeten={diaeten}
-          onDiaetenAendern={diaetenAendern}
-          aktiveMahlzeiten={aktiveMahlzeiten}
-          onAktiveMahlzeitenAendern={aktiveMahlzeitenAendern}
-          onAbschluss={onboardingAbschliessen}
-        />
+        // Der Wizard ist vom Dark Mode ausgeklammert (er wird spaeter neu gebaut)
+        // und bleibt IMMER hell: data-theme="light" deklariert die hellen Tokens
+        // fuer den ganzen Teilbaum neu (index.css). display:contents = keine Box,
+        // kein Transform, kein Layout-Einfluss - die Wizard-Choreografie bleibt
+        // unberuehrt, der Wizard-Root ist weiterhin direktes Flex-Kind.
+        <div data-theme="light" className="contents">
+          <OnboardingWizard
+            ziel={ziel}
+            onTypAendern={zielTypAendern}
+            onKalorienAendern={zielKalorienAendern}
+            onMakroAendern={zielMakroAendern}
+            mahlzeit={mahlzeit}
+            onMahlzeitAendern={setMahlzeit}
+            diaeten={diaeten}
+            onDiaetenAendern={diaetenAendern}
+            aktiveMahlzeiten={aktiveMahlzeiten}
+            onAktiveMahlzeitenAendern={aktiveMahlzeitenAendern}
+            onAbschluss={onboardingAbschliessen}
+          />
+        </div>
       )
     }
 
@@ -1106,6 +1117,8 @@ function App() {
             onAktiveMahlzeitenAendern={aktiveMahlzeitenAendern}
             kochschrittePersistent={kochschrittePersistent}
             onKochschrittePersistentUmschalten={kochschrittePersistentUmschalten}
+            darstellung={darstellung}
+            onDarstellungAendern={setDarstellung}
           />
         ) : ansicht === 'rezepte' ? (
           <RezepteSwipeAnsicht

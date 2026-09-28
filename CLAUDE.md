@@ -152,6 +152,23 @@ localStorage-Key). **Der Onboarding-Wizard ist ausgeklammert** — er wird
 später komplett neu gebaut und bleibt bis dahin im hellen Modus, auch wenn
 das iPhone dunkel eingestellt ist.
 
+**Umgesetzt (Schritt 2, Mechanik):** `src/theme.js` — `useDarstellung()`
+liest/speichert `gusto-darstellung` (`system`/`hell`/`dunkel`), hört bei
+`system` live auf `prefers-color-scheme` und setzt `data-theme` am
+`<html>`. `index.html` enthält ein Inline-Skript mit **derselber** Logik,
+damit `data-theme` vor dem ersten Paint steht (beide Stellen müssen
+übereinstimmen, sonst blitzt beim Start kurz der falsche Modus auf).
+`index.css` hat zusätzlich einen `[data-theme='light']`-Scope, der die
+hellen Token-Werte erneut deklariert — `App.jsx` umschließt
+`<OnboardingWizard>` damit in `<div data-theme="light" className="contents">`
+(`display: contents`: keine Box, kein Transform, kein Layout-Einfluss,
+Wizard-Choreografie unangetastet). Schalter "System/Hell/Dunkel" in
+`EinstellungenAnsicht.jsx` über `SegmentSchalter`. `npm run
+pruefe:farben` gleicht `@theme static`, `[data-theme='light']` und
+`:root[data-theme='dark']` gegeneinander ab (jeder Token muss in allen
+drei Sätzen vorkommen, hell und `[data-theme='light']` müssen exakt
+übereinstimmen). Browser-Test: `npm run test:darstellung`.
+
 Verbindliche dunkle Tokens (gleiche Token-Namen wie oben, andere Werte im
 dunklen Modus):
 

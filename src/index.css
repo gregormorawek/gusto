@@ -73,9 +73,40 @@
   --color-surface-raised: #45382f;
   --color-border: rgba(243, 233, 218, 0.1);
   --color-scrim: #1d1714;
+  --color-on-photo: #fffdf8;
   --color-shadow-base: #0d0907;
   --color-shadow-einsink: color-mix(in srgb, var(--color-shadow-base) 60%, transparent);
 }
+
+/* Teilbaeume, die IMMER hell bleiben (Onboarding-Wizard, siehe App.jsx):
+   <div data-theme="light"> deklariert die hellen Token-Werte erneut und
+   ueberschreibt damit den dunklen :root-Satz fuer alles darunter. ACHTUNG:
+   diese Liste muss exakt dem @theme-static-Block oben entsprechen
+   (npm run pruefe:farben prueft das). */
+[data-theme='light'] {
+  color-scheme: light;
+  --color-bg: #f7f1e6;
+  --color-card: #fffdf8;
+  --color-primary: #c9754a;
+  --color-primary-dark: #a15e3b;
+  --color-secondary: #6b7a4a;
+  --color-text: #3e2e22;
+  --color-text-muted: #8a6b4a;
+  --color-on-primary: #fffdf8;
+  --color-on-secondary: #fffdf8;
+  --color-surface: color-mix(in srgb, var(--color-text-muted) 15%, transparent);
+  --color-surface-raised: #fffdf8;
+  --color-border: color-mix(in srgb, var(--color-text-muted) 30%, transparent);
+  --color-scrim: #3e2e22;
+  --color-on-photo: #fffdf8;
+  --color-shadow-base: #3e2e22;
+  --color-shadow-einsink: color-mix(in srgb, var(--color-shadow-base) 35%, transparent);
+}
+
+/* Tailwind-Variante "dark:" fuer einzelne Klassen, die im Dunkeln anders
+   aussehen muessen, als es die Tokens allein hergeben (z. B. Toast). Greift
+   im dunklen Modus - aber NICHT in einem hell gezwungenen Teilbaum (Wizard). */
+@custom-variant dark (&:where([data-theme='dark'] *):not(:where([data-theme='light'] *)));
 
 body {
   background-color: var(--color-bg);
