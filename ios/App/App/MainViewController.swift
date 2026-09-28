@@ -1,15 +1,17 @@
 import UIKit
 import Capacitor
+import WebKit
 
-// Gusto hat kein Dark-Theme im Design-System (siehe CLAUDE.md, Design-
-// Vertrag "Warm & natuerlich") - die App-Farben in src/index.css sind
-// ueberall hartcodiertes Cream (#F7F1E6), unabhaengig vom System-
-// Erscheinungsbild. GEFUNDENE URSACHE der "schwarzer Rand oben/unten"-
-// Regression (mehrere Session-Runden lang faelschlich als CSS-/App-Shell-
-// Bug behandelt): weder WKWebView noch das umgebende UIView/UIWindow hatten
-// je eine explizite backgroundColor - beide folgen dann automatisch dem
-// System-Erscheinungsbild (schwarz im Dark Mode, weiss im Light Mode, was
-// iOS je nach Uhrzeit-Einstellung automatisch umschalten kann - daher die
+// Farb-/Hintergrund-Handling (Gerueststueck aus der urspruenglichen "Gusto
+// hat kein Dark-Theme"-Analyse, seit dem Dark-Mode-Umbau erweitert statt
+// ersetzt - die GEFUNDENE URSACHE unten bleibt unveraendert gueltig):
+//
+// GEFUNDENE URSACHE der "schwarzer Rand oben/unten"-Regression (mehrere
+// Session-Runden lang faelschlich als CSS-/App-Shell-Bug behandelt): weder
+// WKWebView noch das umgebende UIView/UIWindow hatten je eine explizite
+// backgroundColor - beide folgen dann automatisch dem System-
+// Erscheinungsbild (schwarz im Dark Mode, weiss im Light Mode, was iOS je
+// nach Uhrzeit-Einstellung automatisch umschalten kann - daher die
 // unterschiedlichen Ergebnisse an verschiedenen Testzeitpunkten).
 //
 // AUSDRUECKLICH GEPRUEFT UND AUSGESCHLOSSEN: ein WebView-Frame/Layout-Gap
@@ -26,28 +28,39 @@ import Capacitor
 // zwischen WebView und Fenster, backgroundColor==nil==transparent) - die
 // geben den Blick frei auf das UIWindow dahinter, das vor diesem Fix keine
 // explizite Farbe hatte und deshalb dem System-Erscheinungsbild folgte.
-// UIUserInterfaceStyle=Light in Info.plist verhindert das bereits app-weit
-// auf System-Ebene; diese Klasse setzt zusaetzlich (defense in depth) explizit
-// Cream auf jeder betroffenen Ebene, damit selbst OHNE den Info.plist-Key
-// nichts mehr durchscheinen kann.
+//
+// FRUEHER (vor dem Dark Mode): UIUserInterfaceStyle=Light in Info.plist
+// verhinderte das bereits app-weit auf System-Ebene, diese Klasse setzte
+// zusaetzlich (defense in depth) explizit Cream auf jeder betroffenen Ebene.
+//
+// SEIT DEM DARK-MODE-UMBAU (CLAUDE.md Abschnitt 5): der Info.plist-Zwang auf
+// Light ist entfallen, die App unterstuetzt jetzt beide Modi. Bis JS sein
+// erstes Theme meldet (siehe ThemeBridge.swift + configureThemeBridge()
+// unten), verwendet dieselbe "defense in depth"-Stelle deshalb
+// ThemeBridge.dynamisch statt eines hart auf Cream fixierten Werts - folgt
+// automatisch dem System-Erscheinungsbild, bis die explizite Wahl (System/
+// Hell/Dunkel, kann vom System abweichen) eintrifft.
 class MainViewController: CAPBridgeViewController {
     override func viewDidLoad() {
         super.viewDidLoad()
 
-        // #F7F1E6 (--color-bg in src/index.css) - einzige Quelle der
-        // Wahrheit fuer diesen Farbwert ist das Design-System dort; hier nur
-        // 1:1 als UIColor uebernommen, nicht eigenstaendig geschaetzt.
-        let cream = UIColor(red: 0xF7 / 255.0, green: 0xF1 / 255.0, blue: 0xE6 / 255.0, alpha: 1.0)
-
-        view.backgroundColor = cream
+        // Startfarbe: dynamisch (folgt dem System), bis configureThemeBridge()
+        // unten die erste JS-Nachricht mit der tatsaechlichen Wahl erhaelt -
+        // siehe Klassenkommentar oben und ThemeBridge.swift.
+        view.backgroundColor = ThemeBridge.dynamisch
 
         webView?.isOpaque = true
-        webView?.backgroundColor = cream
+        webView?.backgroundColor = ThemeBridge.dynamisch
         // scrollView.backgroundColor separat, da WKWebView intern eine
         // eigene UIScrollView fuers Web-Content-Layer einbettet, die ihre
         // Hintergrundfarbe NICHT automatisch von der aeusseren WKWebView
         // erbt (zwei getrennte CALayer-Hintergruende).
-        webView?.scrollView.backgroundColor = cream
+        webView?.scrollView.backgroundColor = ThemeBridge.dynamisch
+        if #available(iOS 15.0, *) {
+            webView?.underPageBackgroundColor = ThemeBridge.dynamisch
+        }
+
+        configureThemeBridge()
 
         // GEFUNDENE URSACHE eines Real-Device-Bugreports ("Druecken+Halten
         // auf einer freien Stelle des Rezepte-Swipe-Screens und Wischen
@@ -199,5 +212,24 @@ class MainViewController: CAPBridgeViewController {
 
     deinit {
         scrollLockdownDisplayLink?.invalidate()
+    }
+
+    // MARK: - Theme-Bruecke (siehe ThemeBridge.swift)
+    //
+    // Registriert "themeBridge" als WKScriptMessageHandler auf der bereits
+    // von CAPBridgeViewController erzeugten WebView (existiert erst NACH
+    // super.viewDidLoad(), siehe Aufrufstelle oben). JS sendet bei jeder
+    // Aenderung des effektiv wirksamen Themes (theme.js, App.jsx) eine
+    // Nachricht - auch waehrend des Onboarding-Wizards, der bewusst immer
+    // 'light' sendet (siehe ThemeBridge-Kommentar).
+    private func configureThemeBridge() {
+        webView?.configuration.userContentController.add(self, name: "themeBridge")
+    }
+}
+
+extension MainViewController: WKScriptMessageHandler {
+    func userContentController(_ userContentController: WKUserContentController, didReceive message: WKScriptMessage) {
+        guard message.name == "themeBridge" else { return }
+        ThemeBridge.anwenden(style: ThemeBridge.style(ausModus: message.body), controller: self, webView: webView)
     }
 }

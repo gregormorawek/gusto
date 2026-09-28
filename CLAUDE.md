@@ -219,10 +219,11 @@ Weitere Vorgaben:
 - Alle Texte mindestens 4,5:1 Kontrast (Nachweis im Umsetzungsplan, wird
   beim Bau per Skript geprüft).
 - Umsetzungsreihenfolge, Native-Anteil (Swift/Xcode-Rebuild) und Testplan
-  stehen im Chat-Plan vom 28.09.2026 (Rücksprache-Stand: Plan gezeigt,
-  Freigabe offen). Der native Teil ersetzt die aktuelle Light-Fixierung
-  (`Info.plist` `UIUserInterfaceStyle=Light` plus hartcodierte Cream-
-  Hintergründe auf `UIWindow`/`WKWebView`, siehe Abschnitt 8).
+  standen im Chat-Plan vom 28.09.2026, seither freigegeben und umgesetzt
+  (Schritte 1–3, siehe Abschnitt 8 für den nativen Teil). **Schritt 4
+  (Feinschliff: Tab-Label/Toast im Dunkeln, Rezeptfotos am Gerät
+  begutachten) und Schritt 5 (Kontrastanhebung im Hellen) stehen noch
+  aus.**
 
 ---
 
@@ -360,6 +361,77 @@ müssen.
 
 Logs mit Präfix `GUSTO-SCROLL-LOCKDOWN` feuern nur, wenn tatsächlich
 korrigiert wurde.
+
+**Dark Mode, nativer Teil (Schritt 3, umgesetzt):** `Info.plist` erzwingt
+`UIUserInterfaceStyle` nicht mehr (Key entfernt) — die App unterstützt seit
+diesem Schritt beide Modi. `ThemeBridge.swift` (neu) kapselt die Farb-/
+Style-Logik: `hell`/`dunkel` 1:1 aus `--color-bg` gespiegelt, `dynamisch`
+(eine `UIColor` mit `dynamicProvider`) als Startfarbe auf `view`/`webView`/
+`window`, bis JS das erste Mal postet. `anwenden(style:controller:webView:)`
+setzt `overrideUserInterfaceStyle` auf dem **Fenster** (wirkt dadurch auf
+Statusleiste/Tastatur/native Formularelemente, nicht nur auf eine View) und
+haftet die Hintergrundfarbe auf jeder Ebene (`view`, `webView`,
+`webView.scrollView`, ab iOS 15 `underPageBackgroundColor`).
+
+`MainViewController.swift` registriert `"themeBridge"` als
+`WKScriptMessageHandler` auf der WebView (`configureThemeBridge()`, nach
+`super.viewDidLoad()`, weil die WebView erst dann existiert) und ruft bei
+jeder Nachricht `ThemeBridge.anwenden(...)` auf. JS sendet über
+`nativeThemeSetzen()` (`src/theme.js`) via
+`window.webkit.messageHandlers.themeBridge.postMessage({ modus })` — der
+Aufruf sitzt in `App.jsx` in einem eigenen `useEffect`. **Wichtig:**
+`modus` ist die GEWAEHLTE Darstellung (`'system'`/`'hell'`/`'dunkel'`,
+bzw. `'hell'` erzwungen solange der Wizard sichtbar ist) — **nie** das
+bereits aufgelöste `theme` (`'light'`/`'dark'`), siehe Bugfix unten.
+
+**Zwei bereits gefundene und gefixte Bugs, beide grundsätzlich
+(Bugfix-Vertrag, siehe Abschnitt 3) — `overrideUserInterfaceStyle` auf
+Fenster-Ebene wirkt nicht nur auf native UI, sondern färbt auch
+`window.matchMedia('(prefers-color-scheme: dark)')` für die GESAMTE
+WebView um:**
+
+1. *Startbildschirm blieb hell trotz dunklem System.* Der native
+   "Wizard erzwingt Hell"-Zwang darf erst greifen, wenn der Wizard
+   *tatsächlich sichtbar* ist (`!zeigtStartbildschirm &&
+   !onboardingAbgeschlossen` in `App.jsx`) — **nicht** schon bei
+   `!onboardingAbgeschlossen` allein, sonst zeigt bereits der
+   Startbildschirm (der laut eigenem Anspruch dem System folgen soll)
+   fälschlich immer Hell.
+2. *Kreisschluss bei „System“ (von Gregor selbst diagnostiziert, 28.09.2026):*
+   Wurde hier zuvor das bereits AUFGELÖSTE `theme` gesendet, las
+   `useDarstellung()` beim nächsten Mal den eigenen, künstlich
+   erzwungenen Wert aus `matchMedia` zurück und schickte ihn erneut — ein
+   sich selbst bestätigender Fehlschluss (nach dem Wizard blieb die App
+   hell, Umschalten auf „System“ wechselte nicht sofort; nur ein echter
+   Systemwechsel oder ein Neustart setzte ihn zurück). Fix: `ThemeBridge`
+   bekommt den ROHEN Modus, nicht das Ergebnis. Bei `'system'` hebt
+   `ThemeBridge.anwenden(style: nil, …)` den Zwang mit
+   `overrideUserInterfaceStyle = .unspecified` komplett auf, statt ihn
+   durch einen (möglicherweise falschen) festen Wert zu ersetzen — erst
+   das macht `matchMedia` wieder ehrlich, `useDarstellung()`s
+   `'change'`-Listener übernimmt danach zuverlässig den echten Systemwert.
+
+Beide Male per echtem Simulator-Build + `log stream`-Instrumentierung am
+`WKScriptMessageHandler` konkret nachgewiesen (nicht vermutet) — bei
+künftigen Änderungen an `nativeThemeSetzen`/`ThemeBridge` diesen
+Seiteneffekt im Kopf behalten und am Gerät mit allen vier Kombinationen
+gegenprüfen: iPhone dunkel + Darstellung Dunkel→System (bleibt dunkel),
+iPhone dunkel + Hell→System (wird sofort dunkel), iPhone hell +
+Dunkel→System (wird sofort hell), Neuinstallation bei dunklem iPhone
+(Start dunkel, Wizard hell, direkt danach dunkel ohne Neustart) — alle
+vier jeweils OHNE App-Neustart.
+
+Splash: `resources`/`Assets.xcassets/Splash.imageset` hat jetzt helle UND
+dunkle Varianten (dunkel = flächig `#1D1714`, per Skript erzeugt) —
+Auswahl übernimmt iOS automatisch über die `-dark`-Bildvarianten der
+Asset-Katalog-„luminosity“-Erscheinung, kein eigener Code nötig.
+`capacitor.config.json`s `SplashScreen.backgroundColor` ist entfernt
+(hätte sonst immer Hell über den nativen Splash gelegt, auch im Dunkeln).
+
+**Xcode-Rebuild nötig, `npx cap sync ios` reicht NICHT** — es wurde neuer
+Swift-Code hinzugefügt (`ThemeBridge.swift`, in `project.pbxproj`
+eingetragen) und `Info.plist`/`SceneDelegate.swift`/`MainViewController.swift`
+geändert.
 
 ---
 

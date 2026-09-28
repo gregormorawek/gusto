@@ -73,3 +73,43 @@ export function useDarstellung() {
 
   return { darstellung, setDarstellung, theme }
 }
+
+// Sendet die GEWAEHLTE Darstellung ('system'/'hell'/'dunkel', NICHT das
+// bereits aufgeloeste 'light'/'dark'!) an die iOS-Bruecke (siehe
+// ThemeBridge.swift + MainViewController.swift, configureThemeBridge()).
+// Reiner No-Op im Browser/auf Web (window.webkit existiert dort nicht) -
+// kein Capacitor.isNativePlatform()-Check noetig, das optionale Chaining
+// reicht. Aufgerufen von App.jsx mit dem WIZARD-bewussten Wert (waehrend
+// der Wizard sichtbar ist immer 'hell', siehe dortiger Aufruf) - anders
+// als das reine data-theme am <html>, das den Wizard-Sonderfall nicht kennt.
+//
+// GEFUNDENE URSACHE eines Real-Device-Bugreports ("Nach dem Wizard blieb
+// die App hell, obwohl iPhone+Darstellung auf Dunkel/System standen - erst
+// nach Neustart korrekt" UND "Auf 'System' zurueckstellen wechselt nicht
+// sofort"), von Gregor korrekt vermutet und per Simulator-Log bestaetigt:
+// ein Kreisschluss. ThemeBridge.anwenden() setzt overrideUserInterfaceStyle
+// auf FENSTER-Ebene - das faerbt danach AUCH window.matchMedia(
+// 'prefers-color-scheme: dark') fuer die gesamte WebView um (siehe
+// ThemeBridge.swift). Wurde hier zuvor das bereits AUFGELOESTE theme
+// ('light'/'dark') gesendet, las useDarstellung() beim naechsten Mal den
+// eigenen, kuenstlich erzwungenen Wert aus matchMedia zurueck und schickte
+// ihn erneut - ein sich selbst bestaetigender Fehlschluss, der sich nie
+// von selbst aufloeste (nur ein echter System-Wechsel oder ein Neustart
+// mit frischer, unveraendert dynamischer Fenster-Farbe setzte ihn zurueck).
+//
+// Der Ausweg: NICHT das Ergebnis schicken, sondern die Entscheidung NATIV
+// treffen lassen. Bei 'system' hebt ThemeBridge.anwenden() den Zwang mit
+// overrideUserInterfaceStyle = .unspecified komplett auf, WKWebView
+// erbt danach wieder ehrlich vom echten System - erst DAS macht
+// matchMedia wieder vertrauenswuerdig fuer den naechsten Wechsel auf
+// 'system'. useDarstellung() liest den echten Systemwert weiterhin nur
+// ueber den 'change'-Listener auf der MediaQueryList (siehe oben) -
+// dieser feuert zuverlaessig, sobald WKWebView nach dem Aufheben des
+// Zwangs neu mit dem System abgleicht.
+export function nativeThemeSetzen(modus) {
+  try {
+    window.webkit?.messageHandlers?.themeBridge?.postMessage({ modus })
+  } catch {
+    // Kein natives Umfeld oder Bruecke (noch) nicht registriert - bewusst stumm.
+  }
+}

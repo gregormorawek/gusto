@@ -17,6 +17,7 @@
 		50B271D11FEDC1A000F3C39B /* public in Resources */ = {isa = PBXBuildFile; fileRef = 50B271D01FEDC1A000F3C39B /* public */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
 		B156D00853412A4BAB57E537 /* MainViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = DF4A3F4F554BF2807F0EA5AF /* MainViewController.swift */; };
+		3A17D6E8ED9F4E27B0F1A9C2 /* ThemeBridge.swift in Sources */ = {isa = PBXBuildFile; fileRef = 8C21F49B0A6D4E3D9C7B5F14 /* ThemeBridge.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +33,7 @@
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
 		958DCC722DB07C7200EA8C5F /* debug.xcconfig */ = {isa = PBXFileReference; lastKnownFileType = text.xcconfig; name = debug.xcconfig; path = ../debug.xcconfig; sourceTree = SOURCE_ROOT; };
 		DF4A3F4F554BF2807F0EA5AF /* MainViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MainViewController.swift; sourceTree = "<group>"; };
+		8C21F49B0A6D4E3D9C7B5F14 /* ThemeBridge.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ThemeBridge.swift; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
 /* Begin PBXFrameworksBuildPhase section */
@@ -68,6 +70,7 @@
 			children = (
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
 				DF4A3F4F554BF2807F0EA5AF /* MainViewController.swift */,
+				8C21F49B0A6D4E3D9C7B5F14 /* ThemeBridge.swift */,
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				504EC30B1FED79650016851F /* Main.storyboard */,
@@ -165,6 +168,7 @@
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
 				B156D00853412A4BAB57E537 /* MainViewController.swift in Sources */,
+				3A17D6E8ED9F4E27B0F1A9C2 /* ThemeBridge.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

@@ -30,7 +30,7 @@ import {
 } from './rezepteFilter'
 import { bilderImHintergrundVorladen } from './bildVorladen'
 import { budgetPruefer, budgetSchluessel, korridorFuerMahlzeit } from './budgetFilter'
-import { useDarstellung } from './theme'
+import { nativeThemeSetzen, useDarstellung } from './theme'
 import { EXPO_OUT, FADE_UEBERGANG } from './motionConfig'
 
 // Gestaffelte Fade-Choreografie Startbildschirm -> naechste Ansicht (Wizard
@@ -287,6 +287,7 @@ function App() {
   // Darstellung Hell/Dunkel/System (siehe theme.js) - setzt data-theme am <html>.
   const { darstellung, setDarstellung } = useDarstellung()
 
+
   // Speichert das Ziel bei jeder Aenderung im localStorage, damit es beim
   // naechsten Oeffnen der App erhalten bleibt.
   useEffect(() => {
@@ -298,6 +299,7 @@ function App() {
   // false ist, zeigt die App statt der Haupt-Ansicht den Wizard.
   const [onboardingAbgeschlossen, setOnboardingAbgeschlossen] = useState(onboardingAbgeschlossenLaden)
 
+
   // Startbildschirm (Startbildschirm.jsx) - Marken-Moment VOR Wizard/
   // Hauptansicht, siehe Rendering-Weiche weiter unten. BEWUSST kein
   // localStorage wie bei onboardingAbgeschlossen: der Startbildschirm soll
@@ -305,6 +307,42 @@ function App() {
   // daher reiner In-Memory-State, der bei jedem Neuladen wieder bei true
   // beginnt.
   const [zeigtStartbildschirm, setZeigtStartbildschirm] = useState(true)
+
+  // Meldet die gewaehlte Darstellung an die native Bruecke (siehe theme.js,
+  // nativeThemeSetzen - bewusst der ROHE Modus 'system'/'hell'/'dunkel',
+  // nicht das bereits aufgeloeste Theme, siehe dortiger Kommentar zum
+  // Kreisschluss-Bugfix). WAEHREND der Onboarding-Wizard sichtbar ist,
+  // IMMER 'hell': der Wizard ist bewusst vom Dark Mode ausgeklammert
+  // (siehe CLAUDE.md Abschnitt 5), der data-theme="light"-Wrapper um
+  // <OnboardingWizard> (weiter unten) deckt nur die WEB-Seite davon ab -
+  // die native Oberflaeche (Statusleiste, Tastatur) braucht denselben
+  // Zwang separat.
+  //
+  // GEFUNDENE URSACHE eines Simulator-Bugreports ("Startbildschirm bleibt
+  // bei dunklem System hell, obwohl er dem Modus folgen soll"): der
+  // native "Wizard erzwingt Hell"-Zwang wirkt ueber overrideUserInterface-
+  // Style auf FENSTER-Ebene (siehe ThemeBridge.anwenden) - das faerbt
+  // zwangslaeufig AUCH das JS-seitige window.matchMedia('(prefers-color-
+  // scheme: dark)') fuer die GESAMTE Seite um (WKWebView leitet ihre
+  // eigene Trait-Collection vom Fenster ab), nicht nur den Wizard-
+  // Teilbaum. Die Bedingung unten war ZU FRUEH scharf: onboarding-
+  // Abgeschlossen ist bereits waehrend des Startbildschirms false (er
+  // erscheint VOR dem Wizard, siehe zeigtStartbildschirm-Kommentar), der
+  // Zwang zaehlte also faelschlich auch fuer den Startbildschirm, der
+  // eigentlich dem echten Modus folgen soll ("folgt dem Modus, damit er
+  // zum nativen Splash passt", siehe Startbildschirm.jsx). Deshalb
+  // zusaetzlich an zeigtStartbildschirm geprueft: der Zwang gilt nur,
+  // wenn der Wizard TATSAECHLICH sichtbar ist (Startbildschirm bereits
+  // weg UND Onboarding noch nicht abgeschlossen) - exakt dieselbe
+  // Bedingung wie die Rendering-Weiche weiter unten.
+  useEffect(() => {
+    const wizardSichtbar = !zeigtStartbildschirm && !onboardingAbgeschlossen
+    // 'hell' (Wizard) bzw. die GEWAEHLTE Darstellung - bewusst NICHT das
+    // bereits aufgeloeste "theme": siehe ausfuehrlicher Kommentar bei
+    // nativeThemeSetzen in theme.js (Kreisschluss-Bugfix).
+    nativeThemeSetzen(wizardSichtbar ? 'hell' : darstellung)
+  }, [darstellung, onboardingAbgeschlossen, zeigtStartbildschirm])
+
 
   // Fuer die Fade-Choreografie beim Verlassen des Startbildschirms (siehe
   // Rendering-Weiche am Komponentenende) - dort wird bei reduzierter

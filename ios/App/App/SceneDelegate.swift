@@ -8,12 +8,14 @@ class SceneDelegate: UIResponder, UIWindowSceneDelegate {
         guard let windowScene = scene as? UIWindowScene else { return }
 
         window = UIWindow(windowScene: windowScene)
-        // Cream statt CAPBridgeViewController direkt - siehe MainViewController.swift
-        // fuer die ausfuehrliche Begruendung (schwarzer-Rand-Bugfix). Das
-        // Fenster selbst bekommt hier zusaetzlich dieselbe Cream-Farbe, fuer
-        // den kurzen Moment zwischen Fenster-Erstellung und dem ersten
-        // Layout-Pass des Root-View-Controllers.
-        window?.backgroundColor = UIColor(red: 0xF7 / 255.0, green: 0xF1 / 255.0, blue: 0xE6 / 255.0, alpha: 1.0)
+        // Siehe MainViewController.swift fuer die ausfuehrliche Begruendung
+        // (schwarzer-Rand-Bugfix). Das Fenster selbst bekommt hier zusaetzlich
+        // dieselbe Farbe, fuer den kurzen Moment zwischen Fenster-Erstellung
+        // und dem ersten Layout-Pass des Root-View-Controllers. Dynamisch
+        // (ThemeBridge.dynamisch) statt hart Cream seit dem Dark-Mode-Umbau -
+        // siehe ThemeBridge.swift: folgt dem System, bis JS die tatsaechliche
+        // Wahl meldet.
+        window?.backgroundColor = ThemeBridge.dynamisch
         window?.rootViewController = MainViewController()
         window?.makeKeyAndVisible()
 
