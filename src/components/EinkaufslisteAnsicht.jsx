@@ -122,7 +122,7 @@ function ListeLeerenBestaetigung({ offen, onAbbrechen, onBestaetigen }) {
               <AnimatedButton
                 type="button"
                 onClick={onBestaetigen}
-                className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-on-primary"
+                className="flex-1 rounded-lg bg-primary-dark px-3 py-2 text-sm font-medium text-on-primary"
               >
                 Leeren
               </AnimatedButton>
@@ -221,7 +221,7 @@ function EinkaufslisteAnsicht({ liste, onPostenAbhaken, onAbgehakteEntfernen, on
             type="button"
             onClick={onAbgehakteEntfernen}
             disabled={!hatAbgehakte}
-            className="font-medium text-primary hover:underline disabled:opacity-40"
+            className="font-medium text-primary-dark hover:underline disabled:opacity-40"
           >
             Abgehakte entfernen
           </AnimatedButton>

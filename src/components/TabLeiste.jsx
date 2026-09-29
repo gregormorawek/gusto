@@ -121,21 +121,46 @@ function TabLeiste({ aktiverTab, onTabWaehlen, tagBadgeAnzahl = 0 }) {
                 (ebenfalls positionierten) Pille gemalt werden, unabhaengig
                 von CSS-Male-Reihenfolge-Feinheiten zwischen position:
                 absolute- und position:relative-Geschwistern.
-                Aktiv: Terracotta (text-primary) - funktioniert zuverlaessig
-                auf der jetzt kraeftigeren Cream-Pille (38% statt 20%
-                Deckkraft), UNABHAENGIG davon, welche Farbe hinter der
+                Aktiv-LABEL (Text, siehe span unten): text-primary-dark statt
+                text-primary (Kontrastanhebung 29.09.2026) - text-primary auf
+                Cream lag bei 3,05:1, fuer Fliesstext/Labels sind 4,5:1
+                verbindlich, primary-dark erreicht 4,71:1. Aktiv-ICON: aus
+                demselben Anlass ebenfalls auf primary-dark umgestellt, obwohl
+                ein reines Symbol nur 3:1 braucht (3,05:1 haette gereicht) -
+                Icon in text-primary UND Label direkt darunter in
+                text-primary-dark sah im Vorher-Nachher-Vergleich als zwei
+                sichtbar verschiedene Terracotta-Toene uneinheitlich aus
+                (Gregor, 29.09.2026), deshalb beide vereinheitlicht. Im
+                Dunkeln unveraendert, da dort primary-dark == primary
+                (#E0875A, siehe index.css) - reiner Hell-Fix. Funktioniert
+                zuverlaessig auf der jetzt kraeftigeren Cream-Pille (38% statt
+                20% Deckkraft), UNABHAENGIG davon, welche Farbe hinter der
                 durchscheinenden Bar selbst liegt (Cream/Tan/Oliv/Terracotta) -
-                die Pille sitzt ja jetzt IMMER dahinter. Inaktiv: text-text/55
-                (mittleres Espresso) - weder auf Tan- noch auf Cream-
-                Hintergrund zu kontrastarm, bleibt aber klar gedaempfter als
-                der aktive Terracotta-Ton. */}
+                die Pille sitzt ja jetzt IMMER dahinter.
+                Inaktiv: text-text/77 (Kontrastanhebung 29.09.2026, vorher
+                text-text/55) - das inaktive Tab-Label ist der meistgesehene
+                Text der App (Gregor, 29.09.2026), 55% lag auf der 28%-Tan-
+                Tönung der Bar (ueber Cream) nur bei ~2,80:1, weit unter den
+                4,5:1 fuer Text. Gegen die Bar-Tönung selbst laesst sich hier
+                (anders als bei --color-surface, siehe SegmentSchalter.jsx)
+                nichts drehen - die 28% sind KONSTANTES CSS in .tab-leiste
+                (index.css), nicht von hier aus erreichbar, und selbst wenn:
+                staerkere Toenung senkt den Kontrast hier genauso wie dort.
+                77% ist deshalb direkt am Text-Ton (--color-text) gemessen -
+                bindender (schlechtester) Fall ist Hell ueber Cream-Hintergrund
+                mit 4,70:1; ueber Karten-Hintergrund und in Dunkel (beide
+                Basen) liegt es klar darueber (>=5,2:1). Ein einziger Wert fuer
+                beide Modi noetig, kein dark: - 77% erfuellt beide bequem.
+                Gilt fuer Icon UND Label gleich (Icon braucht nur 3:1, damit
+                laengst erfuellt) - beide blieben bisher ohnehin auf demselben
+                Ton, das aendert sich nicht. */}
             <span className="relative z-10 flex h-8 w-12 items-center justify-center rounded-full">
               {/* Eigener, eng am Icon anliegender relative-Wrapper (statt den
                   ganzen 48x32-Button als Bezugsrahmen zu nehmen) - das Badge
                   soll direkt am Icon-Rand sitzen, nicht an der viel
                   breiteren Button-Ecke. */}
               <span className="relative">
-                <Icon size={22} stroke={1.75} className={`transition-colors duration-150 ${aktiv ? 'text-primary' : 'text-text/55'}`} />
+                <Icon size={22} stroke={1.75} className={`transition-colors duration-150 ${aktiv ? 'text-primary-dark' : 'text-text/77'}`} />
                 {/* Hinweis-Badge NUR am Tag-Tab (siehe App.jsx
                     tagBadgeMahlzeiten) - zaehlt seit dem letzten Oeffnen des
                     Tag-Tabs neu gesetzte Mahlzeiten. key={tagBadgeAnzahl}
@@ -176,7 +201,7 @@ function TabLeiste({ aktiverTab, onTabWaehlen, tagBadgeAnzahl = 0 }) {
             </span>
             <span
               className={`relative z-10 font-sans transition-colors duration-150 ${
-                aktiv ? 'text-[10px] font-semibold text-primary dark:text-text' : 'text-[9px] font-medium text-text/55'
+                aktiv ? 'text-[10px] font-semibold text-primary-dark dark:text-text' : 'text-[9px] font-medium text-text/77'
               }`}
             >
               {label}

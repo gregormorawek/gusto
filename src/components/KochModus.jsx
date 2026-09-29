@@ -863,7 +863,7 @@ function KochModusSheet({ eintrag, onZurueck, erledigteSchritte, onSchrittUmscha
         <div onPointerDown={handlePointerDownKopfbereich} className="shrink-0 touch-none pb-1 pt-2">
           <div className="mx-auto h-1 w-10 rounded-full bg-text-muted" />
           <div className="mt-2 flex items-center justify-between px-4">
-            <AnimatedButton type="button" onClick={() => schliessen()} className="text-sm text-primary hover:underline">
+            <AnimatedButton type="button" onClick={() => schliessen()} className="text-sm text-primary-dark hover:underline">
               ← Zurück
             </AnimatedButton>
             <p className="text-sm font-medium text-text-muted">

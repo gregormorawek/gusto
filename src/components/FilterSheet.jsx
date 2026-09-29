@@ -212,7 +212,7 @@ function FilterSheetInhalt({ onSchliessen, aktuelleMahlzeit, diaeten, eigenschaf
                 setEntwurfDiaeten([])
                 setEntwurfEigenschaft('')
               }}
-              className="text-sm font-medium text-primary hover:underline"
+              className="text-sm font-medium text-primary-dark hover:underline"
             >
               Zurücksetzen
             </AnimatedButton>

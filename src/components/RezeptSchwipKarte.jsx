@@ -509,7 +509,7 @@ function RezeptSchwipKarte({
               <AnimatedButton
                 type="button"
                 onClick={onFilterAnpassen}
-                className="rounded-full border border-primary/40 bg-card px-4 py-2 text-sm font-medium text-primary shadow-sm"
+                className="rounded-full border border-primary/40 bg-card px-4 py-2 text-sm font-medium text-primary-dark shadow-sm"
               >
                 Filter anpassen
               </AnimatedButton>

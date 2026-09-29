@@ -15,10 +15,18 @@
   --color-bg: #f7f1e6;
   --color-card: #fffdf8;
   --color-primary: #c9754a;
-  --color-primary-dark: #a15e3b;
+  /* Kontrastanhebung (29.09.2026, Gregors Freigabe noch ausstehend): von
+     #a15e3b auf #9c5b39 abgedunkelt - reicht als TEXT auf Cream jetzt auf
+     4,71:1 (vorher 4,47, unter der 4,5-Schwelle) und bleibt als Flaeche
+     unter weisser Schrift bei 5,20:1 (vorher 4,94). Nur der helle Wert -
+     dunkel bleibt unveraendert bei #e0875a (siehe unten). */
+  --color-primary-dark: #9c5b39;
   --color-secondary: #6b7a4a;
   --color-text: #3e2e22;
-  --color-text-muted: #8a6b4a;
+  /* Kontrastanhebung (29.09.2026): von #8a6b4a auf #876949 abgedunkelt -
+     reicht auf --color-bg jetzt auf 4,50:1 (vorher 4,36). Nur der helle
+     Wert - dunkel bleibt unveraendert bei #b7a188. */
+  --color-text-muted: #876949;
 
   /* Schrift/Icons AUF Akzentflaechen (bg-primary, bg-primary-dark,
      bg-secondary) - hell weiss, dunkel dunkle Zeichen. Nicht text-card
@@ -88,10 +96,10 @@
   --color-bg: #f7f1e6;
   --color-card: #fffdf8;
   --color-primary: #c9754a;
-  --color-primary-dark: #a15e3b;
+  --color-primary-dark: #9c5b39;
   --color-secondary: #6b7a4a;
   --color-text: #3e2e22;
-  --color-text-muted: #8a6b4a;
+  --color-text-muted: #876949;
   --color-on-primary: #fffdf8;
   --color-on-secondary: #fffdf8;
   --color-surface: color-mix(in srgb, var(--color-text-muted) 15%, transparent);

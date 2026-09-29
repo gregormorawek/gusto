@@ -41,7 +41,24 @@ function SegmentSchalter({ optionen, aktuell, onAendern }) {
                 className="absolute inset-0 rounded-full bg-surface-raised shadow-sm"
               />
             )}
-            <span className={`relative z-10 ${aktiv ? 'font-semibold text-text' : 'font-medium text-text-muted'}`}>{label}</span>
+            {/* Inaktives Label: text-text/75 statt text-text-muted
+                (Kontrastanhebung 29.09.2026). text-muted auf der eigenen,
+                15% getoenten Leiste (bg-surface) kam nur auf 3,65:1 - und das
+                laesst sich NICHT durch Nachjustieren der Tin-Staerke beheben:
+                da Vordergrund UND Hintergrund aus demselben Tan-Ton gemischt
+                sind, sinkt der Kontrast bei staerkerer Toenung (mehr Tan im
+                Hintergrund) sogar noch WEITER, statt zu steigen - 15% ist
+                schon nahe am kontrastreichsten Punkt dieser Kombination.
+                text-text/75 (gedimmtes Espresso statt gedimmtes Tan) kommt
+                auf 4,58:1 und folgt damit demselben Muster wie iOS' eigene
+                sekundaere Label-Farben (Opazitaets- statt Farbtonabstufung
+                von der Vordergrundfarbe). Sichtbar dunkler als vorher -
+                bewusst, das IST die Kontrastkorrektur an dieser Stelle. NUR
+                im Hellen: die dunkle Fassung war mit 5,39:1 (text-muted auf
+                der blickdichten dunklen Flaeche) bereits ausreichend - dort
+                per dark:text-text-muted bewusst beim bisherigen Ton belassen,
+                damit sich am Dark Mode nichts aendert. */}
+            <span className={`relative z-10 ${aktiv ? 'font-semibold text-text' : 'font-medium text-text/75 dark:text-text-muted'}`}>{label}</span>
           </AnimatedButton>
         )
       })}

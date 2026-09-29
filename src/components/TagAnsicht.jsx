@@ -104,7 +104,7 @@ function TagZeileBefuellt({ label, rezept, karte, onOeffnen, onEntfernen }) {
         type="button"
         onClick={onEntfernen}
         aria-label={`${label}: Rezept entfernen`}
-        className="absolute inset-y-0 right-0 flex items-center justify-center gap-1.5 rounded-l-lg bg-primary text-xs font-medium text-on-primary"
+        className="absolute inset-y-0 right-0 flex items-center justify-center gap-1.5 rounded-l-lg bg-primary-dark text-xs font-medium text-on-primary"
         style={{ width: ENTFERNEN_BREITE_PX }}
       >
         <IconTrash size={18} stroke={1.75} />
@@ -430,7 +430,7 @@ function ErneutHinzufuegenBestaetigung({ offen, onAbbrechen, onBestaetigen }) {
               <AnimatedButton
                 type="button"
                 onClick={onBestaetigen}
-                className="flex-1 rounded-lg bg-primary px-3 py-2 text-sm font-medium text-on-primary"
+                className="flex-1 rounded-lg bg-primary-dark px-3 py-2 text-sm font-medium text-on-primary"
               >
                 Hinzufügen
               </AnimatedButton>

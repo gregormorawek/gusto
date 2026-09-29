@@ -481,7 +481,7 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
             type="button"
             onClick={weiter}
             disabled={!kannWeiter}
-            className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-on-primary shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
+            className="w-full rounded-2xl bg-primary-dark px-6 py-4 text-base font-semibold text-on-primary shadow-sm disabled:cursor-not-allowed disabled:opacity-40"
           >
             {schritt === ANZAHL_FRAGEN ? 'Ziel berechnen' : 'Weiter'}
           </AnimatedButton>
@@ -506,7 +506,7 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
                 koerperdatenSpeichern(antworten)
                 onUebernehmen(ergebnis, { fokussieren: false })
               }}
-              className="w-full rounded-2xl bg-primary px-6 py-4 text-base font-semibold text-on-primary shadow-sm"
+              className="w-full rounded-2xl bg-primary-dark px-6 py-4 text-base font-semibold text-on-primary shadow-sm"
             >
               Werte übernehmen
             </AnimatedButton>
@@ -516,7 +516,7 @@ function KalorienrechnerInhalt({ onSchliessen, onUebernehmen }) {
                 koerperdatenSpeichern(antworten)
                 onUebernehmen(ergebnis, { fokussieren: true })
               }}
-              className="text-sm font-medium text-text-muted hover:text-primary"
+              className="text-sm font-medium text-text-muted hover:text-primary-dark"
             >
               Selbst anpassen
             </AnimatedButton>

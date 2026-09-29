@@ -231,9 +231,27 @@ Weitere Vorgaben:
   helleren, transluzenten Tab-Leiste wie ein schwarzer Umriss statt wie
   ein "ausgestanztes" Badge — Fix nutzt im Dunkeln `--color-surface`
   (siehe `TabLeiste.jsx`, laut Tokentabelle oben ohnehin für „Tabs“
-  vorgesehen). **Schritt 5 (Kontrastanhebung im Hellen) ist ein eigener,
-  separat priorisierter Folgeschritt und steht weiterhin aus** (siehe
-  Abschnitt 12, "Kontrast im hellen Modus").
+  vorgesehen). **Schritt 5 (Kontrastanhebung im Hellen) ist ebenfalls
+  abgeschlossen und am Gerät bestätigt (29.09.2026, hell und dunkel).**
+  Befund (28.09.2026) und Umsetzung:
+
+  | Fall | Vorher | Nachher | Fix |
+  |---|---|---|---|
+  | Nebentext auf `--color-bg` | 4,36 | 4,50 | `--color-text-muted` `#8A6B4A` → `#876949` (nur hell) |
+  | Terrakotta-Text (`text-primary`) auf Cream | 3,05 | 4,71 | echte Text-Stellen auf `text-primary-dark` umgestellt, Symbole bleiben `text-primary` (brauchen nur 3:1) |
+  | Weiße Schrift auf `bg-primary` | 3,37 | 5,20 | Primärbuttons mit Text auf `bg-primary-dark` umgestellt (`--color-primary-dark` zugleich `#A15E3B` → `#9C5B39`, nur hell), Icon-Badges bleiben `bg-primary` |
+  | Nebentext auf Segment-Leiste (`bg-surface`) | 3,65 | 4,58 | inaktives Segment-Label auf `text-text/75` (gedimmtes Espresso statt gedimmtes Tan — dieselbe Tönung liefert rechnerisch KEINEN Ausweg, siehe `SegmentSchalter.jsx`); im Dunkeln bewusst bei `text-text-muted` belassen (`dark:`-Override, war dort mit 5,39 bereits ok) |
+  | Zusatzfund: inaktive Tab-Labels/-Symbole (`TabLeiste.jsx`) | hell 2,80 / dunkel 3,57–3,86 | hell 4,70 / dunkel 5,28–5,99 | `text-text/55` → `text-text/77`, EIN Wert für beide Modi (Gregor, 29.09.2026: meistgesehener Text der App, in beiden Modi nachziehen) |
+
+  `--color-primary` selbst (Terrakotta als Fläche/Symbol) blieb
+  unverändert, wie gefordert. Per Pixelvergleich (`screens-erfassen.mjs`
+  --modus dunkel, vorher/nachher) nachgewiesen: im Dunkeln weicht NUR die
+  Tab-Leiste ab (der bewusst mitgezogene Zusatzfund), alles andere ist
+  pixelidentisch. Kein neuer Farbwert außerhalb der bestehenden Token
+  (`primary-dark`, `text-muted`, `text`) — Aktiv-Icon in der TabLeiste
+  lief ebenfalls auf `primary-dark` mit, weil Icon (hell) und Label
+  (dunkler) direkt übereinander sonst zwei sichtbar verschiedene
+  Terracotta-Töne zeigten (Gregor, 29.09.2026).
 
 ---
 
@@ -674,17 +692,8 @@ möglichst auch vegan an den Rändern (vegane Snacks 150–330, vegane
 Frühstücke unter 550). Nach jedem neuen Paket `npm run schnappschuss` und
 diese Tabelle prüfen (siehe Abschnitt 9).
 
-Kontrast im hellen Modus (Befund beim Dark-Mode-Plan, 28.09.2026, nicht
-angefasst — ändert freigegebene Marken-Tokens, braucht Rücksprache): WCAG-
-Messung des Ist-Stands unter 4,5:1: Nebentext auf `--color-bg` 4,36 (auf
-Karte 4,82 ok), Terrakotta-Text (`text-primary`) auf Cream 3,05, Olive-Text
-4,14, weiße Schrift auf `bg-primary` 3,37 (betrifft u. a. Primärbuttons in
-Tag, Einkaufsliste, Einstellungen; `bg-primary-dark` mit 4,94 und Olive-
-Flächen mit 4,58 sind ok), Nebentext auf `bg-text-muted/15` 3,65
-(Segment-Leiste). Mögliche Abhilfe: Buttons auf `primary-dark`, Nebentext
-etwas dunkler. **Priorität: eigener Schritt DIREKT nach dem Dark Mode**
-(Gregor, 28.09.2026), nicht irgendwann — erst Dark Mode fertig und
-bestätigt, dann diese Kontrastanhebung mit Rücksprache zu den Werten.
+Kontrast im hellen Modus: umgesetzt und am Gerät bestätigt, siehe
+Abschnitt 5 (nicht mehr Backlog).
 
 Einkaufsliste zeigt teils falsche Mengen/Einheiten (Befund 29.09.2026,
 nicht angefasst — Punkt 1 braucht ein neues Feld im Datenmodell,
