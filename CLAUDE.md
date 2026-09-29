@@ -696,9 +696,11 @@ Kontrast im hellen Modus: umgesetzt und am Gerät bestätigt, siehe
 Abschnitt 5 (nicht mehr Backlog).
 
 Einkaufsliste zeigt teils falsche Mengen/Einheiten (Befund 29.09.2026,
-nicht angefasst — Punkt 1 braucht ein neues Feld im Datenmodell,
-Rücksprache. **Priorität: eigener Schritt DIREKT nach der
-Kontrastanhebung im Hellen**, Gregor 29.09.2026):
+nicht angefasst — Punkte 1+2 sind EIN zusammenhängender Umbau (Roh-
+Faktor, Einkaufseinheit und Stückgewicht kommen aus derselben neuen
+Spaltengruppe in `zutaten`), braucht ein neues Datenmodell-Feld und
+Rücksprache. **Priorität: aktuell nächster Schritt** (Gregor,
+29.09.2026 — direkt nach der jetzt abgeschlossenen Kontrastanhebung):
 
 1. **Gekocht- statt Roh-Gewicht.** `rezept_zutaten.menge_g` steht bei
    Getreide/Hülsenfrüchten im GEKOCHTEN Zustand (siehe Abschnitt 9,
@@ -712,12 +714,18 @@ Kontrastanhebung im Hellen**, Gregor 29.09.2026):
    nur im Skript, damit Kochmodus-Anmerkung UND Einkaufsliste
    (`zutatenAusRezeptKarte()` in `einkaufsliste.js`) aus derselben Quelle
    rechnen statt auseinanderzulaufen.
-2. **Flüssigkeiten in Gramm statt Millilitern**, z. B. Milch mit 200 g
-   statt 200 ml — beim Abmessen unüblich. Betrifft vermutlich mehrere
-   `zutaten` (Milch, Buttermilch, Haferdrink, Kokosmilch, Brühen, Öle,
-   Sojasauce, Rot-/Weißwein, Zitronen-/Limettensaft, ...). Braucht eine
-   Entscheidung, ob pauschal umgerechnet wird (Dichte ≈ 1 g/ml trifft auf
-   die meisten davon zu) oder je Zutat einzeln.
+2. **Einkaufseinheit je Zutat statt pauschal Gramm.** Flüssigkeiten
+   stehen in Gramm statt Millilitern (z. B. Milch mit 200 g), und Stück-
+   Zutaten (z. B. Eier) müssten eigentlich als "2 Stück" statt in Gramm
+   erscheinen — **nicht pauschal umrechnen** (Gregor, 29.09.2026: je
+   Zutat einzeln, nicht global per Dichte-Annahme). **Lösungsidee:**
+   zwei neue Spalten in `zutaten`: `einkaufseinheit` (`g` / `ml` /
+   `stueck`) und `stueckgewicht_g` (nur bei `stueck` befüllt, z. B. Ei
+   ≈ 60 g) — die Einkaufsliste rechnet `menge_g ÷ stueckgewicht_g`
+   (gerundet) und zeigt z. B. "2 Eier" statt "120 g". Gehört mit Punkt 1
+   zusammen entworfen (`roh_faktor`, `einkaufseinheit`, `stueckgewicht_g`
+   als eine zusammenhängende Erweiterung von `zutaten`, ein gemeinsamer
+   Umsetzungsplan statt getrennter Einzel-Migrationen).
 3. **Alte ASCII-Namen im Zutatenbestand** (per Abfrage gefunden,
    29.09.2026, 232 Zutaten insgesamt durchsucht): 26 Einträge ohne
    Umlaut/scharfes S, obwohl an anderer Stelle im selben Bestand korrekt
@@ -744,6 +752,7 @@ Kontrastanhebung im Hellen**, Gregor 29.09.2026):
    Reine Content-Korrektur (`update zutaten set name = ... where id =
    ...`, `id` bleibt als Referenz unverändert) — keine Logik-Änderung.
 
-Alle drei Punkte sind Datenarbeit bzw. ein kleiner Datenmodell-Zusatz
-(Punkt 1), keine Architekturänderung — Umsetzung erst nach Gregors
-Freigabe und einem eigenen Plan.
+Punkt 3 ist reine Content-Korrektur, Punkte 1+2 ein kleiner, gemeinsamer
+Datenmodell-Zusatz (drei neue Spalten in `zutaten`) — keine
+Architekturänderung, aber ein zusammenhängender Umbau statt Einzel-
+Fixes. Umsetzung erst nach Gregors Freigabe und einem eigenen Plan.
