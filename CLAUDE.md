@@ -144,7 +144,7 @@ Inter (400/500, UI und Fließtext).
   als Weiß, `bg-text/NN` als Abdunklung); Pixelvergleich des hellen Modus:
   `scripts/screens-erfassen.mjs` + `scripts/screens-vergleichen.mjs`.
 
-### Dark Mode ("Terrakotta bleibt") — Palette entschieden, noch nicht gebaut
+### Dark Mode ("Terrakotta bleibt") — umgesetzt und am Gerät bestätigt (Schritte 1–4)
 
 Aktivierung: folgt standardmäßig der iPhone-Einstellung, zusätzlich in den
 Einstellungen ein Schalter "Darstellung: System / Hell / Dunkel" (eigener
@@ -214,16 +214,26 @@ Weitere Vorgaben:
   statt hart gesetztem Weiß. Betrifft Übernehmen-Knopf, Badges, Primärknopf
   im Filter-Sheet u. a.
 - Rezeptfotos bleiben unverändert; der dunkle Balken unter dem Titel wird
-  im Dark Mode etwas kräftiger.
+  im Dark Mode etwas kräftiger. Am Gerät bestätigt (29.09.2026): die Fotos
+  blenden im Dunkeln nicht, keine zusätzliche Abdunklung nötig.
 - Schatten im Dunkeln dunkler und weicher, nicht einfach invertiert.
 - Alle Texte mindestens 4,5:1 Kontrast (Nachweis im Umsetzungsplan, wird
   beim Bau per Skript geprüft).
 - Umsetzungsreihenfolge, Native-Anteil (Swift/Xcode-Rebuild) und Testplan
   standen im Chat-Plan vom 28.09.2026, seither freigegeben und umgesetzt
-  (Schritte 1–3, siehe Abschnitt 8 für den nativen Teil). **Schritt 4
+  (Schritte 1–4, siehe Abschnitt 8 für den nativen Teil). **Schritt 4
   (Feinschliff: Tab-Label/Toast im Dunkeln, Rezeptfotos am Gerät
-  begutachten) und Schritt 5 (Kontrastanhebung im Hellen) stehen noch
-  aus.**
+  begutachten) ist damit abgeschlossen** — am Gerät bestätigt (29.09.2026):
+  Wechsel auf "System" greift ohne Neustart, Tab-Label und Toast passen im
+  Dunkeln, Rezeptfotos brauchen keine zusätzliche Abdunklung. Dabei
+  gefunden und gefixt: der Ring um das Tag-Tab-Hinweis-Badge stand im
+  Dunkeln in `--color-card` (dort fast Schwarz) und wirkte auf der
+  helleren, transluzenten Tab-Leiste wie ein schwarzer Umriss statt wie
+  ein "ausgestanztes" Badge — Fix nutzt im Dunkeln `--color-surface`
+  (siehe `TabLeiste.jsx`, laut Tokentabelle oben ohnehin für „Tabs“
+  vorgesehen). **Schritt 5 (Kontrastanhebung im Hellen) ist ein eigener,
+  separat priorisierter Folgeschritt und steht weiterhin aus** (siehe
+  Abschnitt 12, "Kontrast im hellen Modus").
 
 ---
 

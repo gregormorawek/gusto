@@ -29,7 +29,13 @@ function Toast({ nachricht }) {
             animate={{ opacity: 1, y: 0 }}
             exit={{ opacity: 0 }}
             transition={transitionFuer(reduzierteBewegung, FADE_UEBERGANG)}
-            className="flex items-center gap-1.5 rounded-full bg-text px-4 py-2 text-sm font-medium text-card shadow-lg"
+            // Dunkel: "Fläche erhöht" mit Rand statt der invertierten Pille -
+            // bewusst NICHT `border border-transparent` als Basis (das
+            // addiert im Hellen trotz Transparenz 1px Boxgroesse und
+            // vergroesserte sichtbar die Pille, per Pixelvergleich gefunden).
+            // border-WIDTH und -FARBE beide nur ueber dark:, damit die
+            // Border-Box im Hellen komplett unveraendert bleibt.
+            className="flex items-center gap-1.5 rounded-full bg-text px-4 py-2 text-sm font-medium text-card shadow-lg dark:border dark:border-border dark:bg-surface-raised dark:text-text"
             role="status"
           >
             <IconCheck size={16} stroke={3} className="shrink-0" />

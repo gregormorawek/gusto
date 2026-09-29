@@ -46,9 +46,14 @@ const TAB_PILLE_UEBERGANG = { duration: 0.28, ease: EXPO_OUT }
 // durchscheinender Ring liess das Badge auf dem Icon kaum vom Untergrund
 // abstechen (Feedback nach Real-Device-Test), ein deckender Ring setzt es
 // dagegen klar ab, wie bei iOS-App-Icon-Badges. Kein neuer Farbwert (CLAUDE.md)
-// - per box-shadow statt border, damit die Badge-Groesse dadurch nicht
+// - per box-shadow (als Tailwind-Arbitrary-Value, siehe Klasse am Badge
+// weiter unten) statt border, damit die Badge-Groesse dadurch nicht
 // veraendert wird.
-const TAG_BADGE_RING = '0 0 0 1.5px var(--color-card)'
+// Im Dunkeln (Real-Device-Test, Dark Mode Schritt 4) wirkte derselbe Ring in
+// --color-card (dort fast Schwarz) auf der helleren, transluzenten Tab-Leiste
+// wie ein schwarzer Umriss statt wie ein "ausgestanzter" Rand - deshalb dort
+// --color-surface (laut Tokentabelle in CLAUDE.md explizit fuer "Tabs"
+// vorgesehen, im Dunkeln deckend und deutlich heller als die Karte).
 
 function TabLeiste({ aktiverTab, onTabWaehlen, tagBadgeAnzahl = 0 }) {
   // Reduzierte Bewegung: die Pille soll NICHT mehr gleiten, sondern direkt
@@ -147,10 +152,9 @@ function TabLeiste({ aktiverTab, onTabWaehlen, tagBadgeAnzahl = 0 }) {
                     boxShadow statt border: setzt das Badge optisch vom
                     darunterliegenden Icon ab (wie ein iOS-App-Icon-Badge),
                     ohne durch eine echte border die Badge-Groesse zu
-                    veraendern - Ringfarbe ist TAG_BADGE_RING (siehe dort fuer
-                    die Herleitung: deckendes Karten-Weiss statt eines
-                    transluzenten Tons). Der Scale-Transform sitzt auf diesem
-                    Badge - einem
+                    veraendern - Ringfarbe siehe Herleitung weiter oben
+                    (deckendes Karten-Weiss im Hellen, --color-surface im
+                    Dunkeln). Der Scale-Transform sitzt auf diesem Badge - einem
                     NACHFAHREN der fixed positionierten <nav> - und erzeugt
                     dadurch keinen neuen Containing Block fuer irgendetwas
                     (die <nav> selbst bleibt unveraendert fixed, das Badge
@@ -163,8 +167,7 @@ function TabLeiste({ aktiverTab, onTabWaehlen, tagBadgeAnzahl = 0 }) {
                     initial={reduzierteBewegung ? { scale: 1 } : { scale: 1.35 }}
                     animate={{ scale: 1 }}
                     transition={reduzierteBewegung ? { duration: 0 } : SPRING_REVEAL}
-                    style={{ boxShadow: TAG_BADGE_RING }}
-                    className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-semibold text-on-secondary"
+                    className="absolute -right-2 -top-1.5 flex h-[18px] min-w-[18px] items-center justify-center rounded-full bg-secondary px-1 text-[10px] font-semibold text-on-secondary shadow-[0_0_0_1.5px_var(--color-card)] dark:shadow-[0_0_0_1.5px_var(--color-surface)]"
                   >
                     {tagBadgeAnzahl}
                   </motion.span>
@@ -173,7 +176,7 @@ function TabLeiste({ aktiverTab, onTabWaehlen, tagBadgeAnzahl = 0 }) {
             </span>
             <span
               className={`relative z-10 font-sans transition-colors duration-150 ${
-                aktiv ? 'text-[10px] font-semibold text-primary' : 'text-[9px] font-medium text-text/55'
+                aktiv ? 'text-[10px] font-semibold text-primary dark:text-text' : 'text-[9px] font-medium text-text/55'
               }`}
             >
               {label}
