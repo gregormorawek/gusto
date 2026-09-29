@@ -685,3 +685,56 @@ Flächen mit 4,58 sind ok), Nebentext auf `bg-text-muted/15` 3,65
 etwas dunkler. **Priorität: eigener Schritt DIREKT nach dem Dark Mode**
 (Gregor, 28.09.2026), nicht irgendwann — erst Dark Mode fertig und
 bestätigt, dann diese Kontrastanhebung mit Rücksprache zu den Werten.
+
+Einkaufsliste zeigt teils falsche Mengen/Einheiten (Befund 29.09.2026,
+nicht angefasst — Punkt 1 braucht ein neues Feld im Datenmodell,
+Rücksprache. **Priorität: eigener Schritt DIREKT nach der
+Kontrastanhebung im Hellen**, Gregor 29.09.2026):
+
+1. **Gekocht- statt Roh-Gewicht.** `rezept_zutaten.menge_g` steht bei
+   Getreide/Hülsenfrüchten im GEKOCHTEN Zustand (siehe Abschnitt 9,
+   `korrektur-getreide-gekocht.sql`) — die Einkaufsliste zeigt deshalb
+   z. B. Buchweizen mit 150 g oder Spaghetti mit 200 g, obwohl im
+   Geschäft die rohe Ware gekauft wird. Die Roh-Umrechnungsfaktoren
+   stecken heute nur im Korrektur-Skript (je `zutat_id` fest hinterlegt)
+   und wirken dort nur auf `anzeige_menge`/`anmerkung` (Kochmodus-Text),
+   nicht auf die tatsächliche Einkaufsmenge. **Lösungsidee:** den Faktor
+   als eigene Spalte (z. B. `roh_faktor`) in `zutaten` speichern statt
+   nur im Skript, damit Kochmodus-Anmerkung UND Einkaufsliste
+   (`zutatenAusRezeptKarte()` in `einkaufsliste.js`) aus derselben Quelle
+   rechnen statt auseinanderzulaufen.
+2. **Flüssigkeiten in Gramm statt Millilitern**, z. B. Milch mit 200 g
+   statt 200 ml — beim Abmessen unüblich. Betrifft vermutlich mehrere
+   `zutaten` (Milch, Buttermilch, Haferdrink, Kokosmilch, Brühen, Öle,
+   Sojasauce, Rot-/Weißwein, Zitronen-/Limettensaft, ...). Braucht eine
+   Entscheidung, ob pauschal umgerechnet wird (Dichte ≈ 1 g/ml trifft auf
+   die meisten davon zu) oder je Zutat einzeln.
+3. **Alte ASCII-Namen im Zutatenbestand** (per Abfrage gefunden,
+   29.09.2026, 232 Zutaten insgesamt durchsucht): 26 Einträge ohne
+   Umlaut/scharfes S, obwohl an anderer Stelle im selben Bestand korrekt
+   geschrieben wird (`Weißwein`, `Weißweinessig`, `Süßkartoffel`,
+   `Kürbiskernöl`, `Walnüsse` — also kein bewusstes Muster, sondern
+   Inkonsistenz):
+
+   | id | Name (aktuell) | id | Name (aktuell) |
+   |---|---|---|---|
+   | 36 | Bergkaese | 118 | Schafkaese |
+   | 139 | Erdnuesse | 152 | Schmelzkaese |
+   | 85 | Frischkaese | 74 | Sesamoel |
+   | 65 | Griess | 142 | Sonnenblumenoel |
+   | 168 | Gruenkohl | 141 | Walnussoel |
+   | 77 | Haselnuesse | 117 | Ziegenkaese |
+   | 50 | Huettenkaese | 110 | Weisse Bohnen |
+   | 124 | Kartoffelpueree | 156 | Weisskraut |
+   | 84 | Kokosoel | 89 | Rote Ruebe |
+   | 96 | Kuerbis | 140 | Rapsoel |
+   | 81 | Kuerbiskerne | 138 | Paranuesse |
+   | 103 | Leberkaese | 66 | Muesli |
+   | 73 | Leinoel | 137 | Macadamianuesse |
+
+   Reine Content-Korrektur (`update zutaten set name = ... where id =
+   ...`, `id` bleibt als Referenz unverändert) — keine Logik-Änderung.
+
+Alle drei Punkte sind Datenarbeit bzw. ein kleiner Datenmodell-Zusatz
+(Punkt 1), keine Architekturänderung — Umsetzung erst nach Gregors
+Freigabe und einem eigenen Plan.
