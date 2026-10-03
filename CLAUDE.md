@@ -709,6 +709,20 @@ möglichst auch vegan an den Rändern (vegane Snacks 150–330, vegane
 Frühstücke unter 550). Nach jedem neuen Paket `npm run schnappschuss` und
 diese Tabelle prüfen (siehe Abschnitt 9).
 
+**Neue Kartenanimation nach dem Bild-Umbau (vorgemerkt, nicht gebaut —
+Gregor, 03.10.2026):** Statt der leeren Attrappen hinter der Karte
+(`RezeptSchwipKarte.jsx`, die zwei `bg-card`-Streifen) liegt die **nächste
+echte Karte** fertig dahinter — mit Bild und Titel, wie bei Tinder. Fliegt
+die obere weg, ist die nächste sofort da. Lädt das Vollbild noch, zeigt sie
+das unscharfe 240-px-Vorschaubild (gehört zum Bild-Umbau: Cache-Control,
+WebP, Versionsnummer, Vorschaubilder). **Kein Cooldown auf den Knöpfen,
+Tipps bleiben jederzeit unterbrechbar.** Braucht wegen der Gesten-
+Vorgeschichte (Tap-vs-Drag-Wettrennen, geteilter `x`-MotionValue,
+Scroll-Lockdown) einen eigenen Plan und einen Gerätetest, bevor etwas
+gebaut wird. Heutiger Stand dazu: der Würfel-**Knopf** tauscht die Karte
+sofort (ohne Ausflug), der **Wisch** nach links hat noch den Ausflug mit
+kurzer leerer Zeit dahinter — genau das löst die neue Animation.
+
 Kontrast im hellen Modus: umgesetzt und am Gerät bestätigt, siehe
 Abschnitt 5 (nicht mehr Backlog).
 

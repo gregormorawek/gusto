@@ -1,4 +1,4 @@
-import { useEffect, useLayoutEffect, useRef, useState } from 'react'
+import { useLayoutEffect, useRef, useState } from 'react'
 import { AnimatePresence, animate, motion, useMotionValue, useReducedMotion, useTransform } from 'framer-motion'
 import { IconCheck, IconDice5, IconPhotoOff } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
@@ -21,12 +21,6 @@ import { SPRING_REVEAL, transitionFuer } from '../motionConfig'
 // keine Richtung vorhanden) nicht sinnvoll herleitbar, hier reicht dagegen
 // ein simples Weglassen des Enter-Fades.
 const KARTEN_AUSTRITT_FADE = { duration: 0.25, ease: 'easeOut' }
-
-// Maximale Wartezeit auf das Vorladen des neuen Rezept-Bilds, bevor der
-// Kartenwechsel TROTZDEM ausgeloest wird - siehe RezeptKarte.jsx fuer die
-// vollstaendige Herleitung (verhindert, dass eine sehr langsame Verbindung
-// die Wechsel-Animation unbegrenzt blockiert).
-const BILD_PRELOAD_TIMEOUT_MS = 1500
 
 // Ab welcher Ziehdistanz bzw. -geschwindigkeit ein Loslassen als "Swipe"
 // statt "zurueckschnappen" gilt - dieselbe Distanz/Geschwindigkeit-ODER-
@@ -64,9 +58,7 @@ function KartenBild({ url, alt, onError }) {
 
   return (
     <>
-      {!geladen && (
-        <div className="absolute inset-0 animate-pulse bg-secondary/10 motion-reduce:animate-none" aria-hidden="true" />
-      )}
+      {!geladen && <div className="absolute inset-0 bg-text-muted/15" aria-hidden="true" />}
       <img
         ref={bildRef}
         src={url}
@@ -83,7 +75,7 @@ function KartenBild({ url, alt, onError }) {
         // oben) abdecken - genau das war laut Real-Device-Test die
         // verbleibende Ursache fuer noch minimal moegliches horizontales
         // Verschieben trotz touch-action:pan-y auf dem Drag-Ziel-Element.
-        className={`absolute inset-0 h-full w-full select-none object-cover transition-opacity duration-200 [-webkit-touch-callout:none] [-webkit-user-drag:none] motion-reduce:transition-none ${
+        className={`absolute inset-0 h-full w-full select-none object-cover transition-opacity duration-500 [-webkit-touch-callout:none] [-webkit-user-drag:none] motion-reduce:transition-none ${
           geladen ? 'opacity-100' : 'opacity-0'
         }`}
       />
@@ -175,46 +167,12 @@ function RezeptSchwipKarte({
   // eigenen Reset-Effekt).
   const [fehlgeschlageneBildUrl, setFehlgeschlageneBildUrl] = useState(null)
 
-  // Das TATSAECHLICH angezeigte Rezept - bewusst vom rezept-Prop entkoppelt,
-  // identisches Preload-vor-Crossfade-Muster wie RezeptKarte.jsx (siehe
-  // dortiger Kommentar): wechselt erst, NACHDEM das neue Bild im
-  // Hintergrund vorgeladen wurde. Bei einem tatsaechlichen Swipe (siehe
-  // kartenAustreten) ist die alte Karte zu diesem Zeitpunkt bereits per x
-  // aus dem Bild geflogen, der Crossfade darunter faengt danach nur noch
-  // das Erscheinen der NEUEN Karte ab.
-  const [angezeigtesRezept, setAngezeigtesRezept] = useState(rezept)
-
-  useEffect(() => {
-    if (rezept?.id === angezeigtesRezept?.id) {
-      return undefined
-    }
-    if (!rezept?.bild_url) {
-      setAngezeigtesRezept(rezept)
-      return undefined
-    }
-
-    let abgebrochen = false
-    const wechseln = () => {
-      if (!abgebrochen) {
-        setAngezeigtesRezept(rezept)
-      }
-    }
-    const bild = new Image()
-    bild.onload = wechseln
-    bild.onerror = () => {
-      if (!abgebrochen) {
-        setFehlgeschlageneBildUrl(rezept.bild_url)
-      }
-      wechseln()
-    }
-    bild.src = rezept.bild_url
-    const timeoutId = setTimeout(wechseln, BILD_PRELOAD_TIMEOUT_MS)
-
-    return () => {
-      abgebrochen = true
-      clearTimeout(timeoutId)
-    }
-  }, [rezept, angezeigtesRezept])
+  // Die neue Karte erscheint SOFORT mit Titel, kcal und Makros - nie auf das
+  // Bild warten (Geraetetest 03.10.2026: das fruehere "Bild erst vorladen,
+  // dann wechseln" liess die Karte bei einem ~400-KB-Bild im Mobilnetz 1-4 s
+  // komplett leer, nachdem die alte schon ausgeflogen war). Das Bild blendet
+  // KartenBild weich ein, bis dahin steht ein ruhiger Platzhalter.
+  const angezeigtesRezept = rezept
 
   const karte = rezeptKarteDaten(angezeigtesRezept)
   const bildFehlgeschlagen = angezeigtesRezept && fehlgeschlageneBildUrl === angezeigtesRezept.bild_url
@@ -293,6 +251,21 @@ function RezeptSchwipKarte({
         onUebernehmen(angezeigtesRezept.id)
       }
     })
+  }
+
+  // Wuerfel-KNOPF: die neue Karte steht SOFORT da (alte blendet darunter aus,
+  // siehe KARTEN_AUSTRITT_FADE), ohne die Ausflug-Animation von
+  // kartenAustreten. Geraetetest 03.10.2026: bei schnellem Tippen flog die alte
+  // Karte jedes Mal ~0,4 s aus dem Bild, bevor die neue erschien - mehrere
+  // Tipps hintereinander ergaben eine Karte, die fast durchgehend leer war.
+  // Bewusst KEIN Cooldown: jeder Tipp wuerfelt sofort, Tipps wirken nie
+  // ignoriert. Der Wisch nach links (handleDragEnd) behaelt seinen Ausflug,
+  // weil die Karte dort physisch weggeworfen wird.
+  function wuerfelnPerKnopf() {
+    if (wuerfelnDeaktiviert) {
+      return
+    }
+    onWuerfeln()
   }
 
   function handleDragEnd(_event, info) {
@@ -537,7 +510,7 @@ function RezeptSchwipKarte({
         <div className="flex items-center justify-center gap-[26px]">
           <AnimatedButton
             type="button"
-            onClick={() => kartenAustreten(-1)}
+            onClick={wuerfelnPerKnopf}
             disabled={wuerfelnDeaktiviert}
             aria-label="Neu würfeln"
             className="flex h-[66px] w-[66px] items-center justify-center rounded-full border border-primary/40 bg-card text-primary shadow-sm disabled:opacity-40"

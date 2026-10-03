@@ -16,11 +16,18 @@
 // Einzelne fehlschlagende Bilder (onerror) werden einfach uebersprungen -
 // brechen NICHT die Kette ab, da der naechste Ladevorgang unabhaengig vom
 // Erfolg des vorherigen angestossen wird.
+// Merkt sich pro Sitzung, welche URLs schon angefordert wurden: das Vorladen
+// wird jetzt nach JEDEM Ziehen aufgerufen (App.jsx) und soll dieselbe URL nie
+// ein zweites Mal anfordern (Bucket-Bilder haben cache-control: no-cache, jede
+// Wiederholung waere eine Revalidierungs-Anfrage).
+const bereitsAngefordert = new Set()
+
 export function bilderImHintergrundVorladen(urls, parallelitaet = 2) {
   // Duplikate/leere Werte raus, bevor die Warteschlange befuellt wird -
   // erspart unnoetige Doppel-Requests, falls z. B. dieselbe URL bereits als
   // "zuerst gebrauchtes" Bild priorisiert UND Teil der Gesamtliste ist.
-  const warteschlange = [...new Set(urls.filter(Boolean))]
+  const warteschlange = [...new Set(urls.filter(Boolean))].filter((url) => !bereitsAngefordert.has(url))
+  warteschlange.forEach((url) => bereitsAngefordert.add(url))
 
   function naechstesLaden() {
     const url = warteschlange.shift()

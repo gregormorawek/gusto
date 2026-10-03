@@ -703,46 +703,44 @@ function App() {
     zutatenLaden()
   }, [])
 
-  // Laedt die Rezeptbilder (~30 kuratierte Rezepte) im Hintergrund vor, damit
-  // sie beim tatsaechlichen Anzeigen (erster Rezepte-Tab-Besuch, Wuerfeln)
-  // schon im Browser-Cache liegen - RezeptBild (RezeptSchwipKarte.jsx) startet
-  // dann sofort bei voller Deckkraft statt den Skeleton-Platzhalter zu
-  // zeigen (siehe dortiger img.complete-Check in RezeptBild). Bugfix-
-  // Hintergrund: der Skeleton aus commit 8817121 verhindert zwar die
-  // FALSCHE "kein Rezept"-Meldung, das Bild selbst braucht aber weiterhin
-  // eine Sekunde, wenn es beim ersten Erscheinen noch nie geladen wurde.
+  // Bilder-Vorladen im Hintergrund (Zeitpunkt bewusst erst NACH dem
+  // Startbildschirm, damit der Marken-Moment nicht mit Bild-Requests um
+  // Bandbreite konkurriert).
+  // Laeuft nach JEDEM Ziehen/Wechsel (nicht nur einmal beim Start), damit die
+  // naechsten Karten schon im Cache liegen, bevor man sie braucht. Doppelte
+  // Anforderungen verhindert bildVorladen.js (Set pro Sitzung).
   //
-  // Zeitpunkt bewusst NICHT "sofort beim App-Start" (waehrend rezepte noch
-  // leer ist, kaeme ohnehin nichts zum Vorladen zusammen) UND NICHT bevor
-  // der Startbildschirm fertig ist (zeigtStartbildschirm) - der Marken-
-  // Moment beim App-Start soll nicht mit ~30 Bild-Requests um Bandbreite/
-  // Hauptthread konkurrieren. Sobald BEIDE Bedingungen erfuellt sind (Daten
-  // da UND Startbildschirm weg), sind wir entweder im Wizard (neuer Nutzer -
-  // dort vergehen noch mehrere Interaktionsschritte bis "Alles bereit!")
-  // oder direkt in der Haupt-Ansicht (wiederkehrender Nutzer) - in BEIDEN
-  // Faellen bleibt genug Zeit, bevor der Rezepte-Tab ueberhaupt angefasst wird.
-  //
-  // bilderVorgeladenRef verhindert ein zweites Anstossen (z. B. durch React
-  // StrictModes doppelten Effekt-Aufruf in der Entwicklung, oder falls dieser
-  // Effekt aus einem anderen Grund erneut liefe) - das Vorladen soll pro
-  // Sitzung nur EINMAL starten.
-  const bilderVorgeladenRef = useRef(false)
+  // NICHT alle Rezeptbilder vorladen (Befund 03.10.2026): das waren bei jedem
+  // Kaltstart ~100 Bilder (~40 MB mobile Daten pro Nutzer und Start) und hat
+  // zusammen mit den Testlaeufen das Supabase-Egress-Kontingent gesprengt
+  // (70 GB bei 5 GB Limit). Stattdessen nur, was als Naechstes wirklich
+  // gebraucht wird:
+  //  (1) die jetzt sichtbaren Karten je Mahlzeit,
+  //  (2) im Wiederholungsschutz-Stapel (swipeStapel: reihenfolge/position,
+  //      siehe rezepteFilter.js - exakt die Reihenfolge, in der gewuerfelt
+  //      wird) die naechsten 3 Rezepte der AKTUELLEN Mahlzeit und das
+  //      naechste je anderer Mahlzeit (falls man die Mahlzeit wechselt).
+  // Ist ein Bild trotzdem noch nicht da, zeigt die Karte sofort Titel/Makros
+  // auf ruhigem Platzhalter und blendet das Bild ein (RezeptSchwipKarte.jsx).
+  // Hartes Limit pro Aufruf gegen unerwartet viele Eintraege.
   useEffect(() => {
-    if (bilderVorgeladenRef.current || rezepte.length === 0 || zeigtStartbildschirm) {
+    if (rezepte.length === 0 || zeigtStartbildschirm) {
       return
     }
-    bilderVorgeladenRef.current = true
-
-    // Priorisierung: die Bilder, die beim Oeffnen des Rezepte-Tabs SOFORT
-    // sichtbar waeren (bereits synchron in zutatenLaden oben ausgewuerfelt,
-    // siehe rezepteProMahlzeitState-Kommentar weiter oben), zuerst - deckt
-    // den im Auftrag genannten "Alles bereit!" -> Rezepte-Fall sofort ab.
-    // Danach der Rest aller Rezepte in Datenbank-Reihenfolge, im Hintergrund
-    // "troepfelnd" (siehe bildVorladen.js).
+    const VORLADE_LIMIT = 12
+    const LOOKAHEAD_AKTUELLE_MAHLZEIT = 3
+    const LOOKAHEAD_ANDERE_MAHLZEIT = 1
+    const bildNachId = new Map(rezepte.map((r) => [r.id, r.bild_url]))
     const prioritaet = Object.values(rezepteProMahlzeitState).map((eintrag) => eintrag?.rezept?.bild_url)
-    const rest = rezepte.map((r) => r.bild_url)
-    bilderImHintergrundVorladen([...prioritaet, ...rest], 2)
-  }, [rezepte, zeigtStartbildschirm, rezepteProMahlzeitState])
+    const lookahead = aktiveMahlzeitenFuer(aktiveMahlzeiten).flatMap(({ slug }) => {
+      const eigenschaft = rezepteProMahlzeitState[slug]?.eigenschaft ?? ''
+      const eintrag = swipeStapel?.[slug]?.[filterSchluesselFuer(diaeten, eigenschaft)]
+      const anzahl = slug === rezepteAktuelleMahlzeit ? LOOKAHEAD_AKTUELLE_MAHLZEIT : LOOKAHEAD_ANDERE_MAHLZEIT
+      return (eintrag?.reihenfolge ?? []).slice(eintrag?.position ?? 0, (eintrag?.position ?? 0) + anzahl).map((id) => bildNachId.get(id))
+    })
+    const zuLaden = [...new Set([...prioritaet, ...lookahead].filter(Boolean))].slice(0, VORLADE_LIMIT)
+    bilderImHintergrundVorladen(zuLaden, 2)
+  }, [rezepte, zeigtStartbildschirm, rezepteProMahlzeitState, swipeStapel, rezepteAktuelleMahlzeit, aktiveMahlzeiten, diaeten])
 
   // Wird von ZielEinstellungen aufgerufen, wenn der User einen anderen
   // Ziel-Typ waehlt. Die Kalorienzahl bleibt dabei erhalten, damit sie beim
