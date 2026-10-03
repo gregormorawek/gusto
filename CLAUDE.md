@@ -473,6 +473,26 @@ Asset-Katalog-„luminosity“-Erscheinung, kein eigener Code nötig.
 `capacitor.config.json`s `SplashScreen.backgroundColor` ist entfernt
 (hätte sonst immer Hell über den nativen Splash gelegt, auch im Dunkeln).
 
+**Text-Interaktion (03.10.2026):** Markieren auf Oberflächentext ist app-
+weit abgeschaltet: `index.css` setzt `user-select: none` +
+`-webkit-touch-callout: none` auf `html` (per Messung auf jedem Element
+wirksam), Ausnahme `input`/`textarea`/`[contenteditable]`, dazu
+`touch-action: manipulation` auf `*` (verhindert Zoomen per Doppeltipp;
+Wischen, Würfeln, Scrollen und Eingabefelder am Gerät unverändert
+bestätigt). **Bekannt und bewusst akzeptiert (Gregor, 03.10.2026):** die
+iOS-Lupe beim Doppeltippen + Ziehen über Text erscheint weiterhin — sie
+gehört zu den nativen Text-Gesten der WKWebView, tritt nur bei einer
+seltenen Geste auf und schadet nicht. **Verworfen:**
+- `WKPreferences.isTextInteractionEnabled = false` — schaltet die Lupe ab,
+  aber getippte Zahlen kamen in Eingabefeldern (Kalorienrechner,
+  Zielwerte) nicht mehr an. Eingabefelder haben Vorrang vor der Lupe;
+  nicht erneut versuchen.
+- Text-Interaktion nur bei nicht fokussiertem Eingabefeld umschalten
+  (Fokus/Blur per Bridge an Swift) — zu fragil: der Wechsel müsste vor
+  dem Tastatur-Aufbau passieren, hängt von iOS-Interna ab und kostet pro
+  Tipp einen Bridge-Roundtrip.
+Der Scroll-Lockdown ist davon unberührt.
+
 **Xcode-Rebuild nötig, `npx cap sync ios` reicht NICHT** — es wurde neuer
 Swift-Code hinzugefügt (`ThemeBridge.swift`, in `project.pbxproj`
 eingetragen) und `Info.plist`/`SceneDelegate.swift`/`MainViewController.swift`

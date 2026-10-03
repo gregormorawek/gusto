@@ -12,6 +12,7 @@
     "test:einkaufsliste": "node --test scripts/teste-einkaufsliste.mjs",
     "test:bildanzahl": "node scripts/teste-bildanzahl-app.mjs",
     "test:karte-netz": "node scripts/teste-karte-langsames-netz-app.mjs",
+    "test:markieren": "node scripts/teste-markieren-app.mjs",
     "pruefe:stueck": "node scripts/pruefe-stueck-rundung.mjs",
     "schnappschuss": "node scripts/erzeuge-rezepte-schnappschuss.mjs",
     "pruefe:farben": "node scripts/pruefe-farben.mjs",

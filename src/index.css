@@ -122,6 +122,36 @@ body {
   font-family: var(--font-sans);
 }
 
+/* Native Apps lassen Beschriftungen nicht markieren (Geraetetest 03.10.2026:
+   beim schnellen Tippen auf den Wuerfel wurde der Hinweistext markiert,
+   Auswahl-Griffe + Menue "Kopieren / Nachschlagen / Uebersetzen"). Gilt app-
+   weit fuer Oberflaechentext; -webkit-touch-callout unterdrueckt zusaetzlich
+   das iOS-Kontextmenue bei langem Druecken (Bilder, Links).
+   Eingabefelder MUESSEN ausgenommen bleiben: in WebKit ist ein Feld mit
+   user-select:none nicht mehr bedienbar (Zahleneingabe im Kalorienrechner). */
+html {
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-touch-callout: none;
+}
+
+/* touch-action: manipulation app-weit: schaltet Doppeltipp-Gesten ab (Zoom per
+   Doppeltipp, und - zu pruefen am Geraet - den Auftakt der iOS-Lupe beim
+   Doppeltippen+Ziehen), laesst Scrollen/Pinch und vor allem Eingaben
+   unberuehrt. Specificity 0 (`*`): jede Tailwind-Klasse (touch-pan-y, ...)
+   und jedes inline touchAction (Karte: 'pan-y') gewinnt weiterhin. */
+* {
+  touch-action: manipulation;
+}
+
+input,
+textarea,
+[contenteditable='true'] {
+  -webkit-user-select: text;
+  user-select: text;
+  -webkit-touch-callout: default;
+}
+
 /* App-Shell-Pattern fuer Capacitor/WKWebView (iOS-Build, siehe ios/App).
    OHNE diese Regeln ist html/body selbst der Scroll-Container der Seite -
    in einer WKWebView fuehrt das dazu, dass "position: fixed"-Elemente
