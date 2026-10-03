@@ -1,4 +1,4 @@
--- ZULETZT AUSGEFUEHRT: 2026-09-25 (nach Rezepte-Paket 4, Stand 70 Rezepte).
+-- ZULETZT AUSGEFUEHRT: 2026-09-30 (Einkaufslisten-Umbau, Stand 100 Rezepte).
 -- Wiederholbar - siehe CLAUDE.md Abschnitt 9: nach jedem neuen
 -- Rezepte-Paket erneut ausfuehren, nicht als einmalig erledigt markieren.
 --
@@ -20,6 +20,14 @@
 -- Nur so passt die Anmerkung exakt zu den berechneten Naehrwerten.
 -- Gerundet auf 5 g.
 --
+-- Seit dem Einkaufslisten-Umbau (30.09.2026, CLAUDE.md Abschnitt 12) steht
+-- der Faktor selbst in zutaten.roh_faktor (EINE Quelle statt zwei) - dieses
+-- Skript und die Einkaufsliste (einkaufsMengeFormatieren in
+-- einkaufsliste.js) lesen beide von dort, statt den Faktor je einmal
+-- hartcodiert zu halten. Nur das WORT nach der Zahl ("roh"/"getrocknet"/
+-- "Polentagrieß") ist reine Beschriftung ohne eigenen Rechenwert und bleibt
+-- deshalb als kleine Ausnahmeliste hier stehen.
+--
 -- Die Naehrwerte der Rezepte aendern sich NICHT - menge_g bleibt, es
 -- aendert sich nur die Anzeige. Keine Neuberechnung noetig.
 --
@@ -36,32 +44,24 @@
 begin;
 
 -- ------------------------------------------------------------
--- Teil 1: Anmerkungen fuer gekochte Getreide und Huelsenfruechte
+-- Teil 1: Anmerkungen fuer gekochte Getreide und Huelsenfruechte -
+-- Faktor kommt aus zutaten.roh_faktor, nur das "rohwort" bleibt als
+-- Ausnahmeliste (Standard 'roh', siehe COALESCE unten).
 -- ------------------------------------------------------------
 update rezept_zutaten rz
 set anzeige_menge   = rz.menge_g,
     anzeige_einheit = 'g',
     anmerkung       = 'gekocht, ca. '
-                      || greatest(5, round(rz.menge_g / f.faktor / 5) * 5)::int
-                      || ' g ' || f.rohwort
-from (values
-  (5,   2.7,  'roh'),            -- Reis
-  (18,  2.8,  'roh'),            -- Vollkornnudeln
-  (20,  3.0,  'roh'),            -- Hirse
-  (28,  2.9,  'getrocknet'),     -- Linsen
-  (58,  3.15, 'roh'),            -- Vollkornreis
-  (59,  3.05, 'roh'),            -- Quinoa
-  (60,  3.7,  'roh'),            -- Buchweizen
-  (63,  3.35, 'roh'),            -- Couscous
-  (64,  2.8,  'roh'),            -- Vollkornpenne
-  (108, 2.9,  'getrocknet'),     -- Rote Linsen
-  (119, 2.85, 'roh'),            -- Naturreis
-  (120, 2.9,  'roh'),            -- Basmatireis
-  (121, 3.5,  'roh'),            -- Wildreis
-  (123, 4.2,  'Polentagrieß'),   -- Polenta
-  (220, 2.25, 'roh')             -- Spaghetti (gekocht)
-) as f(zutat_id, faktor, rohwort)
-where rz.zutat_id = f.zutat_id;
+                      || greatest(5, round(rz.menge_g / z.roh_faktor / 5) * 5)::int
+                      || ' g ' || coalesce(w.rohwort, 'roh')
+from zutaten z
+left join (values
+  (28,  'getrocknet'),     -- Linsen
+  (108, 'getrocknet'),     -- Rote Linsen
+  (123, 'Polentagrieß')    -- Polenta
+) as w(zutat_id, rohwort) on w.zutat_id = z.id
+where rz.zutat_id = z.id
+  and z.roh_faktor is not null;
 
 
 -- ------------------------------------------------------------
@@ -73,7 +73,7 @@ where id in (
   217,  -- Semmelknoedel (gekocht)
   218,  -- Spaetzle (gekocht)
   219,  -- Gnocchi (Fertigpackung)
-  220,  -- Spaghetti (gekocht)
+  220,  -- Spaghetti (fertig gekocht verkauft, siehe Fertigkomponenten oben)
   221,  -- Weizentortilla / Wrap
   222   -- Blaetterteig
 );
@@ -88,7 +88,7 @@ select r.id, r.titel, z.name, rz.menge_g, rz.anmerkung
 from rezept_zutaten rz
 join zutaten z on z.id = rz.zutat_id
 join rezepte r on r.id = rz.rezept_id
-where rz.zutat_id in (5,18,20,28,58,59,60,63,64,108,119,120,121,123,220)
+where z.roh_faktor is not null
 order by r.id;
 
 select id, name, ist_grundzutat

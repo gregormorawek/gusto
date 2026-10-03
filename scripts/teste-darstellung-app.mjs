@@ -6,6 +6,7 @@
 // Voraussetzung: Dev-Server laeuft (npm run dev -- --port 5199).
 // Aufruf: node scripts/teste-darstellung-app.mjs [http://localhost:5199]
 import { chromium, webkit } from 'playwright'
+import { supabaseOfflineEinrichten } from './hilfen/offline-supabase.mjs'
 
 const URL_APP = process.argv[2] ?? 'http://localhost:5199'
 const VIEWPORTS = [
@@ -38,6 +39,7 @@ async function neueSeite(browserTyp, viewport, { os, darstellung = null, onboard
     },
     { darstellung, onboarding }
   )
+  await supabaseOfflineEinrichten(kontext)
   const seite = await kontext.newPage()
   await seite.goto(URL_APP)
   return { browser, seite }

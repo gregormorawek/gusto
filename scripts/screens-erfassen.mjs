@@ -17,6 +17,7 @@
 // Screenshots: <out>/<engine>-<breite>x<hoehe>/<name>.png
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { chromium, webkit } from 'playwright'
+import { supabaseOfflineEinrichten } from './hilfen/offline-supabase.mjs'
 
 const args = Object.fromEntries(
   process.argv
@@ -246,6 +247,7 @@ async function szenarioLaufen(engineName, viewport, sz) {
       },
       { ls, ohneOnboarding: !!sz.ohneOnboarding, startbildschirmStehenLassen: !!sz.startbildschirmStehenLassen, darstellung: DARSTELLUNG }
     )
+    await supabaseOfflineEinrichten(kontext)
     const seite = await kontext.newPage()
     await seite.goto(URL_APP)
 

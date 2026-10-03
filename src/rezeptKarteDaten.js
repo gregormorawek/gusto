@@ -27,6 +27,13 @@ export function rezeptKarteDaten(rezept) {
       kategorie: rezeptZutat.zutaten.kategorie,
       supermarktKategorie: rezeptZutat.zutaten.supermarkt_kategorie,
       istGrundzutat: rezeptZutat.zutaten.ist_grundzutat,
+      // Fuer die Einkaufsliste (siehe einkaufsliste.js) - Roh-Faktor bei
+      // gekochten Getreide/Huelsenfruechten, Einkaufseinheit + Gewicht pro
+      // Stueck/Zehe bei Zutaten, die stueckweise gekauft werden. Wirkt NUR
+      // auf die Anzeige der Einkaufsliste, nicht auf Naehrwerte/Kochmodus.
+      rohFaktor: rezeptZutat.zutaten.roh_faktor,
+      einkaufseinheit: rezeptZutat.zutaten.einkaufseinheit,
+      einheitengewichtG: rezeptZutat.zutaten.einheitengewicht_g,
       mengeG: rezeptZutat.menge_g,
       anzeigeMenge: rezeptZutat.anzeige_menge,
       anzeigeEinheit: rezeptZutat.anzeige_einheit,

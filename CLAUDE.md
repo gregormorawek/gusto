@@ -75,6 +75,23 @@ sie die App schöner, einfacher und begehrenswerter macht.
 - Lokal ist neben Chromium auch WebKit installiert (devDependency). Für alles,
   was Flex, aspect-ratio, backdrop-filter oder Scroll betrifft: dort
   gegenprüfen, nicht nur in Chromium.
+- **Kein automatisierter Test greift live auf Supabase zu** (Regel, ab
+  03.10.2026 — auch mit Pro-Plan und Ausgabenbremse). Das Egress-Kontingent
+  wurde schon zweimal gesprengt (zuletzt 70 GB bei 5 GB Limit, davon 47,9 GB
+  am Tag der Dark-Mode-Pixelvergleiche: jeder frische Browser lud alle
+  Rezeptbilder). Daten kommen aus dem Schnappschuss
+  (`scripts/testdaten/app-rezepte-schnappschuss.json`), Bilder sind
+  Platzhalter. Jedes Browser-Skript ruft direkt nach `newContext()` und vor
+  dem ersten `goto()` `supabaseOfflineEinrichten(kontext)` aus
+  `scripts/hilfen/offline-supabase.mjs` auf (REST → Schnappschuss, Storage →
+  1×1-PNG, alles andere leer). Neue Skripte folgen derselben Regel;
+  Logik-Skripte (`pruefe:stueck`, `test:budget`) lesen nur die
+  Schnappschuss-Dateien. **Einzige Ausnahme:** `npm run schnappschuss`
+  (erzeugt die Schnappschüsse, genau zwei Daten-Anfragen, keine Bilder) —
+  nach jedem Rezepte-Paket oder jeder Mengenänderung von Hand laufen lassen.
+  Hinweis: Pixelvergleiche (`screens-erfassen`/`-vergleichen`) laufen jetzt
+  mit Platzhalterbildern — die Referenz muss einmalig mit demselben Stand neu
+  erfasst werden, alte Referenzen mit echten Fotos sind nicht vergleichbar.
 - Bereits behobene und bestätigte Bugs sind ein Vertrag. Wenn eine Änderung
   ein altes Verhalten brechen könnte — besonders bei nativen oder Touch-
   Eingriffen — vorher nennen und danach gegenprüfen.

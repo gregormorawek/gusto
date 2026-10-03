@@ -506,8 +506,14 @@ function App() {
     setEinkaufsliste((aktuell) => abgehakteEntfernen(aktuell))
   }
 
+  // Leeren setzt auch die "hinzugefuegt"-Markierungen zurueck: sonst gilt eine
+  // bereits hinzugefuegte Mahlzeit nach dem Leeren weiter als erledigt und
+  // wird beim nächsten "Zur Einkaufsliste" stillschweigend übersprungen.
+  // "Abgehakte entfernen" lässt sie bewusst stehen (die Mahlzeit wurde ja
+  // eingekauft/gekocht, kein Grund, sie erneut anzubieten).
   function einkaufslisteLeeren() {
     setEinkaufsliste([])
+    setTagesauswahl((aktuell) => ({ ...aktuell, hinzugefuegt: {} }))
   }
 
   // Wird vom Wizard aufgerufen, sobald der User auf Schritt 3 (letzter
@@ -655,7 +661,7 @@ function App() {
             'anleitung, zubereitungszeit_min, ' +
             'portionen, tipps, kcal_pro_portion, protein_pro_portion, carbs_pro_portion, fett_pro_portion, ' +
             'rezept_zutaten(zutat_id, menge_g, anzeige_menge, anzeige_einheit, anmerkung, optional, sortierung, ' +
-            'zutaten(id, name, kategorie, supermarkt_kategorie, ist_grundzutat))'
+            'zutaten(id, name, kategorie, supermarkt_kategorie, ist_grundzutat, roh_faktor, einkaufseinheit, einheitengewicht_g))'
         )
         .order('sortierung', { referencedTable: 'rezept_zutaten' })
 

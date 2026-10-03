@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { AnimatePresence, motion, useReducedMotion } from 'framer-motion'
 import { IconCheck, IconShoppingCart } from '@tabler/icons-react'
 import AnimatedButton from './AnimatedButton'
-import { postenSchluessel } from '../einkaufsliste'
+import { einkaufsMengeFormatieren, postenSchluessel } from '../einkaufsliste'
 import { FADE_UEBERGANG, SPRING_REVEAL, motionPropsFuer, transitionFuer } from '../motionConfig'
 
 // Anzeige-Reihenfolge/-Label der 5 supermarkt-orientierten Abschnitte (siehe
@@ -72,7 +72,7 @@ function EinkaufslistenPosten({ posten, onAbhaken }) {
         {posten.name}
       </span>
       <span className={`shrink-0 text-xs transition-colors duration-150 ${posten.abgehakt ? 'text-text-muted/50' : 'text-text-muted'}`}>
-        {Math.round(posten.mengeG)} g
+        {einkaufsMengeFormatieren(posten)}
       </span>
     </li>
   )

@@ -11,6 +11,7 @@
 // Aufruf: node scripts/teste-tagesrest-app.mjs [http://localhost:5199]
 import { readFileSync } from 'node:fs'
 import { chromium, webkit } from 'playwright'
+import { supabaseOfflineEinrichten } from './hilfen/offline-supabase.mjs'
 
 const URL_APP = process.argv[2] ?? 'http://localhost:5199'
 const SHOTS = process.env.SCREENSHOT_DIR
@@ -101,6 +102,7 @@ async function lauf(browserTyp, viewport, sz) {
       },
       { zielWert, aktive, picks: sz.picks }
     )
+    await supabaseOfflineEinrichten(kontext)
     const seite = await kontext.newPage()
     await seite.goto(URL_APP)
     await seite.locator('[aria-label="Neu würfeln"]').waitFor({ timeout: 15000 })

@@ -1,8 +1,9 @@
-import { rezeptKarteDaten } from './rezeptKarteDaten'
+import { rezeptKarteDaten } from './rezeptKarteDaten.js'
 
 // Reine Datenlogik fuer die Einkaufsliste (kein React), analog zu
 // portionenRechner.js. Datenmodell pro Posten:
-// { zutatId, name, kategorie, supermarktKategorie, mengeG, abgehakt }.
+// { zutatId, name, kategorie, supermarktKategorie, mengeG, abgehakt,
+//   rohFaktor, einkaufseinheit, einheitengewichtG }.
 //
 // kategorie wird 1:1 aus der jeweiligen Zutat uebernommen (Supabase-Wert,
 // z. B. 'protein'/'carbs'/'fett'/'gemuese'/'obst') - bewusst NICHT hier beim
@@ -13,6 +14,14 @@ import { rezeptKarteDaten } from './rezeptKarteDaten'
 // in EinkaufslisteAnsicht.jsx. Fuer Listeneintraege, die vor Einfuehrung
 // dieser Spalte im localStorage gespeichert wurden, faengt
 // einkaufslisteLaden() unten das Fehlen mit 'sonstiges' ab.
+//
+// rohFaktor/einkaufseinheit/einheitengewichtG (Umbau 30.09.2026, siehe
+// CLAUDE.md Abschnitt 12): kommen ebenfalls 1:1 aus der Zutat (Supabase-
+// Spalten roh_faktor/einkaufseinheit/einheitengewicht_g) und wirken NUR auf
+// die Anzeige (einkaufsMengeFormatieren unten) - mengeG bleibt der reine
+// Gramm-Wert und einzige Grundlage der Summierung in zutatenHinzufuegen,
+// exakt wie zuvor. Alte Listeneintraege ohne diese Felder fallen in
+// einkaufslisteLaden() auf 'g' (keine Umrechnung) zurueck.
 
 export const EINKAUFSLISTE_LOCALSTORAGE_KEY = 'gusto-einkaufsliste'
 
@@ -40,7 +49,7 @@ export function einkaufslisteLaden() {
     if (!Array.isArray(geparst)) {
       return []
     }
-    return geparst.map((posten) => ({ supermarktKategorie: 'sonstiges', ...posten }))
+    return geparst.map((posten) => ({ supermarktKategorie: 'sonstiges', einkaufseinheit: 'g', ...posten }))
   } catch {
     return []
   }
@@ -82,9 +91,11 @@ export function abgehakteEntfernen(liste) {
 // Baut aus einer bereits gelesenen Rezept-"karte" (siehe rezeptKarteDaten.js:
 // karte.zutaten, echte Mengen aus rezept_zutaten) die Zutaten-Eintraege fuer
 // die Einkaufsliste - beliebig viele statt der vier alten Slots. Nur die vom
-// Posten-Modell benoetigten Felder werden uebernommen (anzeigeMenge/
-// anzeigeEinheit/anmerkung/optional sind fuer die Einkaufsliste ohne
-// Bedeutung, siehe Plan Schritt 5: der Einheiten-Mix ist noch kein Thema).
+// Posten-Modell benoetigten Felder werden uebernommen - anzeigeMenge/
+// anzeigeEinheit/anmerkung/optional sind PRO REZEPT-ZEILE (Kochmodus-
+// Anzeige, z. B. "1 EL") und bleiben fuer die Einkaufsliste ohne Bedeutung;
+// rohFaktor/einkaufseinheit/einheitengewichtG sind dagegen PRO ZUTAT
+// (Einkaufslisten-Umbau, siehe Dateikopf) und werden uebernommen.
 export function zutatenAusRezeptKarte(karte) {
   return karte.zutaten.map((zutat) => ({
     zutatId: zutat.zutatId,
@@ -92,7 +103,47 @@ export function zutatenAusRezeptKarte(karte) {
     kategorie: zutat.kategorie,
     supermarktKategorie: zutat.supermarktKategorie,
     mengeG: zutat.mengeG,
+    rohFaktor: zutat.rohFaktor,
+    einkaufseinheit: zutat.einkaufseinheit ?? 'g',
+    einheitengewichtG: zutat.einheitengewichtG,
   }))
+}
+
+// Formatiert die Menge EINES (bereits ueber mehrere Rezepte summierten)
+// Postens fuer die Anzeige - reine Funktion, kein Runden/Umrechnen an
+// anderer Stelle (siehe Kommentar oben: mengeG bleibt beim Summieren immer
+// reines Gramm).
+//
+// 'g'/'ml': Getreide/Huelsenfruechte mit rohFaktor stehen in mengeG im
+// GEKOCHTEN Gewicht (siehe Abschnitt 9 in CLAUDE.md) - fuers Einkaufen erst
+// durch den Faktor teilen, um das Rohgewicht zu zeigen. 'ml' aendert nur
+// das Einheiten-Wort (Dichte ~1, siehe CLAUDE.md), nicht die Zahl.
+//
+// 'stueck'/'zehe': Aufrunden mit 15 % Toleranz statt reinem Math.ceil, sonst
+// wird aus rundungsbedingten 1,07 Stueck (z. B. eine minimal groessere
+// Paprika als das hinterlegte Einheitengewicht) faelschlich "2 Stück" -
+// siehe CLAUDE.md Abschnitt 12/9 fuer die Herleitung der Einheitengewichte
+// (mindestens so gross wie die groesste "1 Stück"-Verwendung in den
+// Rezepten, gegen alle Rezepte validiert). Mindestens 1, sonst wuerden aus
+// kleinen Mengen (z. B. 0,4 Paprika) null.
+const STUECK_TOLERANZ = 0.15
+
+export function einkaufsMengeFormatieren(posten) {
+  const einheit = posten.einkaufseinheit ?? 'g'
+
+  if (einheit === 'stueck' || einheit === 'zehe') {
+    const anzahl = Math.max(1, Math.ceil(posten.mengeG / posten.einheitengewichtG - STUECK_TOLERANZ))
+    const wort = einheit === 'stueck' ? 'Stück' : anzahl === 1 ? 'Zehe' : 'Zehen'
+    return `${anzahl} ${wort}`
+  }
+
+  // Umgerechnetes Rohgewicht nur in der ANZEIGE auf 5 g runden ("89 g" ist auf
+  // einer Einkaufsliste sinnlos genau) - mengeG selbst bleibt beim Summieren
+  // exaktes Gramm. Mindestens 5 g, sonst wuerde aus Kleinstmengen "0 g".
+  if (posten.rohFaktor) {
+    return `${Math.max(5, Math.round(posten.mengeG / posten.rohFaktor / 5) * 5)} ${einheit}`
+  }
+  return `${Math.round(posten.mengeG)} ${einheit}`
 }
 
 // Baut aus der tagesaktuellen Rezept-Auswahl (Rezepte-Swipe-Pivot, siehe

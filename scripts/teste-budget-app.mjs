@@ -11,6 +11,7 @@ import { readFileSync } from 'node:fs'
 import { chromium, webkit } from 'playwright'
 import { korridorFuerMahlzeit, passendeRezeptIds } from '../src/budgetFilter.js'
 import { gefiltertePoolFuerRezepte } from '../src/rezepteFilter.js'
+import { supabaseOfflineEinrichten } from './hilfen/offline-supabase.mjs'
 
 const URL_APP = process.argv[2] ?? 'http://localhost:5199'
 const rezepte = JSON.parse(readFileSync(new URL('./testdaten/rezepte-schnappschuss.json', import.meta.url)))
@@ -37,6 +38,7 @@ async function neueSeite(browserTyp, viewport, zielWert) {
     localStorage.setItem('gusto-app-bereits-geoeffnet', 'true')
     localStorage.setItem('gusto-ziel', JSON.stringify(z))
   }, zielWert)
+  await supabaseOfflineEinrichten(kontext)
   const seite = await kontext.newPage()
   await seite.goto(URL_APP)
   // Flag 'gusto-app-bereits-geoeffnet' = Folgebesuch: der Startbildschirm
